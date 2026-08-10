@@ -1,5 +1,5 @@
 Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date
-Skill,1.0,Python,"Abdallah-Allam
+Skill,1,Python,"Abdallah-Allam
 Abdelrahman M. Abdel-Fattah
 Mohamed H. Shaban
 Youssef Hammam Masoud
@@ -29,5 +29,5 @@ Mostafa Ahmed Sayed
 Ezzat A. Ahmed Mbrok
 Fares Ibrahim Mohamed
 Ibrahim Faraj Abdel-Mawgoud",2026-07-30
-Meet,2.0,bbb,"Abdallah-Allam
+Meet,2,bbb,"Abdallah-Allam
 ",Abdallah-Allam,2026-07-30

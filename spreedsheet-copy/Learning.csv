@@ -1,25 +1,23 @@
-Topic name,Track ID,Track Name,Obligability,Platform,Link
-AI for Everyone,1.0,"AI for Everyone
-",Mandatory,DeepLearning,https://www.deeplearning.ai/courses/ai-for-everyone
-Generative AI for Everyone,1.0,"AI for Everyone
-",Mandatory,DeepLearning,https://www.deeplearning.ai/courses/generative-ai-for-everyone
-AI Prompting for Everyone,2.0,Foundations & Prompting,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/ai-prompting-for-everyone
-Large Multimodal Model Prompting with Gemini,2.0,Foundations & Prompting,Optional,DeepLearning,https://learn.deeplearning.ai/courses/large-multimodal-model-prompting-with-gemini/information
-Reasoning with o1,2.0,Foundations & Prompting,Optional,DeepLearning,https://www.deeplearning.ai/courses/reasoning-with-o1
-Open Source Models with Hugging Face,2.0,Foundations & Prompting,Optional,DeepLearning,https://www.deeplearning.ai/courses/open-source-models-hugging-face
-Gemini CLI: Code & Create,3.0,AI Coding Assistants & App Development,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent
-Spec-Driven Development with Coding Agents,3.0,AI Coding Assistants & App Development,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/spec-driven-development-with-coding-agents
-Pair Programming with a Large Language Model,3.0,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/pair-programming-llm
-Building Gen AI Applications with Gradio,3.0,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/huggingface-gradio
-Pydantic for LLM Workflows,3.0,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/pydantic-for-llm-workflows
-Understanding and Applying Text Embeddings,4.0,"Data, Search & RAG",Mandatory,DeepLearning,https://learn.deeplearning.ai/courses/google-cloud-vertex-ai/information
-LangChain Chat with Your Data,4.0,"Data, Search & RAG",Mandatory,DeepLearning,learn.deeplearning.ai/courses/langchain-chat-with-your-data/information
-Large Language Models with Semantic Search,4.0,"Data, Search & RAG",Optional,DeepLearning,https://www.deeplearning.ai/courses/large-language-models-semantic-search
-Semantic Caching for AI Agents,4.0,"Data, Search & RAG",Optional,DeepLearning,https://www.deeplearning.ai/courses/semantic-caching-for-ai-agents
-Knowledge Graphs for RAG,4.0,"Data, Search & RAG",Optional,DeepLearning,learn.deeplearning.ai/courses/knowledge-graphs-rag/information
-,5.0,AI Agents & Workflows,,DeepLearning,
-,6.0,Evaluation & Safety,,DeepLearning,
-,7.0,"Fine-Tuning, Optimization & LLMOps",,DeepLearning,
-C Programming From Basics to Mastery,8.0,C & Embedded systems,Mandatory,MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247
-Embedded C: Hardware Essentials and Device Driver Development,8.0,C & Embedded systems,Mandatory,MaharaTech,https://maharatech.gov.eg/course/view.php?id=2271
-PCB Design Essentials: A Practical Guide to Innovation,9.0,Electronics & PCB Desing,Mandatory,,
+Course Name,Track ID,Track Name,Track Overview,Mandatory/Optional,Platform,Estimated Hours,Course URL
+AI for Everyone,1,AI for Everyone,"Introduction to Artificial Intelligence concepts, workflows, and business applications.",Mandatory,DeepLearning,4,https://www.deeplearning.ai/courses/ai-for-everyone
+Generative AI for Everyone,1,AI for Everyone,"Introduction to Artificial Intelligence concepts, workflows, and business applications.",Mandatory,DeepLearning,5,https://www.deeplearning.ai/courses/generative-ai-for-everyone
+AI Prompting for Everyone,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Mandatory,DeepLearning,3,https://www.deeplearning.ai/courses/ai-prompting-for-everyone
+Large Multimodal Model Prompting with Gemini,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,4,https://learn.deeplearning.ai/courses/large-multimodal-model-prompting-with-gemini/information
+Reasoning with o1,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,2,https://www.deeplearning.ai/courses/reasoning-with-o1
+Open Source Models with Hugging Face,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,6,https://www.deeplearning.ai/courses/open-source-models-hugging-face
+Gemini CLI: Code & Create,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Mandatory,DeepLearning,6,https://www.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent
+Spec-Driven Development with Coding Agents,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Mandatory,DeepLearning,8,https://www.deeplearning.ai/courses/spec-driven-development-with-coding-agents
+Pair Programming with a Large Language Model,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,4,https://www.deeplearning.ai/courses/pair-programming-llm
+Building Gen AI Applications with Gradio,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,5,https://www.deeplearning.ai/courses/huggingface-gradio
+Pydantic for LLM Workflows,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,3,https://www.deeplearning.ai/courses/pydantic-for-llm-workflows
+Understanding and Applying Text Embeddings,4,"Data, Search & RAG","Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Mandatory,DeepLearning,4,https://learn.deeplearning.ai/courses/google-cloud-vertex-ai/information
+LangChain Chat with Your Data,4,"Data, Search & RAG","Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Mandatory,DeepLearning,6,https://learn.deeplearning.ai/courses/langchain-chat-with-your-data/information
+Large Language Models with Semantic Search,4,"Data, Search & RAG","Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,5,https://www.deeplearning.ai/courses/large-language-models-semantic-search
+Semantic Caching for AI Agents,4,"Data, Search & RAG","Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,3,https://www.deeplearning.ai/courses/semantic-caching-for-ai-agents
+Knowledge Graphs for RAG,4,"Data, Search & RAG","Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,4,https://learn.deeplearning.ai/courses/knowledge-graphs-rag/information
+,5,AI Agents & Workflows,"Design, build, and deploy multi-agent autonomous frameworks and workflow orchestration models.",,DeepLearning,,
+,6,Evaluation & Safety,"Validate AI system safety, alignment, response quality, and performance monitoring strategies.",,DeepLearning,,
+,7,"Fine-Tuning, Optimization & LLMOps",Optimize model efficiency through parameter-efficient fine-tuning and orchestrate production-grade LLMOps pipelines.,,DeepLearning,,
+C Programming From Basics to Mastery,8,C & Embedded systems,"Foundational and advanced C programming for robust, hardware-level software development.",Mandatory,MaharaTech,12,https://maharatech.gov.eg/course/view.php?id=2247
+Embedded C: Hardware Essentials and Device Driver Development,8,C & Embedded systems,"Foundational and advanced C programming for robust, hardware-level software development.",Mandatory,MaharaTech,16,https://maharatech.gov.eg/course/view.php?id=2271
+PCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desing,"Hardware prototyping, circuit schematic design, and multilayer PCB layout techniques.",Mandatory,MaharaTech,10,https://maharatech.gov.eg/

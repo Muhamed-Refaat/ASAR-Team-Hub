@@ -122,7 +122,29 @@
     const FALLBACK_SUPERVISOR_CSV = `Name,phone\nDr Bassant,17352734`;
     const FALLBACK_TEAM_CSV = `Name,ID,Mail,Phone number,Rule,overview\nAbdallah-Allam,2520550,,,Team Lead,\nAbdelrahman M. Abdel-Fattah,2520780,,,,\nMohamed H. Shaban,2540299,,,,\nYoussef Hammam Masoud,2540300,,,,\nYoussef Wagdy El-Sayed,2560148,,,,\nAssem Walid Khamis,2540213,,,,\nMohamed Farhat Nasr,2540244,,,,\nMostafa Ahmed Sayed,2520622,,,,\nEzzat A. Ahmed Mbrok,2520673,,,,\nFares Ibrahim Mohamed,2520070,,,,\nIbrahim Faraj Abdel-Mawgoud,2520112,,,,\nAhmed Fathy Ahmed,2521059,,,,\nNour Yasser Zakaria,2520186,,,,\nAmani Bilal Abu Zeid,2560129,,,,\nShams Mohamed Abdel-Hakim,2520971,,,,\nManar Moussa Saeed,2520959,,,,\nMalak Ahmed Mohamed,2520175,,,,\nAlaa Mohamed El-Hefny,2520486,,,,\nSamah Mahdy Salah,2521121,,,,\nYasmin Samir Abdessalam,2521242,,,,\nAsmaa Ashraf Attia,2550031,,,,\nShams Mohamed Jaber,2520550,,,,\nShaymaa Emad Mohamed,,,,,`;
     const FALLBACK_SKILL_CSV = `Skill Name,Skill Category,Skill Rank\nPython,Software,5\nC,Software,8\nSoildwroks,Mechanical,10`;
-    const FALLBACK_LEARNING_CSV = `Topic name,Track ID,Track Name,Obligability,Platform,Link\nAI for Everyone,1,AI for Everyone,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/ai-for-everyone\nGenerative AI for Everyone,1,AI for Everyone,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/generative-ai-for-everyone\nAI Prompting for Everyone,2,Foundations & Prompting,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/ai-prompting-for-everyone\nLarge Multimodal Model Prompting with Gemini,2,Foundations & Prompting,Optional,DeepLearning,https://learn.deeplearning.ai/courses/large-multimodal-model-prompting-with-gemini/information\nReasoning with o1,2,Foundations & Prompting,Optional,DeepLearning,https://www.deeplearning.ai/courses/reasoning-with-o1\nOpen Source Models with Hugging Face,2,Foundations & Prompting,Optional,DeepLearning,https://www.deeplearning.ai/courses/open-source-models-hugging-face\nGemini CLI: Code & Create,3,AI Coding Assistants & App Development,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent\nSpec-Driven Development with Coding Agents,3,AI Coding Assistants & App Development,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/spec-driven-development-with-coding-agents\nPair Programming with a Large Language Model,3,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/pair-programming-llm\nBuilding Gen AI Applications with Gradio,3,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/huggingface-gradio\nPydantic for LLM Workflows,3,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/pydantic-for-llm-workflows\nUnderstanding and Applying Text Embeddings,4,Data Search & RAG,Mandatory,DeepLearning,https://learn.deeplearning.ai/courses/google-cloud-vertex-ai/information\nLangChain Chat with Your Data,4,Data Search & RAG,Mandatory,DeepLearning,learn.deeplearning.ai/courses/langchain-chat-with-your-data/information\nLarge Language Models with Semantic Search,4,Data Search & RAG,Optional,DeepLearning,https://www.deeplearning.ai/courses/large-language-models-semantic-search\nSemantic Caching for AI Agents,4,Data Search & RAG,Optional,DeepLearning,https://www.deeplearning.ai/courses/semantic-caching-for-ai-agents\nKnowledge Graphs for RAG,4,Data Search & RAG,Optional,DeepLearning,learn.deeplearning.ai/courses/knowledge-graphs-rag/information\nC Programming From Basics to Mastery,8,C & Embedded systems,Mandatory,MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247\nEmbedded C: Hardware Essentials and Device Driver Development,8,C & Embedded systems,Mandatory,MaharaTech,https://maharatech.gov.eg/course/view.php?id=2271\nPCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desing,Mandatory,,`;
+    const FALLBACK_LEARNING_CSV = `Course Name,Track ID,Track Name,Track Overview,Mandatory/Optional,Platform,Estimated Hours,Course URL
+AI for Everyone,1,AI for Everyone,"Introduction to Artificial Intelligence concepts, workflows, and business applications.",Mandatory,DeepLearning,4,https://www.deeplearning.ai/courses/ai-for-everyone
+Generative AI for Everyone,1,AI for Everyone,"Introduction to Artificial Intelligence concepts, workflows, and business applications.",Mandatory,DeepLearning,5,https://www.deeplearning.ai/courses/generative-ai-for-everyone
+AI Prompting for Everyone,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Mandatory,DeepLearning,3,https://www.deeplearning.ai/courses/ai-prompting-for-everyone
+Large Multimodal Model Prompting with Gemini,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,4,https://learn.deeplearning.ai/courses/large-multimodal-model-prompting-with-gemini/information
+Reasoning with o1,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,2,https://www.deeplearning.ai/courses/reasoning-with-o1
+Open Source Models with Hugging Face,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,6,https://www.deeplearning.ai/courses/open-source-models-hugging-face
+Gemini CLI: Code & Create,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Mandatory,DeepLearning,6,https://www.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent
+Spec-Driven Development with Coding Agents,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Mandatory,DeepLearning,8,https://www.deeplearning.ai/courses/spec-driven-development-with-coding-agents
+Pair Programming with a Large Language Model,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,4,https://www.deeplearning.ai/courses/pair-programming-llm
+Building Gen AI Applications with Gradio,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,5,https://www.deeplearning.ai/courses/huggingface-gradio
+Pydantic for LLM Workflows,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,3,https://www.deeplearning.ai/courses/pydantic-for-llm-workflows
+Understanding and Applying Text Embeddings,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Mandatory,DeepLearning,4,https://learn.deeplearning.ai/courses/google-cloud-vertex-ai/information
+LangChain Chat with Your Data,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Mandatory,DeepLearning,6,https://learn.deeplearning.ai/courses/langchain-chat-with-your-data/information
+Large Language Models with Semantic Search,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,5,https://www.deeplearning.ai/courses/large-language-models-semantic-search
+Semantic Caching for AI Agents,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,3,https://www.deeplearning.ai/courses/semantic-caching-for-ai-agents
+Knowledge Graphs for RAG,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,4,https://learn.deeplearning.ai/courses/knowledge-graphs-rag/information
+,5,AI Agents & Workflows,Design build and deploy multi-agent autonomous frameworks and workflow orchestration models.,,DeepLearning,,
+,6,Evaluation & Safety,Validate AI system safety alignment response quality and performance monitoring strategies.,,DeepLearning,,
+,7,Fine-Tuning Optimization & LLMOps,Optimize model efficiency through parameter-efficient fine-tuning and orchestrate production-grade LLMOps pipelines.,,DeepLearning,,
+C Programming From Basics to Mastery,8,C & Embedded systems,"Foundational and advanced C programming for robust, hardware-level software development.",Mandatory,MaharaTech,12,https://maharatech.gov.eg/course/view.php?id=2247
+Embedded C: Hardware Essentials and Device Driver Development,8,C & Embedded systems,"Foundational and advanced C programming for robust, hardware-level software development.",Mandatory,MaharaTech,16,https://maharatech.gov.eg/course/view.php?id=2271
+PCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desing,"Hardware prototyping, circuit schematic design, and multilayer PCB layout techniques.",Mandatory,MaharaTech,10,https://maharatech.gov.eg/`;
     const FALLBACK_MEET_CSV = `Meeting title,Meeting Type,Date,Description,Attachments\nProject overview,online,2026-07-30,overview about the project asfasf,\nRoobt ,offline,2026-08-30,afsasfafs,`;
     const FALLBACK_EXAM_CSV = `Exam name,Date,Category ,# Attendee\nC exam,2026-07-30,Software,`;
     const FALLBACK_TASK_CSV = `Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale\nAAA,fsafa,"1-hi\n2-bye",Abdallah-Allam,Completed,3,,2026-07-30,2026-07-30,day\nbbb,fsafa,"1-hi\n2-bye",Abdallah-Allam,inProgress,3,,6,8,hour`;
@@ -385,6 +407,35 @@
   <!-- React Code Transpiled locally by Babel -->
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
+
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, info: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+      componentDidCatch(error, info) {
+        console.error("React Error Boundary Caught:", error, info);
+        this.setState({ error, info });
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div style={{ padding: '40px', background: '#fee2e2', color: '#991b1b', fontFamily: 'sans-serif' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Dashboard Render Error</h1>
+              <p style={{ marginTop: '10px', fontSize: '14px' }}>{this.state.error && this.state.error.toString()}</p>
+              <pre style={{ marginTop: '20px', background: 'white', padding: '20px', borderRadius: '8px', overflow: 'auto', fontSize: '12px' }}>
+                {this.state.info && this.state.info.componentStack}
+              </pre>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
 
     // React Lucide Icon component
     const Icon = ({ name, className = "w-5 h-5", strokeWidth = 2 }) => {
@@ -740,6 +791,287 @@
       }, []);
 
       const normalizeName = (name) => name ? name.toLowerCase().replace(/-/g, ' ').trim() : '';
+/**
+ * Azar Project Team - Learning Tracks Section Controller
+ * This file contains the vanilla JS logic to fetch, group, calculate,
+ * and dynamically render the course tracks UI using Tailwind CSS.
+ */
+
+// Normalizes name comparing: replace hyphen with spaces, lowercase, trim.
+
+
+/**
+ * 1. Backend Data Fetching
+ * Fetches the raw flat learning tracks array from the Google Apps Script Web App.
+ * @param {string} apiUrl - The Google Apps Script deployment URL.
+ * @returns {Promise<Array>} Flat course list.
+ */
+const fetchLearningData = async (apiUrl) => {
+  try {
+    const response = await fetch(`${apiUrl}?action=learning`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch learning track database:", error);
+    throw error;
+  }
+}
+
+/**
+ * 2. Grouping & Metrics Calculation
+ * Transforms flat course entries into grouped tracks, calculating track-level
+ * and user completion statistics dynamically.
+ * 
+ * @param {Array} courses - Flat course array from the database.
+ * @param {Array} logs - Completed event logs database.
+ * @param {Object} currentUser - Active logged-in team member.
+ * @returns {Array} Grouped track array.
+ */
+const groupCoursesByTrack = (courses, logs, currentUser) => {
+  const nameNorm = currentUser ? normalizeName(currentUser.Name) : '';
+  const tracksMap = {};
+
+  courses.forEach(course => {
+    // Standardize IDs and strings
+    const trackIdRaw = course["Track ID"];
+    const trackId = trackIdRaw !== undefined && trackIdRaw !== null && trackIdRaw !== '' ? parseFloat(trackIdRaw) : null;
+    if (trackId === null || isNaN(trackId)) return; // Skip rows without valid Track ID
+
+    const trackName = (course["Track Name"] || 'Unassigned Track').trim().replace(/\n/g, '');
+    const trackOverview = course["Track Overview"] || 'Track details are currently being scheduled.';
+    const courseName = course["Course Name"] || course["Topic name"] || '';
+
+    // Initialize track group if not existing
+    if (!tracksMap[trackId]) {
+      tracksMap[trackId] = {
+        trackId,
+        trackName,
+        trackOverview,
+        courses: []
+      };
+    }
+
+    // Capture the overview if available in current row
+    if (trackOverview && (!tracksMap[trackId].trackOverview || tracksMap[trackId].trackOverview.startsWith('Track details are currently'))) {
+      tracksMap[trackId].trackOverview = trackOverview;
+    }
+
+    // Only add course object if courseName is present
+    if (courseName && courseName.trim()) {
+      // Calculate completion dynamically by matching event log name and attendees
+      const isCompleted = logs.some(log => 
+        (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+        normalizeName(log["Event Name"]) === normalizeName(courseName) &&
+        log["Attendees/Completed"] && 
+        log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
+      );
+
+      const isMandatory = (course["Mandatory/Optional"] || course["Obligability"] || '').trim().toLowerCase() === 'mandatory';
+      const estimatedHours = parseFloat(course["Estimated Hours"]) || 0;
+      const courseUrl = course["Course URL"] || course["Link"] || '';
+      const platform = course["Platform"] || '';
+
+      tracksMap[trackId].courses.push({
+        courseName: courseName.trim(),
+        isMandatory,
+        estimatedHours,
+        courseUrl,
+        platform,
+        isCompleted
+      });
+    }
+  });
+
+  // Convert to sorted array
+  const tracks = Object.values(tracksMap).sort((a, b) => a.trackId - b.trackId);
+
+  // Calculate statistics for each group
+  tracks.forEach(track => {
+    const totalCourses = track.courses.length;
+    const completedCourses = track.courses.filter(c => c.isCompleted).length;
+    const completionPercentage = totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0;
+
+    const mandatoryCourses = track.courses.filter(c => c.isMandatory);
+    const totalMandatory = mandatoryCourses.length;
+    const completedMandatory = mandatoryCourses.filter(c => c.isCompleted).length;
+
+    track.metrics = {
+      totalCourses,
+      completedCourses,
+      completionPercentage,
+      totalMandatory,
+      completedMandatory
+    };
+  });
+
+  return tracks;
+}
+
+/**
+ * 3. UI Generation with ES6 Template Literals
+ * Generates beautiful SaaS-themed layout, mapping track containers and milestones.
+ * 
+ * @param {HTMLElement} containerElement - Element to inject HTML into.
+ * @param {Array} courses - Flat course array.
+ * @param {Array} logs - Team completed logs array.
+ * @param {Object} currentUser - Logged-in team member.
+ */
+const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
+  if (!containerElement) return;
+
+  const groupedTracks = groupCoursesByTrack(courses, logs, currentUser);
+
+  // Theme colors matching track IDs dynamically
+  const trackThemeColors = [
+    { border: 'border-orange-200 focus-within:border-orange-400', headerBg: 'bg-orange-50/50', badge: 'bg-orange-100 text-orange-800' },
+    { border: 'border-blue-200 focus-within:border-blue-400', headerBg: 'bg-blue-50/50', badge: 'bg-blue-100 text-blue-800' },
+    { border: 'border-emerald-200 focus-within:border-emerald-400', headerBg: 'bg-emerald-50/50', badge: 'bg-emerald-100 text-emerald-800' },
+    { border: 'border-purple-200 focus-within:border-purple-400', headerBg: 'bg-purple-50/50', badge: 'bg-purple-100 text-purple-800' },
+    { border: 'border-pink-200 focus-within:border-pink-400', headerBg: 'bg-pink-50/50', badge: 'bg-pink-100 text-pink-800' },
+    { border: 'border-amber-200 focus-within:border-amber-400', headerBg: 'bg-amber-50/50', badge: 'bg-amber-100 text-amber-800' },
+    { border: 'border-cyan-200 focus-within:border-cyan-400', headerBg: 'bg-cyan-50/50', badge: 'bg-cyan-100 text-cyan-800' },
+    { border: 'border-indigo-200 focus-within:border-indigo-400', headerBg: 'bg-indigo-50/50', badge: 'bg-indigo-100 text-indigo-800' },
+    { border: 'border-rose-200 focus-within:border-rose-400', headerBg: 'bg-rose-50/50', badge: 'bg-rose-100 text-rose-800' },
+  ];
+
+  const htmlContent = groupedTracks.map((track, index) => {
+    const color = trackThemeColors[index % trackThemeColors.length];
+    
+    // Check if track has courses
+    const hasCourses = track.courses.length > 0;
+    
+    // Check if mandatory metrics are 100% complete
+    const isMandatoryComplete = track.metrics.totalMandatory > 0 && track.metrics.completedMandatory === track.metrics.totalMandatory;
+
+    // Course Cards Generation
+    const coursesHtml = hasCourses ? track.courses.map(course => `
+      <div class="border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 shadow-sm ${
+        course.isCompleted
+          ? 'border-emerald-200 bg-emerald-50/30'
+          : 'border-slate-100 bg-white hover:border-brand-200 hover:shadow-saas'
+      }">
+        <div class="space-y-4">
+          <!-- Card Badges -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                course.isMandatory
+                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                  : 'bg-blue-100 text-blue-700 border border-blue-200'
+              }">
+                ${course.isMandatory ? 'MANDATORY' : 'OPTIONAL'}
+              </span>
+              <span class="text-[9px] font-extrabold text-slate-500 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md uppercase tracking-wider">
+                ⏱ ${course.estimatedHours} Hours
+              </span>
+            </div>
+            
+            ${course.isCompleted ? `
+              <span class="text-[9px] font-extrabold text-emerald-700 px-2 py-0.5 bg-emerald-100 border border-emerald-200 rounded-md uppercase tracking-wider">
+                ✓ Done
+              </span>
+            ` : ''}
+          </div>
+
+          <!-- Card Content -->
+          <div class="space-y-1">
+            <h4 class="text-sm font-extrabold text-slate-800 leading-snug">${course.courseName}</h4>
+            <p class="text-[11px] text-slate-400 font-medium leading-relaxed">
+              Accelerate skills in ${track.trackName} (${course.platform || 'General'}). Complete assignments to validate credentials.
+            </p>
+          </div>
+        </div>
+
+        <!-- Card Action -->
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+          ${course.courseUrl ? `
+            <a href="${course.courseUrl}" target="_blank" class="text-[11px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 transition-colors group">
+              Launch Course
+              <span class="transform transition-transform group-hover:translate-x-1">→</span>
+            </a>
+          ` : `
+            <span class="text-[10px] text-slate-400 font-semibold">Link Not Scheduled</span>
+          `}
+        </div>
+      </div>
+    `).join('') : `
+      <div class="col-span-full border border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-slate-50/50">
+        <span class="text-slate-300 text-3xl mb-2">📅</span>
+        <h5 class="text-xs font-extrabold text-slate-700">Tracks Scheduled For Future Releases</h5>
+        <p class="text-[10px] text-slate-400 font-bold max-w-xs mt-1 leading-relaxed">
+          Course curriculum and assignments are currently being structured and will align with subsequent milestone phases.
+        </p>
+      </div>
+    `;
+
+    // Milestone Divider (exclude for last track)
+    const dividerHtml = (index < groupedTracks.length - 1) ? `
+      <div class="relative py-8">
+        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+          <div class="w-full border-t border-dashed border-slate-200"></div>
+        </div>
+        <div class="relative flex justify-center">
+          <span class="bg-[#fcfcfd] px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border border-slate-100 rounded-full py-1 shadow-sm flex items-center gap-1.5">
+            🎯 NEXT MILESTONE PHASE
+          </span>
+        </div>
+      </div>
+    ` : '';
+
+    return `
+      <!-- Track ${track.trackId} -->
+      <div class="border rounded-2xl p-6 bg-white shadow-saas space-y-6 ${color.border}">
+        <!-- Track Header -->
+        <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b border-slate-100">
+          <div class="space-y-1 md:max-w-[65%]">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${color.badge}">
+                TRACK ${track.trackId}
+              </span>
+            </div>
+            <h3 class="text-base font-black text-slate-900 mt-1">${track.trackName}</h3>
+            <p class="text-xs text-slate-400 font-bold leading-relaxed">${track.trackOverview}</p>
+          </div>
+          
+          <!-- Track Progress Indicator -->
+          <div class="flex flex-col items-end gap-1.5 min-w-[220px] text-right">
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                isMandatoryComplete
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                  : 'bg-rose-50 text-rose-700 border border-rose-100'
+              }">
+                ${isMandatoryComplete ? '🟢' : '🔴'} ${track.metrics.completedMandatory}/${track.metrics.totalMandatory} Mand
+              </span>
+              <span class="text-xs font-extrabold text-slate-700">
+                ${track.metrics.completedCourses} of ${track.metrics.totalCourses} Courses
+              </span>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1 relative">
+              <div class="bg-brand-500 h-full rounded-full transition-all duration-500" style="width: ${track.metrics.completionPercentage}%"></div>
+            </div>
+            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              ${track.metrics.completionPercentage}% Complete
+            </span>
+          </div>
+        </div>
+
+        <!-- Course Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${coursesHtml}
+        </div>
+      </div>
+
+      ${dividerHtml}
+    `;
+  }).join('');
+
+  containerElement.innerHTML = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">${htmlContent}</div>`;
+}
+
 
       const handleUserChange = (userName) => {
         const found = teamData.team.find(t => normalizeName(t.Name) === normalizeName(userName));
@@ -958,7 +1290,20 @@
           return completed.some(comp => normalizeName(comp) === nameNorm);
         }).length;
         const invitedLearningCount = userLearningEvents.length;
-        const learningProgress = invitedLearningCount > 0 ? Math.round((completedLearningCount / invitedLearningCount) * 100) : 0;
+        
+        // Dynamic DB-aligned learning progress
+        const totalCoursesInDb = teamData.learning.filter(track => track["Course Name"] || track["Topic name"]).length;
+        const completedCoursesInDb = teamData.learning.filter(track => {
+          const cName = track["Course Name"] || track["Topic name"];
+          if (!cName) return false;
+          return teamData.logs.some(log => 
+            (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+            normalizeName(log["Event Name"]) === normalizeName(cName) &&
+            log["Attendees/Completed"] && 
+            log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
+          );
+        }).length;
+        const learningProgress = totalCoursesInDb > 0 ? Math.round((completedCoursesInDb / totalCoursesInDb) * 100) : 0;
 
         const baseSkills = [...new Set([
           ...(teamData.skills || []).map(s => s["Skill Name"] || s["SkillName"] || s["skill name"]).filter(Boolean),
@@ -1168,7 +1513,19 @@
           return completed.some(comp => normalizeName(comp) === nameNorm);
         }).length;
         
-        const learningProgress = mLearningEvents.length > 0 ? Math.round((completedLearning / mLearningEvents.length) * 100) : 0;
+        // Dynamic DB-aligned learning progress
+        const totalCoursesInDb = teamData.learning.filter(track => track["Course Name"] || track["Topic name"]).length;
+        const completedCoursesInDb = teamData.learning.filter(track => {
+          const cName = track["Course Name"] || track["Topic name"];
+          if (!cName) return false;
+          return teamData.logs.some(log => 
+            (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+            normalizeName(log["Event Name"]) === normalizeName(cName) &&
+            log["Attendees/Completed"] && 
+            log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
+          );
+        }).length;
+        const learningProgress = totalCoursesInDb > 0 ? Math.round((completedCoursesInDb / totalCoursesInDb) * 100) : 0;
 
         const baseSkills = [...new Set([
           ...(teamData.skills || []).map(s => s["Skill Name"] || s["SkillName"] || s["skill name"]).filter(Boolean),
@@ -1575,81 +1932,24 @@
               </div>
             )}
 
+            {/* -------------------- Tab 2: LEARNING TRACKS PANEL -------------------- */}
             {activeTab === 'learning' && (
               <div class="space-y-6">
-                <div>
-                  <h3 class="text-lg font-bold text-slate-900">Learning Tracks Intelligence</h3>
-                  <p class="text-xs text-slate-400 font-medium">Browse, launch, and validate course modules synced with the team learning track database.</p>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-lg font-bold text-slate-900">Learning Tracks Intelligence</h3>
+                    <p class="text-xs text-slate-400 font-medium">Browse, launch, and validate course modules synced with the team learning track database.</p>
+                  </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {teamData.learning.map((track, idx) => {
-                    const nameNorm = currentUser ? normalizeName(currentUser.Name) : '';
-                    const isCompleted = teamData.logs.some(log => 
-                      (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
-                      normalizeName(log["Event Name"]) === normalizeName(track["Topic name"]) &&
-                      log["Attendees/Completed"] && log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
-                    );
-
-                    const correspondingLog = teamData.logs.find(log => 
-                      (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
-                      normalizeName(log["Event Name"]) === normalizeName(track["Topic name"])
-                    );
-
-                    const isOverdue = correspondingLog && !isCompleted && new Date(correspondingLog["Due to Date"]) < new Date();
-
-                    return (
-                      <Card key={idx} class="flex flex-col justify-between hover:translate-y-[-2px]">
-                        <div class="space-y-4">
-                          <div class="flex items-center justify-between">
-                            <span class={`text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase ${
-                              track["Obligability"] === 'Mandatory' ? 'bg-rose-50 text-rose-600 border border-rose-100/50' : 'bg-slate-50 text-slate-500 border border-slate-100'
-                            }`}>
-                              {track["Obligability"] || 'Optional'}
-                            </span>
-                            <span class="text-[10px] font-semibold text-slate-400 px-2 py-0.5 bg-slate-50 rounded border border-slate-100">
-                              {track["Platform"] || 'Platform'}
-                            </span>
-                          </div>
-
-                          <div class="space-y-1">
-                            <h4 class="text-sm font-extrabold text-slate-800 leading-snug">{track["Topic name"] || 'Topic details not specified'}</h4>
-                            <p class="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                              <Icon name="hash" className="w-3 h-3" />
-                              {track["Track Name"] ? track["Track Name"].replace('\n', '') : 'Track ID ' + track["Track ID"]}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div class="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-                          {track["Link"] ? (
-                            <a href={track["Link"]} target="_blank" class="text-[11px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
-                              Launch Course <Icon name="external-link" className="w-3.5 h-3.5" />
-                            </a>
-                          ) : (
-                            <span class="text-[10px] text-slate-400">Link not set</span>
-                          )}
-
-                          {isCompleted ? (
-                            <span class="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                              <Icon name="check-circle" className="w-4 h-4" /> Validated
-                            </span>
-                          ) : isOverdue ? (
-                            <span class="flex items-center gap-1 text-[10px] font-bold text-rose-500">
-                              <Icon name="lock" className="w-4 h-4" /> Locked
-                            </span>
-                          ) : correspondingLog ? (
-                            <button onClick={() => handleAttendEvent(correspondingLog["Event ID"])} class="px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-600 font-bold text-[10px] rounded-lg">
-                              Log Progress
-                            </button>
-                          ) : (
-                            <span class="text-[10px] text-slate-400 italic">Unscheduled</span>
-                          )}
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
+                <div 
+                  id="learning-tracks-container" 
+                  ref={(el) => {
+                    if (el) {
+                      renderLearningTracks(el, teamData.learning, teamData.logs, currentUser);
+                    }
+                  }}
+                ></div>
               </div>
             )}
 
@@ -2047,7 +2347,7 @@
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(<ErrorBoundary><App /></ErrorBoundary>);
   </script>
 
   <!-- Lucide Script Initialization -->
