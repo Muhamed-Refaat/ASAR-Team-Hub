@@ -10,7 +10,7 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 *   **Dynamic Skill Radar Chart**: Compiles member skills dynamically based on your `Skill` sheet columns, completed sheet logs, tasks, and team roles (scales automatically as new skill records are added!).
 *   **Live Webcast Alerts**: Webcasts the latest created event from the sheet and issues warnings/notifications if a user has active or overdue tasks.
 *   **Deadline Lock Protocol**: Closed/Overdue events are locked from completion. Team Leads can re-open events by setting new due dates directly from the web interface.
-*   **Learning Tracks Progress**: Displays all learning topics fetched dynamically from the `Learning` sheet, indicating validation status and platform links (scales automatically as your curriculum expands).
+*   **Grouped Learning Tracks UI**: Courses fetched from the `Learning` sheet are grouped dynamically by learning track phase. The dashboard dynamically renders tracking boundaries, UI badges (e.g., Mandatory/Optional, Estimated Hours), track-level overview metadata, and computed progress bars using standard Vanilla JS mapping directly inside the React app. (Accessible via the backend `?action=learning` JSON API).
 *   **Team Intelligence Hub**: Compiles a performance card for all members. Clicking on a card opens a modal detailing their dynamic skill mapping and task statistics.
 
 ---

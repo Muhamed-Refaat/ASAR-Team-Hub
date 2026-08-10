@@ -10,6 +10,13 @@ const SPREADSHEET_ID = "188lG-b__CVXFxj2ebrGXilpfw8-Y7Q-O9KrGzkOWqkU";
  * Serves the web application.
  */
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'learning') {
+    const ss = getSpreadsheet();
+    const data = getSheetData(ss, 'Learning');
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
     .setTitle('Azar Project Team')
