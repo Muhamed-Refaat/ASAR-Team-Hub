@@ -20,7 +20,8 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 *   **`Code.gs`**: The production Apps Script server-side database controller (manages spreadsheet reads and mutations).
 *   **`Index.html`**: The production Apps Script frontend template. Built on client-side React 18, Tailwind CSS, ApexCharts, and Lucide.
 *   **`local_test_dashboard.html`**: A fully functional local testing dashboard. Mocks Google Sheets by loading separate CSV database tables.
-*   **`spreedsheet-copy/`**: Contains the separate CSV database files (`Team.csv`, `Learning.csv`, `Log.csv`, etc.) parsed by the local test dashboard, alongside the master Excel backup.
+*   **`sync_local_db.py`**: A python synchronization utility script. Parsed and extracts separate `.csv` tables from the master Excel workbook.
+*   **`spreedsheet-copy/`**: Contains the separate CSV database files (`Team.csv`, `Learning.csv`, `Log.csv`, etc.) parsed by the local test dashboard, alongside the master Excel backup (`ASAR-Team-Hub.xlsx`).
 *   **`GEMINI.md`**: Foundational repository rules and synchronization mandates.
 
 ---
@@ -29,6 +30,14 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 
 To prevent regressions, you should test all features locally using separate CSV database files before deploying to production.
 
+### 1. Synchronize Local CSV Databases
+If you have updated the master Excel workbook (`spreedsheet-copy/ASAR-Team-Hub.xlsx`), or to re-generate the CSV sheets from scratch, execute:
+```bash
+python sync_local_db.py
+```
+This script dynamically parses, filters, and standardizes dates and formats from Excel sheets, exporting clean CSV arrays under `spreedsheet-copy/`.
+
+### 2. Launch Local Test Dashboard
 1.  Open your terminal in the repository root directory:
     ```bash
     cd ASAR-Team-Hub

@@ -7,6 +7,7 @@ Welcome to the **Azar Project Team Dashboard** repository. To maintain structura
 *   **Database Alignment**: If any modification is made to the production Google Sheet database structure, corresponding modifications **MUST** be applied to:
     1.  The separate local CSV database files in the `spreedsheet-copy/` directory.
     2.  The embedded mock fallback data strings in `local_test_dashboard.html`.
+*   **Utility Sync Script**: Always use the **`sync_local_db.py`** script to parse and regenerate the local CSV database tables from the master Excel workbook. Do not edit `.csv` files manually unless synchronized with the Excel workbook.
 
 ## 🛠️ Tech Stack & Conventions
 *   **Aesthetics**: Follow the **SaaS Minimalist** design standard—light background primary, thin borders (`1px`), generous white space, soft shadows, and clean sans-serif typography (`Plus Jakarta Sans`).
@@ -17,3 +18,7 @@ Welcome to the **Azar Project Team Dashboard** repository. To maintain structura
 ## 🧪 Local Testing Workflow
 *   Never merge code that has not been verified locally using the CORS Server simulation in `local_test_dashboard.html`.
 *   Run `python -m http.server 8000` or `npx serve` locally to test dynamic CSV table reads and writes.
+*   **Synchronizing local CSVs**: Run the command below to sync local CSV files from the Excel workbook:
+    ```bash
+    python sync_local_db.py
+    ```
