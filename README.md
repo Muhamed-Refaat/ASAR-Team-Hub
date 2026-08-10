@@ -6,11 +6,11 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 
 ## 🚀 Key Features
 
-*   **Simulated Login Dropdown**: Easily switch between all 23 team members to audit individual dashboards and permission roles (stores profile in browser `localStorage`).
-*   **Dynamic Skill Radar Chart**: Compiles member skills (Python, C, Solidworks, etc.) based on completed sheet logs, tasks, and team roles.
+*   **Simulated Login Dropdown**: Easily switch between all synchronized team members (fully dynamic as the team grows) to audit individual dashboards and permission roles (stores profile in browser `localStorage`).
+*   **Dynamic Skill Radar Chart**: Compiles member skills dynamically based on your `Skill` sheet columns, completed sheet logs, tasks, and team roles (scales automatically as new skill records are added!).
 *   **Live Webcast Alerts**: Webcasts the latest created event from the sheet and issues warnings/notifications if a user has active or overdue tasks.
 *   **Deadline Lock Protocol**: Closed/Overdue events are locked from completion. Team Leads can re-open events by setting new due dates directly from the web interface.
-*   **Learning Tracks Progress**: Displays all 22 topics from the `Learning` sheet, indicating validation status and platform links.
+*   **Learning Tracks Progress**: Displays all learning topics fetched dynamically from the `Learning` sheet, indicating validation status and platform links (scales automatically as your curriculum expands).
 *   **Team Intelligence Hub**: Compiles a performance card for all members. Clicking on a card opens a modal detailing their dynamic skill mapping and task statistics.
 
 ---

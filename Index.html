@@ -751,7 +751,12 @@
         const learningProgress = invitedLearningCount > 0 ? Math.round((completedLearningCount / invitedLearningCount) * 100) : 0;
 
         // 3. Dynamic Skill radar generation
-        const baseSkills = ['Python', 'C', 'Solidworks', 'Leadership', 'Communication', 'Problem Solving'];
+        const baseSkills = [...new Set([
+          ...(teamData.skills || []).map(s => s["Skill Name"] || s["SkillName"] || s["skill name"]).filter(Boolean),
+          'Leadership',
+          'Communication',
+          'Problem Solving'
+        ])];
         const skillScores = baseSkills.map(subject => {
           let score = 40; // Base score
 
@@ -913,7 +918,12 @@
         const learningProgress = mLearningEvents.length > 0 ? Math.round((completedLearning / mLearningEvents.length) * 100) : 0;
 
         // Generate skill scores
-        const baseSkills = ['Python', 'C', 'Solidworks', 'Leadership', 'Communication', 'Problem Solving'];
+        const baseSkills = [...new Set([
+          ...(teamData.skills || []).map(s => s["Skill Name"] || s["SkillName"] || s["skill name"]).filter(Boolean),
+          'Leadership',
+          'Communication',
+          'Problem Solving'
+        ])];
         const skills = baseSkills.map(subject => {
           let score = 40;
           const matchingSkillLog = teamData.logs.find(log => 
