@@ -105,35 +105,54 @@ function getActiveUserSession() {
 }
 
 /**
- * Handles HTTP POST requests to log a new event via standard JSON payload.
+ * Handles HTTP POST requests to log a new event or create a custom event via standard JSON payload.
  */
 function doPost(e) {
   try {
     const postData = JSON.parse(e.postData.contents);
-    const type = postData.type;
-    const name = postData.name;
-    const email = postData.email;
-    const userName = postData.userName;
-    const dueDate = postData.dueDate || "";
+    const action = postData.action || "logEvent";
     
-    const ss = getSpreadsheet();
-    const teamSheet = ss.getSheetByName('Team');
-    let invitedList = [];
-    if (teamSheet) {
-      const lastRow = teamSheet.getLastRow();
-      if (lastRow >= 2) {
-        const values = teamSheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        invitedList = values.map(r => r[0]);
+    if (action === "createEvent") {
+      const type = postData.type;
+      const name = postData.name;
+      const invitedList = postData.invitedList || [];
+      const dueDate = postData.dueDate || "";
+      
+      const result = logEvent(type, name, invitedList, dueDate);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Event created successfully via POST (createEvent)",
+        eventId: result.newId
+      })).setMimeType(ContentService.MimeType.JSON);
+      
+    } else {
+      // Default: logEvent
+      const type = postData.type;
+      const name = postData.name;
+      const email = postData.email;
+      const userName = postData.userName;
+      const dueDate = postData.dueDate || "";
+      
+      const ss = getSpreadsheet();
+      const teamSheet = ss.getSheetByName('Team');
+      let invitedList = [];
+      if (teamSheet) {
+        const lastRow = teamSheet.getLastRow();
+        if (lastRow >= 2) {
+          const values = teamSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+          invitedList = values.map(r => r[0]);
+        }
       }
+      
+      const result = logEvent(type, name, invitedList, dueDate);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Event logged successfully via POST",
+        eventId: result.newId
+      })).setMimeType(ContentService.MimeType.JSON);
     }
-    
-    const result = logEvent(type, name, invitedList, dueDate);
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      message: "Event logged successfully via POST",
-      eventId: result.newId
-    })).setMimeType(ContentService.MimeType.JSON);
     
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({

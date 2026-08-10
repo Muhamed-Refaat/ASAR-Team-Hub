@@ -661,6 +661,48 @@
       const [eventSearchQuery, setEventSearchQuery] = useState('');
       const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false);
 
+      // Set Event admin modal and toast states
+      const [showSetModal, setShowSetModal] = useState(false);
+      const [setEventEntry, setSetEventEntry] = useState({
+        type: 'Skill',
+        name: '',
+        dueDate: '',
+        assignedMembers: []
+      });
+      const [toast, setToast] = useState(null);
+
+      const showToastNotification = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 4000);
+      };
+
+      // Drag-to-select checklist references and helpers
+      const isDraggingRef = useRef(false);
+      const dragStateRef = useRef(true);
+
+      const handleMemberMouseDown = (memberName, currentlyChecked) => {
+        isDraggingRef.current = true;
+        dragStateRef.current = !currentlyChecked;
+        toggleMemberSelection(memberName, dragStateRef.current);
+      };
+
+      const handleMemberMouseEnter = (memberName) => {
+        if (!isDraggingRef.current) return;
+        toggleMemberSelection(memberName, dragStateRef.current);
+      };
+
+      const toggleMemberSelection = (memberName, select) => {
+        setSetEventEntry(prev => {
+          const isAlreadyAssigned = prev.assignedMembers.includes(memberName);
+          if (select && !isAlreadyAssigned) {
+            return { ...prev, assignedMembers: [...prev.assignedMembers, memberName] };
+          } else if (!select && isAlreadyAssigned) {
+            return { ...prev, assignedMembers: prev.assignedMembers.filter(name => name !== memberName) };
+          }
+          return prev;
+        });
+      };
+
       const [newLogEntry, setNewLogEntry] = useState({ type: 'Skill', name: '', dueDate: '' });
 
       const fetchData = (isSync = false) => {
@@ -704,6 +746,87 @@
         if (found) {
           setCurrentUser(found);
           localStorage.setItem('active_member_name', found.Name);
+        }
+      };
+
+      const handleSetSubmit = (e) => {
+        e.preventDefault();
+        
+        if (!setEventEntry.name.trim() || !setEventEntry.dueDate) {
+          alert("Event Name and Due Date are required.");
+          return;
+        }
+
+        setSyncing(true);
+
+        // Package data into a JSON object
+        const payload = {
+          action: "createEvent",
+          type: setEventEntry.type,
+          name: setEventEntry.name,
+          dueDate: setEventEntry.dueDate,
+          invitedList: setEventEntry.assignedMembers
+        };
+
+        const backendUrl = teamData.webAppUrl || "";
+
+        if (backendUrl) {
+          fetch(backendUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          })
+          .then(() => {
+            showToastNotification(`Successfully created new ${setEventEntry.type} event: "${setEventEntry.name}"`);
+            setShowSetModal(false);
+            setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+            fetchData(true); // Dynamic refresh
+          })
+          .catch((err) => {
+            console.error("POST request failed: ", err);
+            triggerGoogleScriptSet(payload);
+          });
+        } else {
+          triggerGoogleScriptSet(payload);
+        }
+      };
+
+      const triggerGoogleScriptSet = (payload) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((res) => {
+              showToastNotification(`Successfully created new ${payload.type} event: "${payload.name}"`);
+              setShowSetModal(false);
+              setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+              fetchData(true); // Dynamic refresh
+            })
+            .withFailureHandler((err) => {
+              console.error(err);
+              alert("Error setting event in backend");
+              setSyncing(false);
+            })
+            .logEvent(payload.type, payload.name, payload.invitedList, payload.dueDate);
+        } else {
+          // Simulation for local development
+          const newEvent = {
+            "Event Type": payload.type,
+            "Event ID": String(teamData.logs.length + 1),
+            "Event Name": payload.name,
+            "Invited/Assigned": payload.invitedList.join('\n'),
+            "Attendees/Completed": "",
+            "Due to Date": payload.dueDate
+          };
+          setTeamData(prev => ({
+            ...prev,
+            logs: [newEvent, ...prev.logs]
+          }));
+          showToastNotification(`[LOCAL SIM] Successfully created ${payload.type} event: "${payload.name}"`);
+          setShowSetModal(false);
+          setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+          setSyncing(false);
         }
       };
 
@@ -1123,6 +1246,15 @@
                 </div>
 
                 <div class="flex items-center gap-3">
+                  {/* Set Event Trigger */}
+                  <button 
+                    onClick={() => setShowSetModal(true)}
+                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm shadow-indigo-100"
+                  >
+                    <Icon name="calendar-plus" className="w-3.5 h-3.5" />
+                    Set Event
+                  </button>
+
                   <button 
                     onClick={() => setShowLogModal(true)}
                     class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
@@ -1695,6 +1827,120 @@
             </form>
           </Modal>
 
+          {/* ==================== MODAL 4: SET EVENT ADMIN ==================== */}
+          <Modal 
+            isOpen={showSetModal} 
+            onClose={() => setShowSetModal(false)} 
+            title="Set New Event"
+          >
+            <form onSubmit={handleSetSubmit} class="space-y-4">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Type</label>
+                <select
+                  value={setEventEntry.type}
+                  onChange={(e) => setSetEventEntry({ ...setEventEntry, type: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                >
+                  <option value="Skill">Skill Workshop</option>
+                  <option value="Meet">Meeting Alignment</option>
+                  <option value="Learning">Training / Learning Track</option>
+                  <option value="Exam">Exam / Practical Test</option>
+                  <option value="Task">Task Assignment</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. PySpark Big Data Workshop"
+                  value={setEventEntry.name}
+                  onChange={(e) => setSetEventEntry({ ...setEventEntry, name: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                />
+              </div>
+
+              {/* Assign / Invite Members Checklist */}
+              <div class="space-y-2">
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Assign / Invite Members</label>
+                  <label class="flex items-center gap-1.5 text-xs font-semibold text-brand-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={setEventEntry.assignedMembers.length === (teamData.team ? teamData.team.length : 0)}
+                      onChange={(e) => {
+                        const allNames = teamData.team ? teamData.team.map(t => t.Name) : [];
+                        setSetEventEntry(prev => ({
+                          ...prev,
+                          assignedMembers: e.target.checked ? allNames : []
+                        }));
+                      }}
+                      class="rounded border-slate-300 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5"
+                    />
+                    <span>Select All</span>
+                  </label>
+                </div>
+                
+                <div class="border border-slate-150 rounded-xl p-3.5 max-h-36 overflow-y-auto space-y-2 bg-slate-50/50 select-none touch-none">
+                  {teamData.team && teamData.team.length > 0 ? (
+                    teamData.team.map((m, idx) => {
+                      const isChecked = setEventEntry.assignedMembers.includes(m.Name);
+                      return (
+                        <label 
+                          key={idx} 
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleMemberMouseDown(m.Name, isChecked);
+                          }}
+                          onMouseEnter={() => handleMemberMouseEnter(m.Name)}
+                          class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer select-none py-0.5 hover:text-slate-900 text-left block"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            readOnly
+                            class="rounded border-slate-300 text-brand-600 focus:ring-brand-500 w-4 h-4 pointer-events-none"
+                          />
+                          <span>{m.Name}</span>
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <p class="text-xs text-slate-400 italic">No team members loaded</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Due to Date</label>
+                <input
+                  type="date"
+                  required
+                  value={setEventEntry.dueDate}
+                  onChange={(e) => setSetEventEntry({ ...setEventEntry, dueDate: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                />
+              </div>
+
+              <div class="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSetModal(false)}
+                  class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-xs font-bold text-slate-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-all text-white text-xs font-bold shadow-sm shadow-indigo-100"
+                >
+                  Set Event
+                </button>
+              </div>
+            </form>
+          </Modal>
+
           <Modal isOpen={showReopenModal !== null} onClose={() => setShowReopenModal(null)} title="Re-open Registration Window">
             {showReopenModal && (
               <form onSubmit={handleReopenSubmit} class="space-y-4">
@@ -1782,6 +2028,19 @@
               </div>
             )}
           </Modal>
+
+          {/* GORGEOUS FLOATING TOAST NOTIFICATION */}
+          {toast && (
+            <div class="fixed bottom-24 right-6 bg-slate-900 border border-slate-800 text-white rounded-2xl px-4 py-3.5 shadow-saas-lg flex items-center gap-3 z-50 animate-in slide-in-from-bottom-5 duration-300">
+              <div class="bg-brand-500 text-white p-1 rounded-full flex items-center justify-center">
+                <Icon name="check" className="w-4 h-4" />
+              </div>
+              <div class="text-xs font-semibold text-left">{toast}</div>
+              <button onClick={() => setToast(null)} class="text-slate-400 hover:text-white transition-colors pl-2 flex items-center justify-center">
+                <Icon name="x" className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
         </div>
       );
