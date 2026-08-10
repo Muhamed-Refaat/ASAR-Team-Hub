@@ -35,6 +35,14 @@ function getSpreadsheet() {
  */
 function getTeamData() {
   const ss = getSpreadsheet();
+  let webAppUrl = "";
+  try {
+    webAppUrl = ScriptApp.getService().getUrl();
+  } catch(e) {
+    // Ignore if not published as a web app yet
+  }
+  
+  const session = getActiveUserSession();
   
   return {
     supervisor: getSheetData(ss, 'Supervisor'),
@@ -44,8 +52,95 @@ function getTeamData() {
     meet: getSheetData(ss, 'Meet'),
     exam: getSheetData(ss, 'Exam'),
     tasks: getSheetData(ss, 'Task'),
-    logs: getSheetData(ss, 'Log')
+    logs: getSheetData(ss, 'Log'),
+    webAppUrl: webAppUrl,
+    activeUserSession: session
   };
+}
+
+/**
+ * Gets the active user's session data (email and name).
+ */
+function getActiveUserSession() {
+  let email = "";
+  try {
+    email = Session.getActiveUser().getEmail();
+  } catch (err) {
+    // Handle sandboxed/unauthenticated views
+  }
+  email = email || "test.user@azar.com";
+  let name = "";
+  
+  try {
+    const ss = getSpreadsheet();
+    const teamSheet = ss.getSheetByName('Team');
+    if (teamSheet) {
+      const lastRow = teamSheet.getLastRow();
+      const lastCol = teamSheet.getLastColumn();
+      if (lastRow >= 2 && lastCol >= 1) {
+        const values = teamSheet.getRange(1, 1, lastRow, lastCol).getValues();
+        const headers = values[0].map(h => String(h).trim().toLowerCase());
+        const emailIdx = headers.indexOf('mail');
+        const nameIdx = headers.indexOf('name');
+        
+        if (emailIdx !== -1 && nameIdx !== -1) {
+          for (let i = 1; i < values.length; i++) {
+            const row = values[i];
+            if (String(row[emailIdx]).trim().toLowerCase() === email.trim().toLowerCase()) {
+              name = String(row[nameIdx]).trim();
+              break;
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error finding user by email in getActiveUserSession:", err);
+  }
+  
+  return {
+    email: email,
+    name: name || (email ? email.split('@')[0] : "Test User")
+  };
+}
+
+/**
+ * Handles HTTP POST requests to log a new event via standard JSON payload.
+ */
+function doPost(e) {
+  try {
+    const postData = JSON.parse(e.postData.contents);
+    const type = postData.type;
+    const name = postData.name;
+    const email = postData.email;
+    const userName = postData.userName;
+    const dueDate = postData.dueDate || "";
+    
+    const ss = getSpreadsheet();
+    const teamSheet = ss.getSheetByName('Team');
+    let invitedList = [];
+    if (teamSheet) {
+      const lastRow = teamSheet.getLastRow();
+      if (lastRow >= 2) {
+        const values = teamSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        invitedList = values.map(r => r[0]);
+      }
+    }
+    
+    const result = logEvent(type, name, invitedList, dueDate);
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      message: "Event logged successfully via POST",
+      eventId: result.newId
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 /**

@@ -7,6 +7,8 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 ## 🚀 Key Features
 
 *   **Simulated Login Dropdown**: Easily switch between all synchronized team members (fully dynamic as the team grows) to audit individual dashboards and permission roles (stores profile in browser `localStorage`).
+*   **Active User Session Context**: Automatically populates the submitting user's context (User Name and Email) securely from the backend session, presenting them as read-only fields inside the event logging modal.
+*   **Searchable Event Dropdown with Due Date Validation**: Replaces the standard event name input with a fully searchable dropdown. It validates and excludes expired events dynamically, unless a special "re-opened" window is active for that event.
 *   **Dynamic Skill Radar Chart**: Compiles member skills dynamically based on your `Skill` sheet columns, completed sheet logs, tasks, and team roles (scales automatically as new skill records are added!).
 *   **Live Webcast Alerts**: Webcasts the latest created event from the sheet and issues warnings/notifications if a user has active or overdue tasks.
 *   **Deadline Lock Protocol**: Closed/Overdue events are locked from completion. Team Leads can re-open events by setting new due dates directly from the web interface.

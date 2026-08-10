@@ -14,6 +14,8 @@ Welcome to the **Azar Project Team Dashboard** repository. To maintain structura
 *   **Reactivity**: Built with client-side **React 18** and **Tailwind CSS**. Avoid injecting bloated libraries; leverage lightweight CDNs.
 *   **Charts**: Always use **ApexCharts** for interactive data representation (radar, donut, columns, area).
 *   **Icons**: Use **Lucide Icons** via the React `<Icon />` wrapper component to maintain unified iconography.
+*   **Active Session Handling**: Fetch active user session details (Email & Name) from the Google Apps Script backend on application start. The name is automatically resolved from the `Team` sheet using the session email, falling back to the email prefix.
+*   **Event Log POST Integration**: Form submissions to log new events must package parameters into a JSON object and submit to the Web App URL via HTTP POST (`doPost(e)`). Fallback to standard Google Apps Script RPC (`google.script.run.logEvent`) if POST submission fails or the URL is not retrieved.
 
 ## 🧪 Local Testing Workflow
 *   Never merge code that has not been verified locally using the CORS Server simulation in `local_test_dashboard.html`.

@@ -286,9 +286,26 @@
             setTimeout(() => {
               appendLog("google.script.run.getTeamData() triggered. Sending state records.", "read");
               if (this.successHandler) {
-                this.successHandler(JSON.parse(JSON.stringify(LOCAL_DB)));
+                const dbCopy = JSON.parse(JSON.stringify(LOCAL_DB));
+                dbCopy.webAppUrl = "https://script.google.com/macros/s/AKfycbz_mock_url/exec";
+                dbCopy.activeUserSession = {
+                  name: "Dr Bassant",
+                  email: "bassant@azar.com"
+                };
+                this.successHandler(dbCopy);
               }
             }, 300);
+          },
+          getActiveUserSession() {
+            setTimeout(() => {
+              appendLog("google.script.run.getActiveUserSession() triggered.", "read");
+              if (this.successHandler) {
+                this.successHandler({
+                  name: "Dr Bassant",
+                  email: "bassant@azar.com"
+                });
+              }
+            }, 200);
           },
           logEvent(type, name, invitedList, dueDate) {
             setTimeout(() => {
@@ -638,6 +655,12 @@
       const [selectedMember, setSelectedMember] = useState(null);
       const [showNotification, setShowNotification] = useState(true);
       const [reopenDueDate, setReopenDueDate] = useState('');
+
+      // Active User Session State and custom dropdown states
+      const [activeUserSession, setActiveUserSession] = useState({ name: 'Dr Bassant', email: 'bassant@azar.com' });
+      const [eventSearchQuery, setEventSearchQuery] = useState('');
+      const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false);
+
       const [newLogEntry, setNewLogEntry] = useState({ type: 'Skill', name: '', dueDate: '' });
 
       const fetchData = (isSync = false) => {
@@ -647,6 +670,9 @@
         google.script.run
           .withSuccessHandler((data) => {
             setTeamData(data);
+            if (data.activeUserSession) {
+              setActiveUserSession(data.activeUserSession);
+            }
             
             const savedName = localStorage.getItem('active_member_name');
             let defaultUser = null;
@@ -685,15 +711,79 @@
         e.preventDefault();
         setSyncing(true);
 
-        const invitees = teamData.team.map(t => t.Name);
+        const invitees = teamData.team.map(t => t.Name); // default invite everyone
 
-        google.script.run
-          .withSuccessHandler(() => {
-            setShowLogModal(false);
-            setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
-            fetchData(true);
+        // Package data into a JSON object as requested
+        const payload = {
+          type: newLogEntry.type,
+          name: newLogEntry.name,
+          dueDate: newLogEntry.dueDate,
+          userName: activeUserSession.name,
+          email: activeUserSession.email,
+          invitees: invitees
+        };
+
+        const backendUrl = teamData.webAppUrl || "";
+
+        if (backendUrl) {
+          fetch(backendUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
           })
-          .logEvent(newLogEntry.type, newLogEntry.name, invitees, newLogEntry.dueDate);
+          .then(() => {
+            setShowLogModal(false);
+            setEventSearchQuery('');
+            setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+            fetchData(true); // Sync reload
+          })
+          .catch((err) => {
+            console.error("POST request failed: ", err);
+            // Fallback to google.script.run
+            triggerGoogleScriptLog(payload, invitees);
+          });
+        } else {
+          triggerGoogleScriptLog(payload, invitees);
+        }
+      };
+
+      const triggerGoogleScriptLog = (payload, invitees) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((res) => {
+              setShowLogModal(false);
+              setEventSearchQuery('');
+              setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+              fetchData(true); // Sync reload
+            })
+            .withFailureHandler((err) => {
+              console.error(err);
+              alert("Error adding event to sheet");
+              setSyncing(false);
+            })
+            .logEvent(payload.type, payload.name, invitees, payload.dueDate);
+        } else {
+          // Simulation for local development
+          const newEvent = {
+            "Event Type": payload.type,
+            "Event ID": String(teamData.logs.length + 1),
+            "Event Name": payload.name,
+            "Invited/Assigned": invitees.join('\n'),
+            "Attendees/Completed": "",
+            "Due to Date": payload.dueDate
+          };
+          setTeamData(prev => ({
+            ...prev,
+            logs: [newEvent, ...prev.logs]
+          }));
+          setShowLogModal(false);
+          setEventSearchQuery('');
+          setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+          setSyncing(false);
+        }
       };
 
       const handleAttendEvent = (eventId) => {
@@ -818,6 +908,76 @@
 
         return { categories, assigned, completed };
       }, [teamData]);
+
+      // Compile full list of available events dynamically from teamData
+      const availableEvents = useMemo(() => {
+        const events = [];
+        if (!teamData) return events;
+
+        // 1. Skills (type: Skill)
+        if (teamData.skills) {
+          teamData.skills.forEach(s => {
+            const logEntry = teamData.logs ? teamData.logs.find(l => l["Event Type"] === "Skill" && l["Event Name"] === s["Skill Name"]) : null;
+            const reopenWindow = logEntry ? (new Date(logEntry["Due to Date"]) >= new Date()) : false;
+            events.push({
+              name: s["Skill Name"] || "",
+              type: "Skill",
+              dueDate: logEntry ? logEntry["Due to Date"] : "2026-12-31",
+              reopenWindow: reopenWindow
+            });
+          });
+        }
+
+        // 2. Meet (type: Meet)
+        if (teamData.meet) {
+          teamData.meet.forEach(m => {
+            const logEntry = teamData.logs ? teamData.logs.find(l => l["Event Type"] === "Meet" && l["Event Name"] === m["Meeting title"]) : null;
+            const reopenWindow = logEntry ? (new Date(logEntry["Due to Date"]) >= new Date()) : false;
+            events.push({
+              name: m["Meeting title"] || "",
+              type: "Meet",
+              dueDate: m["Date"] || (logEntry ? logEntry["Due to Date"] : "2026-12-31"),
+              reopenWindow: reopenWindow
+            });
+          });
+        }
+
+        // 3. Learning (type: Learning)
+        if (teamData.learning) {
+          teamData.learning.forEach(l => {
+            const logEntry = teamData.logs ? teamData.logs.find(l => l["Event Type"] === "Learning" && l["Event Name"] === l["Topic name"]) : null;
+            const reopenWindow = logEntry ? (new Date(logEntry["Due to Date"]) >= new Date()) : false;
+            events.push({
+              name: l["Topic name"] || "",
+              type: "Learning",
+              dueDate: logEntry ? logEntry["Due to Date"] : "2026-12-31",
+              reopenWindow: reopenWindow
+            });
+          });
+        }
+
+        return events;
+      }, [teamData]);
+
+      // Filter available events based on event type, due date (Crucial Rule) and search query
+      const filteredAvailableEvents = useMemo(() => {
+        const typeFiltered = availableEvents.filter(ev => ev.type === newLogEntry.type);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        const activeEvents = typeFiltered.filter(ev => {
+          if (!ev.dueDate) return true;
+          const due = new Date(ev.dueDate);
+          due.setHours(0,0,0,0);
+          return due >= today || ev.reopenWindow === true;
+        });
+
+        if (!eventSearchQuery.trim()) return activeEvents;
+
+        return activeEvents.filter(ev =>
+          ev.name.toLowerCase().includes(eventSearchQuery.toLowerCase())
+        );
+      }, [availableEvents, newLogEntry.type, eventSearchQuery]);
 
       const userEventsAndStatus = useMemo(() => {
         if (!currentUser) return [];
@@ -1412,13 +1572,45 @@
 
           </main>
 
-          <Modal isOpen={showLogModal} onClose={() => setShowLogModal(false)} title="Log New Event">
+          <Modal 
+            isOpen={showLogModal} 
+            onClose={() => {
+              setShowLogModal(false);
+              setEventSearchQuery('');
+            }} 
+            title="Log New Event"
+          >
             <form onSubmit={handleLogSubmit} class="space-y-4">
+              {/* User Context Fields */}
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">User Name</label>
+                  <input
+                    type="text"
+                    readonly
+                    value={activeUserSession.name}
+                    class="w-full bg-gray-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
+                  <input
+                    type="text"
+                    readonly
+                    value={activeUserSession.email}
+                    class="w-full bg-gray-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Type</label>
                 <select
                   value={newLogEntry.type}
-                  onChange={(e) => setNewLogEntry({ ...newLogEntry, type: e.target.value })}
+                  onChange={(e) => {
+                    setNewLogEntry({ ...newLogEntry, type: e.target.value, name: '' });
+                    setEventSearchQuery('');
+                  }}
                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
                 >
                   <option value="Skill">Skill Workshop</option>
@@ -1427,14 +1619,63 @@
                 </select>
               </div>
 
-              <div>
+              {/* Custom Searchable Event Dropdown */}
+              <div class="relative">
                 <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Name</label>
-                <input
-                  type="text" required placeholder="e.g. PySpark Big Data Workshop"
-                  value={newLogEntry.name}
-                  onChange={(e) => setNewLogEntry({ ...newLogEntry, name: e.target.value })}
-                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                />
+                <div class="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Search and select an event..."
+                    value={eventSearchQuery}
+                    onFocus={() => setIsEventDropdownOpen(true)}
+                    onBlur={() => {
+                      // Slight delay to allow onClick of dropdown item to fire before closing
+                      setTimeout(() => setIsEventDropdownOpen(false), 200);
+                    }}
+                    onChange={(e) => {
+                      setEventSearchQuery(e.target.value);
+                      setIsEventDropdownOpen(true);
+                      setNewLogEntry(prev => ({ ...prev, name: e.target.value }));
+                    }}
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                  />
+                  
+                  {/* Dropdown Arrow Indicator */}
+                  <div class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <Icon name="chevron-down" className="w-4 h-4" />
+                  </div>
+
+                  {/* Dropdown Menu */}
+                  {isEventDropdownOpen && (
+                    <ul class="absolute left-0 right-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-saas-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-50 py-1">
+                      {filteredAvailableEvents.length > 0 ? (
+                        filteredAvailableEvents.map((ev, idx) => (
+                          <li
+                            key={idx}
+                            onClick={() => {
+                              setEventSearchQuery(ev.name);
+                              setNewLogEntry(prev => ({ ...prev, name: ev.name }));
+                              setIsEventDropdownOpen(false);
+                            }}
+                            class="px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 cursor-pointer flex justify-between items-center transition-colors text-left"
+                          >
+                            <span>{ev.name}</span>
+                            {ev.reopenWindow && (
+                              <span class="bg-amber-100 text-amber-800 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                Re-opened
+                              </span>
+                            )}
+                          </li>
+                        ))
+                      ) : (
+                        <li class="px-3.5 py-2.5 text-xs text-slate-400 italic text-left">
+                          No matching active events found
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -1448,7 +1689,7 @@
               </div>
 
               <div class="pt-4 flex gap-3">
-                <button type="button" onClick={() => setShowLogModal(false)} class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-500">Cancel</button>
+                <button type="button" onClick={() => { setShowLogModal(false); setEventSearchQuery(''); }} class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-500">Cancel</button>
                 <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold shadow-sm shadow-brand-100">Log Event to Sheet</button>
               </div>
             </form>
