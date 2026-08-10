@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Azar Project Team Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Premium Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Custom Configuration for SaaS Minimalist Aesthetic -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c084fc',
+              400: '#a78bfa',
+              500: '#8b5cf6', // Indigo-Violet
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          },
+          boxShadow: {
+            'saas': '0 4px 20px -2px rgba(139, 92, 246, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            'saas-lg': '0 10px 30px -3px rgba(139, 92, 246, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)',
+            'saas-modal': '0 20px 50px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0, 0, 0, 0.04)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- ApexCharts CDN (Beautiful interactive charts) -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+  <!-- React 18 & ReactDOM 18 CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel Standalone for on-the-fly JSX transpilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+    
+    /* Custom Smooth Transitions */
+    .fade-enter {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    .fade-enter-active {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 300ms, transform 300ms;
+    }
+  </style>
+</head>
+<body class="bg-[#fcfcfd] text-slate-800 antialiased min-h-screen">
+
+  <div id="root"></div>
+
+  <!-- React Application Core Code -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // A lightweight Lucide Icon component for React
+    const Icon = ({ name, className = "w-5 h-5", strokeWidth = 2 }) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (window.lucide && ref.current) {
+          ref.current.innerHTML = '';
+          const iconEl = window.lucide.createIcons({
+            attrs: {
+              class: className,
+              'stroke-width': strokeWidth
+            },
+            name: name
+          });
+          // Appends the created SVG to the element
+          if (iconEl && iconEl[name]) {
+            ref.current.appendChild(iconEl[name].cloneNode(true));
+          }
+        }
+      }, [name, className, strokeWidth]);
+
+      return <span ref={ref} className="inline-flex items-center justify-center" />;
+    };
+
+    // Card Container wrapper following the SaaS Minimalist style
+    const Card = ({ children, className = "" }) => (
+      <div class={`bg-white border border-slate-100 rounded-2xl shadow-saas p-6 transition-all duration-300 hover:shadow-saas-lg ${className}`}>
+        {children}
+      </div>
+    );
+
+    // Modal wrapper with soft backdrop and shadow-saas-modal
+    const Modal = ({ isOpen, onClose, title, children }) => {
+      if (!isOpen) return null;
+      return (
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+          <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+          <div class="relative bg-white rounded-3xl shadow-saas-modal border border-slate-100 max-w-lg w-full overflow-hidden p-6 sm:p-8 animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-bold text-slate-900">{title}</h3>
+              <button onClick={onClose} class="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-full bg-slate-50 hover:bg-slate-100">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    };
+
+    // Interactive Chart Components using ApexCharts in React refs
+
+    // 1. Skill Radar Chart Component
+    const SkillRadar = ({ data, categories, memberName }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'radar',
+            height: 280,
+            toolbar: { show: false },
+            dropShadow: {
+              enabled: true,
+              blur: 8,
+              left: 1,
+              top: 1,
+              opacity: 0.03
+            }
+          },
+          series: [{
+            name: memberName,
+            data: data
+          }],
+          labels: categories,
+          colors: ['#8b5cf6'],
+          fill: {
+            opacity: 0.15,
+            colors: ['#8b5cf6']
+          },
+          stroke: {
+            show: true,
+            width: 2,
+            colors: ['#8b5cf6']
+          },
+          markers: {
+            size: 4,
+            colors: ['#8b5cf6'],
+            strokeColor: '#fff',
+            strokeWidth: 2
+          },
+          yaxis: {
+            show: false,
+            min: 0,
+            max: 100,
+            tickAmount: 5
+          },
+          grid: {
+            padding: {
+              top: -10,
+              bottom: -10
+            }
+          },
+          legend: { show: false }
+        };
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [data, categories, memberName]);
+
+      return <div ref={chartRef} class="w-full flex justify-center" />;
+    };
+
+    // 2. Task Status Donut Chart
+    const TaskDonut = ({ completed, inProgress, pending }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'donut',
+            height: 260,
+          },
+          series: [completed, inProgress, pending],
+          labels: ['Completed', 'In Progress', 'Pending'],
+          colors: ['#10b981', '#f59e0b', '#64748b'], // Emerald, Amber, Slate
+          plotOptions: {
+            pie: {
+              donut: {
+                size: '72%',
+                labels: {
+                  show: true,
+                  name: {
+                    show: true,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#64748b',
+                    offsetY: -4
+                  },
+                  value: {
+                    show: true,
+                    fontSize: '24px',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    offsetY: 8,
+                    formatter: function (val) {
+                      return val;
+                    }
+                  },
+                  total: {
+                    show: true,
+                    label: 'Total Tasks',
+                    color: '#64748b',
+                    fontWeight: 500,
+                    formatter: function (w) {
+                      return w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                    }
+                  }
+                }
+              }
+            }
+          },
+          dataLabels: { show: false },
+          legend: {
+            position: 'bottom',
+            fontSize: '12px',
+            fontWeight: 500,
+            markers: { radius: 99 }
+          },
+          stroke: { width: 0 }
+        };
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [completed, inProgress, pending]);
+
+      return <div ref={chartRef} />;
+    };
+
+    // 3. Team Contribution Columns
+    const TeamContributionBar = ({ categories, assigned, completed }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'bar',
+            height: 280,
+            toolbar: { show: false }
+          },
+          plotOptions: {
+            bar: {
+              horizontal: false,
+              columnWidth: '55%',
+              borderRadius: 4,
+              endingShape: 'rounded'
+            },
+          },
+          dataLabels: {
+            enabled: false
+          },
+          stroke: {
+            show: true,
+            width: 2,
+            colors: ['transparent']
+          },
+          series: [{
+            name: 'Tasks Assigned',
+            data: assigned,
+            color: '#cbd5e1'
+          }, {
+            name: 'Tasks Completed',
+            data: completed,
+            color: '#8b5cf6'
+          }],
+          xaxis: {
+            categories: categories,
+            labels: {
+              style: {
+                colors: '#64748b',
+                fontSize: '11px',
+                fontWeight: 500
+              }
+            },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+          },
+          yaxis: {
+            title: { text: undefined },
+            labels: {
+              style: {
+                colors: '#64748b',
+                fontSize: '11px'
+              }
+            }
+          },
+          fill: { opacity: 1 },
+          legend: {
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '12px',
+            fontWeight: 500,
+            markers: { radius: 99 }
+          },
+          grid: {
+            borderColor: '#f1f5f9',
+            strokeDashArray: 4,
+            yaxis: {
+              lines: { show: true }
+            }
+          }
+        };
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [categories, assigned, completed]);
+
+      return <div ref={chartRef} />;
+    };
+
+    // 4. Cumulative Learning / Task Completion Over Time (Spline Area)
+    const CumulativeTimeline = ({ categories, completed, assigned }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'area',
+            height: 280,
+            toolbar: { show: false },
+            sparkline: { enabled: false }
+          },
+          dataLabels: { enabled: false },
+          stroke: {
+            curve: 'smooth',
+            width: 3,
+            colors: ['#cbd5e1', '#8b5cf6']
+          },
+          series: [
+            { name: 'Total Assigned', data: assigned },
+            { name: 'Completed', data: completed }
+          ],
+          fill: {
+            type: 'gradient',
+            gradient: {
+              shadeIntensity: 1,
+              opacityFrom: 0.15,
+              opacityTo: 0.0,
+              stops: [0, 90, 100]
+            }
+          },
+          colors: ['#94a3b8', '#8b5cf6'],
+          xaxis: {
+            categories: categories,
+            labels: {
+              style: {
+                colors: '#64748b',
+                fontSize: '11px',
+                fontWeight: 500
+              }
+            },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+          },
+          yaxis: {
+            labels: {
+              style: {
+                colors: '#64748b',
+                fontSize: '11px'
+              }
+            }
+          },
+          grid: {
+            borderColor: '#f1f5f9',
+            strokeDashArray: 4
+          },
+          legend: {
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '12px',
+            fontWeight: 500,
+            markers: { radius: 99 }
+          }
+        };
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [categories, completed, assigned]);
+
+      return <div ref={chartRef} />;
+    };
+
+    // Main App Component
+    function App() {
+      const [loading, setLoading] = useState(true);
+      const [syncing, setSyncing] = useState(false);
+      const [activeTab, setActiveTab] = useState('dashboard');
+      
+      // Complete backend-derived data
+      const [teamData, setTeamData] = useState({
+        supervisor: [],
+        team: [],
+        skills: [],
+        learning: [],
+        meet: [],
+        exam: [],
+        tasks: [],
+        logs: []
+      });
+
+      // Active User / Profile selection state
+      const [currentUser, setCurrentUser] = useState(null);
+
+      // UI interaction states
+      const [showLogModal, setShowLogModal] = useState(false);
+      const [showReopenModal, setShowReopenModal] = useState(null); // Holds event to re-open
+      const [selectedMember, setSelectedMember] = useState(null); // Detailed modal
+      const [showNotification, setShowNotification] = useState(true);
+      const [reopenDueDate, setReopenDueDate] = useState('');
+
+      // New log entry state
+      const [newLogEntry, setNewLogEntry] = useState({
+        type: 'Skill',
+        name: '',
+        dueDate: ''
+      });
+
+      // Fetch team data from Google Apps Script
+      const fetchData = (isSync = false) => {
+        if (isSync) setSyncing(true);
+        else setLoading(true);
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((data) => {
+              setTeamData(data);
+              
+              // Restore previously selected member from localStorage, or default to first member
+              const savedName = localStorage.getItem('active_member_name');
+              let defaultUser = null;
+              if (savedName && data.team) {
+                defaultUser = data.team.find(t => normalizeName(t.Name) === normalizeName(savedName));
+              }
+              if (!defaultUser && data.team && data.team.length > 0) {
+                defaultUser = data.team[0];
+              }
+              setCurrentUser(defaultUser);
+              setLoading(false);
+              setSyncing(false);
+            })
+            .withFailureHandler((err) => {
+              console.error("Failed to load spreadsheet data: ", err);
+              alert("Error loading data from Google Sheet. Please check spreadsheet connection.");
+              setLoading(false);
+              setSyncing(false);
+            })
+            .getTeamData();
+        } else {
+          // Fallback simulation for local development testing
+          setTimeout(() => {
+            const mockData = {
+              supervisor: [{ Name: "Dr Bassant", phone: "17352734" }],
+              team: [
+                { Name: "Abdallah-Allam", ID: 2520550, Rule: "Team Lead" },
+                { Name: "Abdelrahman M. Abdel-Fattah", ID: 2520780, Rule: "Software Engineer" },
+                { Name: "Youssef Hammam Masoud", ID: 2540300, Rule: "AI Specialist" },
+                { Name: "Assem Walid Khamis", ID: 2540213, Rule: "Mechanical Engineer" }
+              ],
+              skills: [
+                { "Skill Name": "Python", "Skill Category": "Software", "Skill Rank": 5 },
+                { "Skill Name": "C", "Skill Category": "Software", "Skill Rank": 8 },
+                { "Skill Name": "Solidworks", "Skill Category": "Mechanical", "Skill Rank": 10 }
+              ],
+              learning: [
+                { "Topic name": "AI for Everyone", "Track ID": 1, "Track Name": "AI for Everyone", "Obligability": "Mandatory", "Platform": "DeepLearning" },
+                { "Topic name": "Generative AI for Everyone", "Track ID": 1, "Track Name": "AI for Everyone", "Obligability": "Mandatory", "Platform": "DeepLearning" },
+                { "Topic name": "AI Prompting for Everyone", "Track ID": 2, "Track Name": "Foundations & Prompting", "Obligability": "Mandatory", "Platform": "DeepLearning" },
+                { "Topic name": "Large Multimodal Model Prompting with Gemini", "Track ID": 2, "Track Name": "Foundations & Prompting", "Obligability": "Optional", "Platform": "DeepLearning" }
+              ],
+              meet: [
+                { "Meeting title": "Project overview", "Meeting Type": "online", "Date": "2026-07-30", "Description": "overview about the project" },
+                { "Meeting title": "Roobt", "Meeting Type": "offline", "Date": "2026-08-30", "Description": "Robotics build discussion" }
+              ],
+              exam: [
+                { "Exam name": "C exam", "Date": "2026-07-30", "Category ": "Software" }
+              ],
+              tasks: [
+                { "Task Title": "AAA", "Task description": "RAG Implementation", "Break down (DOD)": "1-hi\n2-bye", "Assignees": "Abdallah-Allam", "Status": "Completed", "Score": 3, "ETA": "2026-07-30" },
+                { "Task Title": "bbb", "Task description": "Design Rover Chassis", "Break down (DOD)": "1-hi\n2-bye", "Assignees": "Abdallah-Allam", "Status": "inProgress", "Score": 3, "ETA": 6 }
+              ],
+              logs: [
+                { "Event Type": "Skill", "Event ID": 1, "Event Name": "Python", "Invited/Assigned": "Abdallah-Allam\nAbdelrahman M. Abdel-Fattah", "Attendees/Completed": "Abdelrahman M. Abdel-Fattah", "Due to Date": "2026-07-30" },
+                { "Event Type": "Meet", "Event ID": 2, "Event Name": "bbb", "Invited/Assigned": "Abdallah-Allam", "Attendees/Completed": "Abdallah-Allam", "Due to Date": "2026-08-15" }
+              ]
+            };
+            setTeamData(mockData);
+            setCurrentUser(mockData.team[0]);
+            setLoading(false);
+            setSyncing(false);
+          }, 800);
+        }
+      };
+
+      useEffect(() => {
+        fetchData();
+      }, []);
+
+      // Normalizes name comparing: replace hyphen with spaces, lowercase, trim.
+      const normalizeName = (name) => {
+        return name ? name.toLowerCase().replace(/-/g, ' ').trim() : '';
+      };
+
+      // Handler to switch simulated log in profile
+      const handleUserChange = (userName) => {
+        const found = teamData.team.find(t => normalizeName(t.Name) === normalizeName(userName));
+        if (found) {
+          setCurrentUser(found);
+          localStorage.setItem('active_member_name', found.Name);
+        }
+      };
+
+      // Handle submitting a new event to Google Apps Script Log sheet
+      const handleLogSubmit = (e) => {
+        e.preventDefault();
+        setSyncing(true);
+
+        const invitees = teamData.team.map(t => t.Name); // default invite everyone
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((res) => {
+              setShowLogModal(false);
+              setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+              fetchData(true); // Sync reload
+            })
+            .withFailureHandler((err) => {
+              console.error(err);
+              alert("Error adding event to sheet");
+              setSyncing(false);
+            })
+            .logEvent(newLogEntry.type, newLogEntry.name, invitees, newLogEntry.dueDate);
+        } else {
+          // Simulation
+          const newEvent = {
+            "Event Type": newLogEntry.type,
+            "Event ID": teamData.logs.length + 1,
+            "Event Name": newLogEntry.name,
+            "Invited/Assigned": invitees.join('\n'),
+            "Attendees/Completed": "",
+            "Due to Date": newLogEntry.dueDate
+          };
+          setTeamData(prev => ({
+            ...prev,
+            logs: [newEvent, ...prev.logs]
+          }));
+          setShowLogModal(false);
+          setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+          setSyncing(false);
+        }
+      };
+
+      // Handle marking an event completed / logging attendance
+      const handleAttendEvent = (eventId) => {
+        if (!currentUser) return;
+        setSyncing(true);
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(() => {
+              fetchData(true);
+            })
+            .withFailureHandler((err) => {
+              console.error(err);
+              alert("Error registering attendance");
+              setSyncing(false);
+            })
+            .attendEvent(eventId, currentUser.Name);
+        } else {
+          // Simulation
+          setTeamData(prev => {
+            const updatedLogs = prev.logs.map(log => {
+              if (parseFloat(log["Event ID"]) === parseFloat(eventId)) {
+                let list = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+                if (!list.includes(currentUser.Name)) {
+                  list.push(currentUser.Name);
+                }
+                return { ...log, "Attendees/Completed": list.join('\n') };
+              }
+              return log;
+            });
+            return { ...prev, logs: updatedLogs };
+          });
+          setSyncing(false);
+        }
+      };
+
+      // Handle re-opening an overdue event
+      const handleReopenSubmit = (e) => {
+        e.preventDefault();
+        if (!showReopenModal) return;
+        setSyncing(true);
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(() => {
+              setShowReopenModal(null);
+              setReopenDueDate('');
+              fetchData(true);
+            })
+            .withFailureHandler((err) => {
+              console.error(err);
+              alert("Error re-opening event");
+              setSyncing(false);
+            })
+            .reopenEvent(showReopenModal["Event ID"], reopenDueDate);
+        } else {
+          // Simulation
+          setTeamData(prev => {
+            const updatedLogs = prev.logs.map(log => {
+              if (parseFloat(log["Event ID"]) === parseFloat(showReopenModal["Event ID"])) {
+                return { ...log, "Due to Date": reopenDueDate };
+              }
+              return log;
+            });
+            return { ...prev, logs: updatedLogs };
+          });
+          setShowReopenModal(null);
+          setReopenDueDate('');
+          setSyncing(false);
+        }
+      };
+
+      // Derived dynamic statistics and calculations for active profile
+      const userProfileDetails = useMemo(() => {
+        if (!currentUser) return null;
+
+        const nameNorm = normalizeName(currentUser.Name);
+
+        // 1. Task Statistics
+        const userTasks = teamData.tasks.filter(t => {
+          if (!t.Assignees) return false;
+          return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+        });
+        const completedTasks = userTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length;
+        const assignedTasksCount = userTasks.length;
+        const pendingTasks = userTasks.filter(t => t.Status && (t.Status.toLowerCase() === 'pending' || t.Status.toLowerCase() === 'inprogress')).length;
+
+        // 2. Learning Track Statistics
+        const userLearningEvents = teamData.logs.filter(log => {
+          if (log["Event Type"] !== 'Learning' && log["Event Type"] !== 'Skill') return false;
+          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          return invited.some(inv => normalizeName(inv) === nameNorm);
+        });
+        const completedLearningCount = userLearningEvents.filter(log => {
+          const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          return completed.some(comp => normalizeName(comp) === nameNorm);
+        }).length;
+        const invitedLearningCount = userLearningEvents.length;
+        const learningProgress = invitedLearningCount > 0 ? Math.round((completedLearningCount / invitedLearningCount) * 100) : 0;
+
+        // 3. Dynamic Skill radar generation
+        const baseSkills = ['Python', 'C', 'Solidworks', 'Leadership', 'Communication', 'Problem Solving'];
+        const skillScores = baseSkills.map(subject => {
+          let score = 40; // Base score
+
+          // Boost if completed in Log sheet
+          const matchingSkillLog = teamData.logs.find(log => 
+            log["Event Type"] === 'Skill' && 
+            normalizeName(log["Event Name"]) === normalizeName(subject)
+          );
+
+          if (matchingSkillLog) {
+            const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
+            const invitedList = matchingSkillLog["Invited/Assigned"] ? matchingSkillLog["Invited/Assigned"].split('\n') : [];
+            
+            if (completedList.some(c => normalizeName(compName => compName === nameNorm))) {
+              score = 95;
+            } else if (invitedList.some(i => normalizeName(i) === nameNorm)) {
+              const overdue = new Date(matchingSkillLog["Due to Date"]) < new Date();
+              score = overdue ? 45 : 65;
+            }
+          }
+
+          // Special modifiers
+          if (subject === 'Leadership' && (currentUser.Rule && currentUser.Rule.toLowerCase().includes('lead') || currentUser.Rule && currentUser.Rule.toLowerCase().includes('supervisor'))) {
+            score = 95;
+          }
+          if (subject === 'Communication' && completedTasks > 0) {
+            score += Math.min(30, completedTasks * 10);
+          }
+          if (subject === 'Problem Solving' && completedTasks > 0) {
+            score += Math.min(40, completedTasks * 15);
+          }
+
+          return { subject, score: Math.min(100, score) };
+        });
+
+        // 4. Meeting attendance
+        const userMeets = teamData.logs.filter(log => log["Event Type"] === 'Meet');
+        const attendedMeets = userMeets.filter(log => {
+          const attendees = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          return attendees.some(att => normalizeName(att) === nameNorm);
+        }).length;
+        const invitedMeets = userMeets.filter(log => {
+          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          return invited.some(inv => normalizeName(inv) === nameNorm);
+        }).length;
+
+        return {
+          assignedTasksCount,
+          completedTasks,
+          pendingTasks,
+          learningProgress,
+          completedLearningCount,
+          invitedLearningCount,
+          skillScores,
+          attendedMeets,
+          invitedMeets
+        };
+      }, [currentUser, teamData]);
+
+      // Calculate Team Contribution Data for Contribution Bar Chart
+      const teamContributionData = useMemo(() => {
+        if (!teamData.team || !teamData.tasks) return { categories: [], assigned: [], completed: [] };
+
+        const categories = [];
+        const assigned = [];
+        const completed = [];
+
+        teamData.team.slice(0, 10).forEach(member => {
+          const nameNorm = normalizeName(member.Name);
+          categories.push(member.Name.split('-')[0]); // Shorten name for readability
+          
+          const memberTasks = teamData.tasks.filter(t => {
+            if (!t.Assignees) return false;
+            return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+          });
+          assigned.push(memberTasks.length);
+          completed.push(memberTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length);
+        });
+
+        return { categories, assigned, completed };
+      }, [teamData]);
+
+      // Filter events logged for active user
+      const userEventsAndStatus = useMemo(() => {
+        if (!currentUser) return [];
+
+        const nameNorm = normalizeName(currentUser.Name);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        return teamData.logs.map(log => {
+          const invitedList = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').map(x => x.trim()) : [];
+          const completedList = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').map(x => x.trim()) : [];
+          
+          const isInvited = invitedList.some(i => normalizeName(i) === nameNorm);
+          const isCompleted = completedList.some(c => normalizeName(c) === nameNorm);
+
+          let parsedDueDate = null;
+          if (log["Due to Date"]) {
+            parsedDueDate = new Date(log["Due to Date"]);
+            parsedDueDate.setHours(0,0,0,0);
+          }
+
+          let status = 'Inactive';
+          if (isInvited) {
+            if (isCompleted) {
+              status = 'Completed';
+            } else if (parsedDueDate && parsedDueDate < today) {
+              status = 'Overdue';
+            } else {
+              status = 'Active';
+            }
+          }
+
+          return {
+            ...log,
+            isInvited,
+            isCompleted,
+            status,
+            formattedDueDate: log["Due to Date"] || 'No deadline'
+          };
+        }).filter(e => e.isInvited);
+      }, [currentUser, teamData]);
+
+      const overdueCount = useMemo(() => {
+        return userEventsAndStatus.filter(e => e.status === 'Overdue').length;
+      }, [userEventsAndStatus]);
+
+      const activeCount = useMemo(() => {
+        return userEventsAndStatus.filter(e => e.status === 'Active').length;
+      }, [userEventsAndStatus]);
+
+      const isLeader = useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.Rule || '';
+        return role.toLowerCase().includes('lead') || role.toLowerCase().includes('supervisor') || normalizeName(currentUser.Name) === 'abdallah allam' || normalizeName(currentUser.Name) === 'abdallah-allam';
+      }, [currentUser]);
+
+      // Calculate member performance dynamic matrix for Team tab
+      const getMemberMetrics = (member) => {
+        const nameNorm = normalizeName(member.Name);
+        
+        const mTasks = teamData.tasks.filter(t => {
+          if (!t.Assignees) return false;
+          return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+        });
+        const completedCount = mTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length;
+        
+        const mLearningEvents = teamData.logs.filter(log => {
+          if (log["Event Type"] !== 'Learning' && log["Event Type"] !== 'Skill') return false;
+          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          return invited.some(inv => normalizeName(inv) === nameNorm);
+        });
+        const completedLearning = mLearningEvents.filter(log => {
+          const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          return completed.some(comp => normalizeName(comp) === nameNorm);
+        }).length;
+        
+        const learningProgress = mLearningEvents.length > 0 ? Math.round((completedLearning / mLearningEvents.length) * 100) : 0;
+
+        // Generate skill scores
+        const baseSkills = ['Python', 'C', 'Solidworks', 'Leadership', 'Communication', 'Problem Solving'];
+        const skills = baseSkills.map(subject => {
+          let score = 40;
+          const matchingSkillLog = teamData.logs.find(log => 
+            log["Event Type"] === 'Skill' && 
+            normalizeName(log["Event Name"]) === normalizeName(subject)
+          );
+
+          if (matchingSkillLog) {
+            const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
+            if (completedList.some(c => normalizeName(c) === nameNorm)) {
+              score = 95;
+            }
+          }
+
+          if (subject === 'Leadership' && (member.Rule && member.Rule.toLowerCase().includes('lead') || member.Rule && member.Rule.toLowerCase().includes('supervisor'))) {
+            score = 95;
+          }
+          if (subject === 'Communication' && completedCount > 0) {
+            score += Math.min(30, completedCount * 10);
+          }
+          return { subject, score: Math.min(100, score) };
+        });
+
+        return {
+          tasksCompleted: completedCount,
+          tasksAssigned: mTasks.length,
+          learningProgress,
+          skills
+        };
+      };
+
+      if (loading) {
+        return (
+          <div class="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+            <div class="relative w-16 h-16 mb-4">
+              <div class="absolute inset-0 rounded-full border-4 border-violet-100"></div>
+              <div class="absolute inset-0 rounded-full border-4 border-violet-500 border-t-transparent animate-spin"></div>
+            </div>
+            <p class="text-slate-600 font-semibold tracking-wide">Synthesizing Azar Workspace...</p>
+            <p class="text-slate-400 text-xs mt-2">Reading database records from Google Sheet</p>
+          </div>
+        );
+      }
+
+      return (
+        <div class="min-h-screen pb-16">
+          
+          {/* TOP HEADER */}
+          <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div class="flex items-center justify-between h-16">
+                
+                {/* Brand Logo */}
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md shadow-brand-200">
+                    A
+                  </div>
+                  <div>
+                    <span class="font-extrabold text-lg text-slate-900 tracking-tight block">Azar Project Team</span>
+                    <span class="text-[10px] text-slate-400 font-medium block -mt-1 uppercase tracking-wider">Workspace Dashboard</span>
+                  </div>
+                </div>
+
+                {/* Navigation Links */}
+                <div class="hidden md:flex bg-slate-50 p-1 rounded-xl border border-slate-100 gap-1">
+                  {[
+                    { id: 'dashboard', name: 'Dashboard', icon: 'layout-dashboard' },
+                    { id: 'learning', name: 'Learning Tracks', icon: 'graduation-cap' },
+                    { id: 'team', name: 'Team Intelligence', icon: 'users' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      class={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === tab.id 
+                          ? 'bg-white shadow-sm text-brand-600' 
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icon name={tab.icon} className="w-4 h-4" />
+                      {tab.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Member Selector & Controls */}
+                <div class="flex items-center gap-3">
+                  
+                  {/* Log Event Trigger */}
+                  <button 
+                    onClick={() => setShowLogModal(true)}
+                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
+                  >
+                    <Icon name="plus" className="w-3.5 h-3.5" />
+                    Log Event
+                  </button>
+
+                  {/* Simulated Profile Dropdown */}
+                  <div class="relative flex items-center bg-slate-50 rounded-xl border border-slate-100 pl-3 pr-2 py-1 gap-2">
+                    <div class="w-7 h-7 rounded-full bg-brand-50 text-brand-600 font-bold text-xs flex items-center justify-center border border-brand-200 uppercase">
+                      {currentUser ? currentUser.Name.charAt(0) : '?'}
+                    </div>
+                    <div class="text-left select-none mr-1">
+                      <select
+                        value={currentUser ? currentUser.Name : ''}
+                        onChange={(e) => handleUserChange(e.target.value)}
+                        class="bg-transparent text-slate-700 font-bold text-xs outline-none cursor-pointer pr-1"
+                      >
+                        {teamData.team.map((m, idx) => (
+                          <option key={idx} value={m.Name}>{m.Name}</option>
+                        ))}
+                      </select>
+                      <p class="text-[9px] text-slate-400 font-medium -mt-0.5">{currentUser ? (currentUser.Rule || 'Team Member') : ''}</p>
+                    </div>
+                  </div>
+
+                  {/* Sync Button */}
+                  <button 
+                    onClick={() => fetchData(true)}
+                    class={`p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors ${syncing ? 'bg-slate-50 text-slate-400' : 'text-slate-500'}`}
+                    title="Synchronize sheet data"
+                    disabled={syncing}
+                  >
+                    <Icon name="refresh-cw" className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                  </button>
+
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
+
+            {/* LIVE WEBCAST & WARNINGS NOTIFICATION */}
+            {showNotification && teamData.logs.length > 0 && (
+              <div class="bg-gradient-to-r from-brand-50 to-indigo-50 border border-brand-100/50 p-4 sm:p-5 rounded-3xl relative flex items-start gap-4">
+                <div class="bg-brand-100 text-brand-600 p-2.5 rounded-full flex-shrink-0">
+                  <Icon name="bell" className="w-5 h-5 animate-bounce" />
+                </div>
+                <div class="flex-1 space-y-1">
+                  <h4 class="text-sm font-bold text-brand-900 leading-none">Live Workspace Webcast</h4>
+                  <p class="text-xs text-brand-800 font-medium">
+                    <span class="font-bold">Latest Event Added:</span> "{teamData.logs[0]["Event Name"]}" ({teamData.logs[0]["Event Type"]}) due on <span class="font-bold">{teamData.logs[0]["Due to Date"] || 'No Limit'}</span>.
+                  </p>
+                  
+                  {/* Reminders / Action Items */}
+                  <div class="pt-1.5 flex flex-wrap gap-x-6 gap-y-1.5 text-[11px]">
+                    {overdueCount > 0 && (
+                      <span class="text-rose-600 font-semibold flex items-center gap-1">
+                        <Icon name="alert-triangle" className="w-3.5 h-3.5" />
+                        You missed {overdueCount} event(s)! Locked from completing unless re-opened.
+                      </span>
+                    )}
+                    {activeCount > 0 && (
+                      <span class="text-emerald-600 font-semibold flex items-center gap-1">
+                        <Icon name="clock" className="w-3.5 h-3.5" />
+                        You have {activeCount} active event(s) waiting for log submission.
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowNotification(false)}
+                  class="absolute top-4 right-4 text-brand-400 hover:text-brand-600 bg-white/60 hover:bg-white p-1 rounded-full transition-all"
+                >
+                  <Icon name="x" className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* -------------------- Tab 1: DASHBOARD PANEL -------------------- */}
+            {activeTab === 'dashboard' && (
+              <div class="space-y-6">
+                
+                {/* KPI Metrics Summary Row */}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  
+                  {/* KPI 1: Learning Progress */}
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Learning Progress</span>
+                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{userProfileDetails.learningProgress}%</h3>
+                      </div>
+                      <div class="p-3 bg-brand-50 text-brand-500 rounded-2xl">
+                        <Icon name="graduation-cap" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-4 overflow-hidden">
+                      <div class="bg-brand-500 h-1.5 rounded-full" style={{ width: `${userProfileDetails.learningProgress}%` }}></div>
+                    </div>
+                  </Card>
+
+                  {/* KPI 2: Completed Tasks */}
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Completed Tasks</span>
+                        <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">{userProfileDetails.completedTasks}</h3>
+                      </div>
+                      <div class="p-3 bg-emerald-50 text-emerald-500 rounded-2xl">
+                        <Icon name="check-circle" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-4">Out of {userProfileDetails.assignedTasksCount} total tasks assigned</p>
+                  </Card>
+
+                  {/* KPI 3: Pending Tasks */}
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Tasks</span>
+                        <h3 class="text-2xl font-extrabold text-amber-500 mt-1">{userProfileDetails.pendingTasks}</h3>
+                      </div>
+                      <div class="p-3 bg-amber-50 text-amber-500 rounded-2xl">
+                        <Icon name="briefcase" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-4">Awaiting Completion</p>
+                  </Card>
+
+                  {/* KPI 4: Pending / Active Events */}
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Events</span>
+                        <h3 class="text-2xl font-extrabold text-rose-500 mt-1">{activeCount}</h3>
+                      </div>
+                      <div class="p-3 bg-rose-50 text-rose-500 rounded-2xl">
+                        <Icon name="calendar" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-4">Needs Log Submission</p>
+                  </Card>
+                </div>
+
+                {/* Dashboard Chart Grids */}
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Radar Chart Card (Left) */}
+                  <Card class="lg:col-span-2 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Personal Skill Metric Matrix</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Dynamically compiled from log attendance and assignments</p>
+                      </div>
+                      <div class="px-2.5 py-1 bg-brand-50 text-brand-600 rounded-lg text-[10px] font-bold uppercase">
+                        Radar Mapping
+                      </div>
+                    </div>
+                    <div class="flex-1">
+                      <SkillRadar 
+                        data={userProfileDetails.skillScores.map(s => s.score)} 
+                        categories={userProfileDetails.skillScores.map(s => s.subject)} 
+                        memberName={currentUser ? currentUser.Name : ''} 
+                      />
+                    </div>
+                  </Card>
+
+                  {/* Donut Chart Card (Right) */}
+                  <Card class="flex flex-col justify-between">
+                    <div class="mb-4">
+                      <h4 class="text-sm font-bold text-slate-900">Task Status Overview</h4>
+                      <p class="text-[11px] text-slate-400 font-medium">Breakdown of personal assignments</p>
+                    </div>
+                    <div class="flex-1 flex items-center justify-center">
+                      {userProfileDetails.assignedTasksCount > 0 ? (
+                        <div class="w-full">
+                          <TaskDonut 
+                            completed={userProfileDetails.completedTasks} 
+                            inProgress={userProfileDetails.pendingTasks} 
+                            pending={0} // Default empty space
+                          />
+                        </div>
+                      ) : (
+                        <div class="text-center py-10 space-y-2">
+                          <Icon name="folder-open" className="w-10 h-10 text-slate-300 mx-auto" />
+                          <p class="text-slate-400 text-xs font-semibold">No assigned tasks found</p>
+                          <p class="text-[10px] text-slate-300">New assignments will update instantly</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                </div>
+
+                {/* Team Contribution Bar Chart */}
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Bar Chart (Left Column Span) */}
+                  <Card class="lg:col-span-2">
+                    <div class="mb-4 flex items-center justify-between">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Team Contribution Index</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Assigned vs Completed tasks per team member</p>
+                      </div>
+                    </div>
+                    <TeamContributionBar 
+                      categories={teamContributionData.categories}
+                      assigned={teamContributionData.assigned}
+                      completed={teamContributionData.completed}
+                    />
+                  </Card>
+
+                  {/* Spline Area Cumulative Growth (Right Column Span) */}
+                  <Card>
+                    <div class="mb-4">
+                      <h4 class="text-sm font-bold text-slate-900">Workspace Velocity</h4>
+                      <p class="text-[11px] text-slate-400 font-medium">Cumulative growth timeline index</p>
+                    </div>
+                    <CumulativeTimeline 
+                      categories={['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5']}
+                      completed={[4, 12, 18, 25, userProfileDetails.completedTasks]}
+                      assigned={[6, 15, 22, 30, userProfileDetails.assignedTasksCount]}
+                    />
+                  </Card>
+
+                </div>
+
+                {/* EVENTS & MEETINGS LIST SECTION */}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* Event Reminders with Attending Actions */}
+                  <Card>
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">My Workspace Events & Forms</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Open registration windows and task validation forms</p>
+                      </div>
+                      <span class="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[10px] text-slate-500 font-bold rounded-md">
+                        {userEventsAndStatus.length} Logged
+                      </span>
+                    </div>
+
+                    <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                      {userEventsAndStatus.length > 0 ? (
+                        userEventsAndStatus.map((ev, index) => (
+                          <div 
+                            key={index}
+                            class={`p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all ${
+                              ev.status === 'Completed' 
+                                ? 'bg-slate-50/50 border-slate-100' 
+                                : ev.status === 'Overdue' 
+                                ? 'bg-rose-50/20 border-rose-100/50' 
+                                : 'bg-white border-slate-100 shadow-sm'
+                            }`}
+                          >
+                            <div class="space-y-1 min-w-0">
+                              <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
+                                  ev["Event Type"] === 'Skill' 
+                                    ? 'bg-brand-50 text-brand-600' 
+                                    : ev["Event Type"] === 'Meet' 
+                                    ? 'bg-blue-50 text-blue-600' 
+                                    : 'bg-emerald-50 text-emerald-600'
+                                }`}>
+                                  {ev["Event Type"]}
+                                </span>
+                                <h5 class="text-xs font-bold text-slate-800 truncate">{ev["Event Name"]}</h5>
+                              </div>
+                              <p class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                                <Icon name="calendar" className="w-3 h-3" />
+                                Deadline: {ev.formattedDueDate}
+                              </p>
+                            </div>
+
+                            {/* Attendance / Event State */}
+                            <div class="flex-shrink-0 flex items-center gap-2">
+                              {ev.status === 'Completed' ? (
+                                <span class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 font-bold text-[10px] rounded-lg border border-emerald-100/30">
+                                  <Icon name="check-circle" className="w-3.5 h-3.5" />
+                                  Completed
+                                </span>
+                              ) : ev.status === 'Overdue' ? (
+                                <div class="flex items-center gap-1.5">
+                                  <span class="flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-500 font-bold text-[10px] rounded-lg border border-rose-100/30">
+                                    <Icon name="lock" className="w-3.5 h-3.5" />
+                                    Closed (Missed)
+                                  </span>
+                                  {isLeader && (
+                                    <button
+                                      onClick={() => {
+                                        setShowReopenModal(ev);
+                                        setReopenDueDate(ev.formattedDueDate);
+                                      }}
+                                      class="p-1 rounded bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors"
+                                      title="Re-open window (Set due date)"
+                                    >
+                                      <Icon name="unlock" className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleAttendEvent(ev["Event ID"])}
+                                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-[10px] transition-all shadow-sm shadow-emerald-50 hover:scale-102"
+                                >
+                                  <Icon name="check" className="w-3.5 h-3.5" />
+                                  Attend / Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div class="text-center py-10 space-y-1">
+                          <Icon name="smile" className="w-8 h-8 text-slate-300 mx-auto" />
+                          <p class="text-slate-400 text-xs font-semibold">No assigned events</p>
+                          <p class="text-[10px] text-slate-300">You're fully cleared from active logs!</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Meetings and Exams Card */}
+                  <Card>
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Upcoming Sync Meetings & Exams</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Team alignment meetings and technical examinations</p>
+                      </div>
+                      <span class="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[10px] text-slate-500 font-bold rounded-md">
+                        {teamData.meet.length + teamData.exam.length} Logged
+                      </span>
+                    </div>
+
+                    <div class="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                      
+                      {/* Meetings List */}
+                      {teamData.meet.map((m, idx) => (
+                        <div key={`m-${idx}`} class="flex items-start gap-3.5 p-3 rounded-xl border border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <div class="p-2.5 bg-blue-50 text-blue-500 rounded-xl flex-shrink-0">
+                            <Icon name="video" className="w-4 h-4" />
+                          </div>
+                          <div class="space-y-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                              <h5 class="text-xs font-bold text-slate-800">{m["Meeting title"]}</h5>
+                              <span class="text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full capitalize">
+                                {m["Meeting Type"]}
+                              </span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium leading-relaxed truncate">{m["Description"] || 'No description provided'}</p>
+                            <p class="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+                              <Icon name="calendar" className="w-3 h-3" />
+                              Scheduled: {m["Date"]}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Exams List */}
+                      {teamData.exam.map((ex, idx) => (
+                        <div key={`ex-${idx}`} class="flex items-start gap-3.5 p-3 rounded-xl border border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <div class="p-2.5 bg-brand-50 text-brand-500 rounded-xl flex-shrink-0">
+                            <Icon name="file-text" className="w-4 h-4" />
+                          </div>
+                          <div class="space-y-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                              <h5 class="text-xs font-bold text-slate-800">{ex["Exam name"]}</h5>
+                              <span class="text-[9px] font-bold px-1.5 py-0.5 bg-brand-50 text-brand-600 rounded-full">
+                                {ex["Category "] || 'Skill test'}
+                              </span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+                              <Icon name="calendar" className="w-3 h-3" />
+                              Date: {ex["Date"]}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                    </div>
+                  </Card>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* -------------------- Tab 2: LEARNING TRACKS PANEL -------------------- */}
+            {activeTab === 'learning' && (
+              <div class="space-y-6">
+                <div>
+                  <h3 class="text-lg font-bold text-slate-900">Learning Tracks Intelligence</h3>
+                  <p class="text-xs text-slate-400 font-medium">Browse, launch, and validate course modules synced with the team learning track database.</p>
+                </div>
+
+                {/* Learning Cards Grid */}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {teamData.learning.map((track, idx) => {
+                    const nameNorm = currentUser ? normalizeName(currentUser.Name) : '';
+                    
+                    // Match completion logs of current user
+                    const isCompleted = teamData.logs.some(log => 
+                      (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+                      normalizeName(log["Event Name"]) === normalizeName(track["Topic name"]) &&
+                      log["Attendees/Completed"] && 
+                      log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
+                    );
+
+                    const correspondingLog = teamData.logs.find(log => 
+                      (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+                      normalizeName(log["Event Name"]) === normalizeName(track["Topic name"])
+                    );
+
+                    const isOverdue = correspondingLog && !isCompleted && new Date(correspondingLog["Due to Date"]) < new Date();
+
+                    return (
+                      <Card key={idx} class="flex flex-col justify-between hover:translate-y-[-2px]">
+                        <div class="space-y-4">
+                          <div class="flex items-center justify-between">
+                            <span class={`text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase ${
+                              track["Obligability"] === 'Mandatory' 
+                                ? 'bg-rose-50 text-rose-600 border border-rose-100/50' 
+                                : 'bg-slate-50 text-slate-500 border border-slate-100'
+                            }`}>
+                              {track["Obligability"] || 'Optional'}
+                            </span>
+                            <span class="text-[10px] font-semibold text-slate-400 px-2 py-0.5 bg-slate-50 rounded border border-slate-100">
+                              {track["Platform"] || 'Platform'}
+                            </span>
+                          </div>
+
+                          <div class="space-y-1">
+                            <h4 class="text-sm font-extrabold text-slate-800 leading-snug">{track["Topic name"] || 'Topic details not specified'}</h4>
+                            <p class="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                              <Icon name="hash" className="w-3 h-3" />
+                              {track["Track Name"] ? track["Track Name"].replace('\n', '') : 'Track ID ' + track["Track ID"]}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                          {track["Link"] ? (
+                            <a 
+                              href={track["Link"]} 
+                              target="_blank" 
+                              class="text-[11px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 transition-colors"
+                            >
+                              Launch Course
+                              <Icon name="external-link" className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <span class="text-[10px] text-slate-400 font-medium">Link not set</span>
+                          )}
+
+                          {isCompleted ? (
+                            <span class="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                              <Icon name="check-circle" className="w-4 h-4" />
+                              Validated
+                            </span>
+                          ) : isOverdue ? (
+                            <span class="flex items-center gap-1 text-[10px] font-bold text-rose-500">
+                              <Icon name="lock" className="w-4 h-4" />
+                              Locked
+                            </span>
+                          ) : correspondingLog ? (
+                            <button
+                              onClick={() => handleAttendEvent(correspondingLog["Event ID"])}
+                              class="px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-600 font-bold text-[10px] rounded-lg transition-all"
+                            >
+                              Log Progress
+                            </button>
+                          ) : (
+                            <span class="text-[10px] text-slate-400 font-medium italic">Unscheduled</span>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* -------------------- Tab 3: TEAM INTELLIGENCE PANEL -------------------- */}
+            {activeTab === 'team' && (
+              <div class="space-y-6">
+                <div>
+                  <h3 class="text-lg font-bold text-slate-900">Team Intelligence Matrix</h3>
+                  <p class="text-xs text-slate-400 font-medium">Click on any team member's card to view their dynamic skill mapping, completed logs, and key indices.</p>
+                </div>
+
+                {/* Team Cards Grid */}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {teamData.team.map((member, idx) => {
+                    const metrics = getMemberMetrics(member);
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => setSelectedMember({ ...member, ...metrics })}
+                        class="bg-white border border-slate-100 rounded-3xl p-5 shadow-saas hover:shadow-saas-lg hover:border-brand-100/50 cursor-pointer transition-all duration-300 transform hover:scale-[1.01] flex flex-col items-center text-center space-y-4 group"
+                      >
+                        <div class="relative">
+                          <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-2xl border border-brand-100/30 uppercase group-hover:scale-105 transition-transform duration-300">
+                            {member.Name.charAt(0)}
+                          </div>
+                          <span class="absolute bottom-[-4px] right-[-4px] bg-emerald-500 w-3.5 h-3.5 rounded-full border-2 border-white"></span>
+                        </div>
+
+                        <div>
+                          <h4 class="text-xs font-black text-slate-800 tracking-tight group-hover:text-brand-600 transition-colors leading-tight">{member.Name}</h4>
+                          <p class="text-[10px] text-slate-400 font-semibold mt-0.5">{member.Rule || 'Software Engineer'}</p>
+                        </div>
+
+                        {/* Simple metrics summary row */}
+                        <div class="grid grid-cols-2 gap-x-4 w-full bg-slate-50/50 p-2.5 rounded-xl border border-slate-50 text-left">
+                          <div>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks</span>
+                            <span class="text-xs font-black text-slate-700 block mt-0.5">{metrics.tasksCompleted}/{metrics.tasksAssigned}</span>
+                          </div>
+                          <div class="border-l border-slate-200/60 pl-3">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning</span>
+                            <span class="text-xs font-black text-slate-700 block mt-0.5">{metrics.learningProgress}%</span>
+                          </div>
+                        </div>
+
+                        <span class="text-[10px] font-bold text-brand-500 group-hover:translate-x-1 transition-transform flex items-center gap-0.5">
+                          View details
+                          <Icon name="chevron-right" className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* ==================== MODAL 1: EVENT CREATION LOG ==================== */}
+          <Modal 
+            isOpen={showLogModal} 
+            onClose={() => setShowLogModal(false)} 
+            title="Log New Event"
+          >
+            <form onSubmit={handleLogSubmit} class="space-y-4">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Type</label>
+                <select
+                  value={newLogEntry.type}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, type: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                >
+                  <option value="Skill">Skill Workshop</option>
+                  <option value="Meet">Meeting Alignment</option>
+                  <option value="Learning">Training / Learning Track</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. PySpark Big Data Workshop"
+                  value={newLogEntry.name}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, name: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Due Date (Open Window)</label>
+                <input
+                  type="date"
+                  required
+                  value={newLogEntry.dueDate}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, dueDate: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                />
+              </div>
+
+              <div class="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLogModal(false)}
+                  class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-xs font-bold text-slate-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 transition-all text-white text-xs font-bold shadow-sm shadow-brand-100"
+                >
+                  Log Event to Sheet
+                </button>
+              </div>
+            </form>
+          </Modal>
+
+          {/* ==================== MODAL 2: RE-OPEN OVERDUE EVENT ==================== */}
+          <Modal 
+            isOpen={showReopenModal !== null} 
+            onClose={() => setShowReopenModal(null)} 
+            title="Re-open Registration Window"
+          >
+            {showReopenModal && (
+              <form onSubmit={handleReopenSubmit} class="space-y-4">
+                <div class="p-3 bg-brand-50/50 border border-brand-100/30 rounded-xl">
+                  <p class="text-[11px] text-brand-800 font-bold leading-none">Selected Event</p>
+                  <p class="text-xs text-brand-900 font-semibold mt-1">"{showReopenModal["Event Name"]}" ({showReopenModal["Event Type"]})</p>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">New Due Date (Open Window)</label>
+                  <input
+                    type="date"
+                    required
+                    value={reopenDueDate}
+                    onChange={(e) => setReopenDueDate(e.target.value)}
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                  />
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowReopenModal(null)}
+                    class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-xs font-bold text-slate-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    class="flex-1 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 transition-all text-white text-xs font-bold shadow-sm shadow-brand-100"
+                  >
+                    Update Window Date
+                  </button>
+                </div>
+              </form>
+            )}
+          </Modal>
+
+          {/* ==================== MODAL 3: MEMBER PERFORMANCE INTELLIGENCE ==================== */}
+          <Modal 
+            isOpen={selectedMember !== null} 
+            onClose={() => setSelectedMember(null)} 
+            title="Member Intelligence Hub"
+          >
+            {selectedMember && (
+              <div class="space-y-6">
+                
+                {/* Header Information */}
+                <div class="flex items-center gap-4 border-b border-slate-100 pb-4">
+                  <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-xl border border-brand-100/30 uppercase">
+                    {selectedMember.Name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-black text-slate-900 leading-none">{selectedMember.Name}</h4>
+                    <p class="text-[11px] text-slate-400 font-semibold mt-1">{selectedMember.Rule || 'Software Engineer'}</p>
+                    <p class="text-[10px] text-slate-300 font-bold mt-1 flex items-center gap-1">
+                      <Icon name="credit-card" className="w-3.5 h-3.5" />
+                      ID: {selectedMember.ID || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* KPI mini counters */}
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks Completed</span>
+                    <span class="text-lg font-black text-slate-700 block mt-0.5">{selectedMember.tasksCompleted}/{selectedMember.tasksAssigned}</span>
+                  </div>
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning Track Index</span>
+                    <span class="text-lg font-black text-slate-700 block mt-0.5">{selectedMember.learningProgress}%</span>
+                  </div>
+                </div>
+
+                {/* Radar Skill Matrix Mapping */}
+                <div class="space-y-2">
+                  <h5 class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Dynamic Skill Mapping</h5>
+                  <div class="border border-slate-50 rounded-3xl p-3 flex justify-center bg-slate-50/20">
+                    <SkillRadar 
+                      data={selectedMember.skills.map(s => s.score)}
+                      categories={selectedMember.skills.map(s => s.subject)}
+                      memberName={selectedMember.Name}
+                    />
+                  </div>
+                </div>
+
+                {/* Top Proficiencies Progress Bars */}
+                <div class="space-y-3.5">
+                  <h5 class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Skill Index Breakdown</h5>
+                  <div class="space-y-2.5">
+                    {selectedMember.skills.slice(0, 3).map((sk, index) => (
+                      <div key={index} class="space-y-1">
+                        <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                          <span>{sk.subject}</span>
+                          <span>{sk.score}/100</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div class="bg-brand-500 h-1.5 rounded-full" style={{ width: `${sk.score}%` }}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                  <button 
+                    onClick={() => setSelectedMember(null)}
+                    class="px-4 py-2 bg-slate-50 border border-slate-150 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 transition-colors"
+                  >
+                    Close Hub
+                  </button>
+                </div>
+
+              </div>
+            )}
+          </Modal>
+
+        </div>
+      );
+    }
+
+    // Render the React application
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

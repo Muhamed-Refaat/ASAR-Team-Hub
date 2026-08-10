@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Local Test - Azar Project Team Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Premium Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c084fc',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          },
+          boxShadow: {
+            'saas': '0 4px 20px -2px rgba(139, 92, 246, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            'saas-lg': '0 10px 30px -3px rgba(139, 92, 246, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)',
+            'saas-modal': '0 20px 50px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0, 0, 0, 0.04)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- ApexCharts CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+  <!-- React 18 & ReactDOM 18 CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel Standalone -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+  </style>
+</head>
+<body class="bg-[#fcfcfd] text-slate-800 antialiased min-h-screen pb-48">
+
+  <!-- LOCAL TEST HEADER / CONTROL STRIP -->
+  <div id="test-header" class="bg-amber-500 text-white text-xs font-bold px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm select-none">
+    <div class="flex items-center gap-2">
+      <span class="bg-white text-amber-600 px-2 py-0.5 rounded text-[10px] uppercase font-black">LOCAL TEST ENVIRONMENT</span>
+      <span>This application tries to fetch separated CSV database files dynamically from the <code class="bg-amber-600 px-1 py-0.5 rounded">spreedsheet-copy</code> directory.</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="resetLocalDB()" class="bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-lg transition-all flex items-center gap-1">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        Reset In-Memory DB
+      </button>
+    </div>
+  </div>
+
+  <!-- APPLICATION ROOT -->
+  <div id="root"></div>
+
+  <!-- OFFLINE CSV BACKEND MOCK AND LOGGER -->
+  <div class="fixed bottom-0 left-0 right-0 h-40 bg-slate-900 border-t border-slate-800 z-50 text-slate-300 font-mono text-xs flex flex-col shadow-2xl">
+    <div class="bg-slate-950 px-4 py-2 border-b border-slate-850 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 text-brand-400 font-bold">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Local Sheets API Console (Logger)</span>
+        </div>
+        <div id="source-indicator" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
+          Checking database source...
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <button onclick="exportCurrentLogs()" class="text-[10px] bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded transition-colors font-bold flex items-center gap-1">
+          <i data-lucide="download" class="w-3 h-3"></i> Export Updated Log.csv
+        </button>
+        <button onclick="clearConsole()" class="text-[10px] text-slate-500 hover:text-slate-300">Clear Logs</button>
+      </div>
+    </div>
+    <div id="consoleLogs" class="flex-1 overflow-y-auto p-4 space-y-1.5 scrollbar-thin">
+      <div class="text-slate-500">[INFO] Local testing console ready.</div>
+    </div>
+  </div>
+
+  <!-- MOCK DATA PREVIEWS FOR FALLBACK USE -->
+  <script>
+    const FALLBACK_SUPERVISOR_CSV = `Name,phone\nDr Bassant,17352734`;
+    const FALLBACK_TEAM_CSV = `Name,ID,Mail,Phone number,Rule,overview\nAbdallah-Allam,2520550,,,Team Lead,\nAbdelrahman M. Abdel-Fattah,2520780,,,,\nMohamed H. Shaban,2540299,,,,\nYoussef Hammam Masoud,2540300,,,,\nYoussef Wagdy El-Sayed,2560148,,,,\nAssem Walid Khamis,2540213,,,,\nMohamed Farhat Nasr,2540244,,,,\nMostafa Ahmed Sayed,2520622,,,,\nEzzat A. Ahmed Mbrok,2520673,,,,\nFares Ibrahim Mohamed,2520070,,,,\nIbrahim Faraj Abdel-Mawgoud,2520112,,,,\nAhmed Fathy Ahmed,2521059,,,,\nNour Yasser Zakaria,2520186,,,,\nAmani Bilal Abu Zeid,2560129,,,,\nShams Mohamed Abdel-Hakim,2520971,,,,\nManar Moussa Saeed,2520959,,,,\nMalak Ahmed Mohamed,2520175,,,,\nAlaa Mohamed El-Hefny,2520486,,,,\nSamah Mahdy Salah,2521121,,,,\nYasmin Samir Abdessalam,2521242,,,,\nAsmaa Ashraf Attia,2550031,,,,\nShams Mohamed Jaber,2520550,,,,\nShaymaa Emad Mohamed,,,,,`;
+    const FALLBACK_SKILL_CSV = `Skill Name,Skill Category,Skill Rank\nPython,Software,5\nC,Software,8\nSoildwroks,Mechanical,10`;
+    const FALLBACK_LEARNING_CSV = `Topic name,Track ID,Track Name,Obligability,Platform,Link\nAI for Everyone,1,AI for Everyone,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/ai-for-everyone\nGenerative AI for Everyone,1,AI for Everyone,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/generative-ai-for-everyone\nAI Prompting for Everyone,2,Foundations & Prompting,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/ai-prompting-for-everyone\nLarge Multimodal Model Prompting with Gemini,2,Foundations & Prompting,Optional,DeepLearning,https://learn.deeplearning.ai/courses/large-multimodal-model-prompting-with-gemini/information\nReasoning with o1,2,Foundations & Prompting,Optional,DeepLearning,https://www.deeplearning.ai/courses/reasoning-with-o1\nOpen Source Models with Hugging Face,2,Foundations & Prompting,Optional,DeepLearning,https://www.deeplearning.ai/courses/open-source-models-hugging-face\nGemini CLI: Code & Create,3,AI Coding Assistants & App Development,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent\nSpec-Driven Development with Coding Agents,3,AI Coding Assistants & App Development,Mandatory,DeepLearning,https://www.deeplearning.ai/courses/spec-driven-development-with-coding-agents\nPair Programming with a Large Language Model,3,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/pair-programming-llm\nBuilding Gen AI Applications with Gradio,3,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/huggingface-gradio\nPydantic for LLM Workflows,3,AI Coding Assistants & App Development,Optional,DeepLearning,https://www.deeplearning.ai/courses/pydantic-for-llm-workflows\nUnderstanding and Applying Text Embeddings,4,Data Search & RAG,Mandatory,DeepLearning,https://learn.deeplearning.ai/courses/google-cloud-vertex-ai/information\nLangChain Chat with Your Data,4,Data Search & RAG,Mandatory,DeepLearning,learn.deeplearning.ai/courses/langchain-chat-with-your-data/information\nLarge Language Models with Semantic Search,4,Data Search & RAG,Optional,DeepLearning,https://www.deeplearning.ai/courses/large-language-models-semantic-search\nSemantic Caching for AI Agents,4,Data Search & RAG,Optional,DeepLearning,https://www.deeplearning.ai/courses/semantic-caching-for-ai-agents\nKnowledge Graphs for RAG,4,Data Search & RAG,Optional,DeepLearning,learn.deeplearning.ai/courses/knowledge-graphs-rag/information\nC Programming From Basics to Mastery,8,C & Embedded systems,Mandatory,MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247\nEmbedded C: Hardware Essentials and Device Driver Development,8,C & Embedded systems,Mandatory,MaharaTech,https://maharatech.gov.eg/course/view.php?id=2271\nPCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desing,Mandatory,,`;
+    const FALLBACK_MEET_CSV = `Meeting title,Meeting Type,Date,Description,Attachments\nProject overview,online,2026-07-30,overview about the project asfasf,\nRoobt ,offline,2026-08-30,afsasfafs,`;
+    const FALLBACK_EXAM_CSV = `Exam name,Date,Category ,# Attendee\nC exam,2026-07-30,Software,`;
+    const FALLBACK_TASK_CSV = `Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale\nAAA,fsafa,"1-hi\n2-bye",Abdallah-Allam,Completed,3,,2026-07-30,2026-07-30,day\nbbb,fsafa,"1-hi\n2-bye",Abdallah-Allam,inProgress,3,,6,8,hour`;
+    const FALLBACK_LOG_CSV = `Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date\nSkill,1,Python,"Abdallah-Allam\nAbdelrahman M. Abdel-Fattah\nMohamed H. Shaban\nYoussef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\nAhmed Fathy Ahmed\nNour Yasser Zakaria\nAmani Bilal Abu Zeid\nShams Mohamed Abdel-Hakim\nManar Moussa Saeed\nMalak Ahmed Mohamed\nAlaa Mohamed El-Hefny\nSamah Mahdy Salah\nYasmin Samir Abdessalam\nAsmaa Ashraf Attia\nShams Mohamed Jaber\nShaymaa Emad Mohamed","Youssef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud",2026-07-30\nMeet,2,bbb,"Abdallah-Allam",Abdallah-Allam,2026-07-30`;
+
+    // CSV line-parser supporting nested quotes and escaped characters
+    function parseCSV(csvText) {
+      const lines = csvText.split('\n');
+      if (lines.length < 1 || !lines[0]) return [];
+      
+      const parseLine = (line) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current);
+        return result.map(x => x.replace(/^"|"$/g, '').replace(/\\n/g, '\n').trim());
+      };
+
+      const headers = parseLine(lines[0]);
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const rowVals = parseLine(line);
+        const rowObj = {};
+        for (let j = 0; j < headers.length; j++) {
+          rowObj[headers[j]] = rowVals[j] || null;
+        }
+        data.push(rowObj);
+      }
+      return data;
+    }
+
+    // Console Logging
+    function appendLog(message, type = 'info') {
+      const c = document.getElementById('consoleLogs');
+      if (!c) return;
+      const color = type === 'write' ? 'text-amber-400' : type === 'error' ? 'text-rose-500' : type === 'read' ? 'text-teal-400' : 'text-slate-400';
+      const indicator = type === 'write' ? '[WRITE]' : type === 'error' ? '[ERROR]' : type === 'read' ? '[READ]' : '[INFO]';
+      const el = document.createElement('div');
+      el.className = `${color}`;
+      el.innerHTML = `<span class="opacity-55">${new Date().toLocaleTimeString()}</span> <span class="font-bold">${indicator}</span> ${message}`;
+      c.appendChild(el);
+      c.scrollTop = c.scrollHeight;
+    }
+
+    function clearConsole() {
+      const c = document.getElementById('consoleLogs');
+      if (c) c.innerHTML = '<div class="text-slate-500">[CONSOLE] Logs cleared.</div>';
+    }
+
+    // Global in-memory DB arrays
+    let LOCAL_DB = {
+      supervisor: [], team: [], skills: [], learning: [], meet: [], exam: [], tasks: [], logs: []
+    };
+
+    let isUsingExternalCSVs = false;
+
+    // Async Fetch function with fallback for loading detached CSV sheets
+    async function fetchCSVSheet(sheetName, fallbackData) {
+      try {
+        const response = await fetch(`./spreedsheet-copy/${sheetName}.csv`);
+        if (response.ok) {
+          const csvText = await response.text();
+          const parsed = parseCSV(csvText);
+          appendLog(`Loaded '${sheetName}.csv' from spreedsheet-copy/.`, "read");
+          isUsingExternalCSVs = true;
+          return parsed;
+        }
+      } catch (err) {
+        // Fetch failed (likely CORS on file://)
+      }
+      return parseCSV(fallbackData);
+    }
+
+    // Database Initializer
+    async function initDatabase() {
+      LOCAL_DB.supervisor = await fetchCSVSheet('Supervisor', FALLBACK_SUPERVISOR_CSV);
+      LOCAL_DB.team = await fetchCSVSheet('Team', FALLBACK_TEAM_CSV);
+      LOCAL_DB.skills = await fetchCSVSheet('Skill', FALLBACK_SKILL_CSV);
+      LOCAL_DB.learning = await fetchCSVSheet('Learning', FALLBACK_LEARNING_CSV);
+      LOCAL_DB.meet = await fetchCSVSheet('Meet', FALLBACK_MEET_CSV);
+      LOCAL_DB.exam = await fetchCSVSheet('Exam', FALLBACK_EXAM_CSV);
+      LOCAL_DB.tasks = await fetchCSVSheet('Task', FALLBACK_TASK_CSV);
+      LOCAL_DB.logs = await fetchCSVSheet('Log', FALLBACK_LOG_CSV);
+
+      const indicator = document.getElementById('source-indicator');
+      if (indicator) {
+        if (isUsingExternalCSVs) {
+          indicator.className = "text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded font-bold";
+          indicator.innerHTML = "Connected: External CSV Files";
+          appendLog("Dynamic HTTP CSV parsing is active. Server confirmed.", "info");
+        } else {
+          indicator.className = "text-[10px] bg-amber-950 text-amber-400 border border-amber-900 px-2 py-0.5 rounded font-bold";
+          indicator.innerHTML = "Local Preview (Embedded Fallback)";
+          appendLog("CORS / File security restricts local fetch(). Using embedded mock fallback. Run a local server (e.g. python -m http.server 8000) to load external .csv files dynamically.", "error");
+        }
+      }
+      window.dispatchEvent(new Event('localDBChanged'));
+    }
+
+    // Trigger Initial Load
+    setTimeout(initDatabase, 100);
+
+    function resetLocalDB() {
+      isUsingExternalCSVs = false;
+      initDatabase();
+      appendLog("Local database re-synchronized to pristine defaults.", "info");
+    }
+
+    // Exports updated logs as a downloadable CSV file
+    function exportCurrentLogs() {
+      if (LOCAL_DB.logs.length === 0) return;
+      
+      const headers = ['Event Type', 'Event ID', 'Event Name', 'Invited/Assigned', 'Attendees/Completed', 'Due to Date'];
+      let csvContent = headers.join(',') + '\n';
+      
+      LOCAL_DB.logs.forEach(row => {
+        const line = headers.map(header => {
+          let val = row[header] || '';
+          // Escape quotes and wrap with quotes if newlines/commas exist
+          if (val.includes(',') || val.includes('\n') || val.includes('"')) {
+            val = `"${val.replace(/"/g, '""')}"`;
+          }
+          return val;
+        });
+        csvContent += line.join(',') + '\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', 'Log.csv');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      appendLog("Exported Log.csv to downloads directory.", "info");
+    }
+
+    // Mock script run API
+    window.google = {
+      script: {
+        run: {
+          successHandler: null,
+          failureHandler: null,
+          withSuccessHandler(sh) { this.successHandler = sh; return this; },
+          withFailureHandler(fh) { this.failureHandler = fh; return this; },
+          getTeamData() {
+            setTimeout(() => {
+              appendLog("google.script.run.getTeamData() triggered. Sending state records.", "read");
+              if (this.successHandler) {
+                this.successHandler(JSON.parse(JSON.stringify(LOCAL_DB)));
+              }
+            }, 300);
+          },
+          logEvent(type, name, invitedList, dueDate) {
+            setTimeout(() => {
+              appendLog(`google.script.run.logEvent('${type}', '${name}', [${invitedList.length} members], '${dueDate}') triggered.`, "write");
+              
+              const maxId = LOCAL_DB.logs.reduce((max, log) => {
+                const id = parseFloat(log["Event ID"]);
+                return !isNaN(id) && id > max ? id : max;
+              }, 0);
+              const newId = maxId + 1;
+              
+              const newRow = {
+                "Event Type": type,
+                "Event ID": String(newId),
+                "Event Name": name,
+                "Invited/Assigned": invitedList.join('\n'),
+                "Attendees/Completed": "",
+                "Due to Date": dueDate
+              };
+              
+              LOCAL_DB.logs.unshift(newRow);
+              appendLog(`Successfully appended event row with Event ID: ${newId} to in-memory Log dataset. Click 'Export Log.csv' to download.`, "write");
+              
+              if (this.successHandler) {
+                this.successHandler({ success: true, newId: newId });
+              }
+              window.dispatchEvent(new Event('localDBChanged'));
+            }, 400);
+          },
+          attendEvent(eventId, userName) {
+            setTimeout(() => {
+              appendLog(`google.script.run.attendEvent(${eventId}, '${userName}') triggered.`, "write");
+              
+              const logIndex = LOCAL_DB.logs.findIndex(log => parseFloat(log["Event ID"]) === parseFloat(eventId));
+              if (logIndex === -1) {
+                appendLog(`Row search failed! Event ID ${eventId} not found.`, "error");
+                if (this.failureHandler) this.failureHandler(new Error("Event ID not found"));
+                return;
+              }
+              
+              let attendees = LOCAL_DB.logs[logIndex]["Attendees/Completed"] ? LOCAL_DB.logs[logIndex]["Attendees/Completed"].split('\n').map(x => x.trim()) : [];
+              if (!attendees.includes(userName.trim())) {
+                attendees.push(userName.trim());
+                LOCAL_DB.logs[logIndex]["Attendees/Completed"] = attendees.join('\n');
+                appendLog(`Successfully added '${userName}' to Attendees/Completed column. Click 'Export Log.csv' to download.`, "write");
+              } else {
+                appendLog(`User '${userName}' is already registered as an attendee for this event. No update needed.`, "info");
+              }
+              
+              if (this.successHandler) this.successHandler({ success: true });
+              window.dispatchEvent(new Event('localDBChanged'));
+            }, 300);
+          },
+          reopenEvent(eventId, newDueDate) {
+            setTimeout(() => {
+              appendLog(`google.script.run.reopenEvent(${eventId}, '${newDueDate}') triggered.`, "write");
+              
+              const logIndex = LOCAL_DB.logs.findIndex(log => parseFloat(log["Event ID"]) === parseFloat(eventId));
+              if (logIndex === -1) {
+                appendLog(`Event ID ${eventId} not found in Log dataset.`, "error");
+                if (this.failureHandler) this.failureHandler(new Error("Event ID not found"));
+                return;
+              }
+              
+              LOCAL_DB.logs[logIndex]["Due to Date"] = newDueDate;
+              appendLog(`Successfully re-opened registration window. Modified column 'Due to Date' of Event ID ${eventId} to '${newDueDate}'. Click 'Export Log.csv' to download.`, "write");
+              
+              if (this.successHandler) this.successHandler({ success: true });
+              window.dispatchEvent(new Event('localDBChanged'));
+            }, 300);
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- React Code Transpiled locally by Babel -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // React Lucide Icon component
+    const Icon = ({ name, className = "w-5 h-5", strokeWidth = 2 }) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (window.lucide && ref.current) {
+          ref.current.innerHTML = '';
+          const iconEl = window.lucide.createIcons({
+            attrs: {
+              class: className,
+              'stroke-width': strokeWidth
+            },
+            name: name
+          });
+          if (iconEl && iconEl[name]) {
+            ref.current.appendChild(iconEl[name].cloneNode(true));
+          }
+        }
+      }, [name, className, strokeWidth]);
+
+      return <span ref={ref} className="inline-flex items-center justify-center" />;
+    };
+
+    // Card component
+    const Card = ({ children, className = "" }) => (
+      <div class={`bg-white border border-slate-100 rounded-2xl shadow-saas p-6 transition-all duration-300 hover:shadow-saas-lg ${className}`}>
+        {children}
+      </div>
+    );
+
+    // Modal component
+    const Modal = ({ isOpen, onClose, title, children }) => {
+      if (!isOpen) return null;
+      return (
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+          <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+          <div class="relative bg-white rounded-3xl shadow-saas-modal border border-slate-100 max-w-lg w-full overflow-hidden p-6 sm:p-8 animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-bold text-slate-900">{title}</h3>
+              <button onClick={onClose} class="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-full bg-slate-50 hover:bg-slate-100">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    };
+
+    // ApexCharts - Radar
+    const SkillRadar = ({ data, categories, memberName }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'radar',
+            height: 280,
+            toolbar: { show: false }
+          },
+          series: [{
+            name: memberName,
+            data: data
+          }],
+          labels: categories,
+          colors: ['#8b5cf6'],
+          fill: {
+            opacity: 0.15,
+            colors: ['#8b5cf6']
+          },
+          stroke: {
+            show: true,
+            width: 2,
+            colors: ['#8b5cf6']
+          },
+          markers: {
+            size: 4,
+            colors: ['#8b5cf6'],
+            strokeColor: '#fff',
+            strokeWidth: 2
+          },
+          yaxis: {
+            show: false,
+            min: 0,
+            max: 100,
+            tickAmount: 5
+          },
+          grid: {
+            padding: { top: -10, bottom: -10 }
+          }
+        };
+
+        if (chartInstance.current) chartInstance.current.destroy();
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [data, categories, memberName]);
+
+      return <div ref={chartRef} class="w-full flex justify-center" />;
+    };
+
+    // ApexCharts - Donut
+    const TaskDonut = ({ completed, inProgress, pending }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'donut',
+            height: 260,
+          },
+          series: [completed, inProgress, pending],
+          labels: ['Completed', 'In Progress', 'Pending'],
+          colors: ['#10b981', '#f59e0b', '#64748b'],
+          plotOptions: {
+            pie: {
+              donut: {
+                size: '72%',
+                labels: {
+                  show: true,
+                  name: { show: true, fontSize: '14px', fontWeight: 600, color: '#64748b', offsetY: -4 },
+                  value: { show: true, fontSize: '24px', fontWeight: 700, color: '#0f172a', offsetY: 8 },
+                  total: {
+                    show: true,
+                    label: 'Total Tasks',
+                    color: '#64748b',
+                    fontWeight: 500,
+                    formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
+                  }
+                }
+              }
+            }
+          },
+          dataLabels: { show: false },
+          legend: { position: 'bottom', fontSize: '12px', fontWeight: 500, markers: { radius: 99 } },
+          stroke: { width: 0 }
+        };
+
+        if (chartInstance.current) chartInstance.current.destroy();
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [completed, inProgress, pending]);
+
+      return <div ref={chartRef} />;
+    };
+
+    // ApexCharts - Contribution Bar
+    const TeamContributionBar = ({ categories, assigned, completed }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: { type: 'bar', height: 280, toolbar: { show: false } },
+          plotOptions: {
+            bar: { horizontal: false, columnWidth: '55%', borderRadius: 4 }
+          },
+          dataLabels: { enabled: false },
+          series: [
+            { name: 'Tasks Assigned', data: assigned, color: '#cbd5e1' },
+            { name: 'Tasks Completed', data: completed, color: '#8b5cf6' }
+          ],
+          xaxis: {
+            categories: categories,
+            labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: 500 } }
+          },
+          yaxis: {
+            labels: { style: { colors: '#64748b', fontSize: '11px' } }
+          },
+          legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 500, markers: { radius: 99 } },
+          grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
+        };
+
+        if (chartInstance.current) chartInstance.current.destroy();
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [categories, assigned, completed]);
+
+      return <div ref={chartRef} />;
+    };
+
+    // ApexCharts - Timeline Spline Area
+    const CumulativeTimeline = ({ categories, completed, assigned }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: { type: 'area', height: 280, toolbar: { show: false } },
+          dataLabels: { enabled: false },
+          stroke: { curve: 'smooth', width: 3, colors: ['#cbd5e1', '#8b5cf6'] },
+          series: [
+            { name: 'Total Assigned', data: assigned },
+            { name: 'Completed', data: completed }
+          ],
+          fill: {
+            type: 'gradient',
+            gradient: { shadeIntensity: 1, opacityFrom: 0.15, opacityTo: 0.0, stops: [0, 90, 100] }
+          },
+          colors: ['#94a3b8', '#8b5cf6'],
+          xaxis: {
+            categories: categories,
+            labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: 500 } }
+          },
+          yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } },
+          grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+          legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 500, markers: { radius: 99 } }
+        };
+
+        if (chartInstance.current) chartInstance.current.destroy();
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [categories, completed, assigned]);
+
+      return <div ref={chartRef} />;
+    };
+
+    // Main App Component
+    function App() {
+      const [loading, setLoading] = useState(true);
+      const [syncing, setSyncing] = useState(false);
+      const [activeTab, setActiveTab] = useState('dashboard');
+      
+      const [teamData, setTeamData] = useState({
+        supervisor: [], team: [], skills: [], learning: [], meet: [], exam: [], tasks: [], logs: []
+      });
+
+      const [currentUser, setCurrentUser] = useState(null);
+      const [showLogModal, setShowLogModal] = useState(false);
+      const [showReopenModal, setShowReopenModal] = useState(null);
+      const [selectedMember, setSelectedMember] = useState(null);
+      const [showNotification, setShowNotification] = useState(true);
+      const [reopenDueDate, setReopenDueDate] = useState('');
+      const [newLogEntry, setNewLogEntry] = useState({ type: 'Skill', name: '', dueDate: '' });
+
+      const fetchData = (isSync = false) => {
+        if (isSync) setSyncing(true);
+        else setLoading(true);
+
+        google.script.run
+          .withSuccessHandler((data) => {
+            setTeamData(data);
+            
+            const savedName = localStorage.getItem('active_member_name');
+            let defaultUser = null;
+            if (savedName && data.team) {
+              defaultUser = data.team.find(t => normalizeName(t.Name) === normalizeName(savedName));
+            }
+            if (!defaultUser && data.team && data.team.length > 0) {
+              defaultUser = data.team[0];
+            }
+            setCurrentUser(defaultUser);
+            setLoading(false);
+            setSyncing(false);
+          })
+          .getTeamData();
+      };
+
+      useEffect(() => {
+        fetchData();
+        
+        const handleReset = () => fetchData();
+        window.addEventListener('localDBChanged', handleReset);
+        return () => window.removeEventListener('localDBChanged', handleReset);
+      }, []);
+
+      const normalizeName = (name) => name ? name.toLowerCase().replace(/-/g, ' ').trim() : '';
+
+      const handleUserChange = (userName) => {
+        const found = teamData.team.find(t => normalizeName(t.Name) === normalizeName(userName));
+        if (found) {
+          setCurrentUser(found);
+          localStorage.setItem('active_member_name', found.Name);
+        }
+      };
+
+      const handleLogSubmit = (e) => {
+        e.preventDefault();
+        setSyncing(true);
+
+        const invitees = teamData.team.map(t => t.Name);
+
+        google.script.run
+          .withSuccessHandler(() => {
+            setShowLogModal(false);
+            setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+            fetchData(true);
+          })
+          .logEvent(newLogEntry.type, newLogEntry.name, invitees, newLogEntry.dueDate);
+      };
+
+      const handleAttendEvent = (eventId) => {
+        if (!currentUser) return;
+        setSyncing(true);
+
+        google.script.run
+          .withSuccessHandler(() => {
+            fetchData(true);
+          })
+          .attendEvent(eventId, currentUser.Name);
+      };
+
+      const handleReopenSubmit = (e) => {
+        e.preventDefault();
+        if (!showReopenModal) return;
+        setSyncing(true);
+
+        google.script.run
+          .withSuccessHandler(() => {
+            setShowReopenModal(null);
+            setReopenDueDate('');
+            fetchData(true);
+          })
+          .reopenEvent(showReopenModal["Event ID"], reopenDueDate);
+      };
+
+      // Metrics & stats calculations
+      const userProfileDetails = useMemo(() => {
+        if (!currentUser) return null;
+
+        const nameNorm = normalizeName(currentUser.Name);
+
+        const userTasks = teamData.tasks.filter(t => {
+          if (!t.Assignees) return false;
+          return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+        });
+        const completedTasks = userTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length;
+        const assignedTasksCount = userTasks.length;
+        const pendingTasks = userTasks.filter(t => t.Status && (t.Status.toLowerCase() === 'pending' || t.Status.toLowerCase() === 'inprogress')).length;
+
+        const userLearningEvents = teamData.logs.filter(log => {
+          if (log["Event Type"] !== 'Learning' && log["Event Type"] !== 'Skill') return false;
+          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          return invited.some(inv => normalizeName(inv) === nameNorm);
+        });
+        const completedLearningCount = userLearningEvents.filter(log => {
+          const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          return completed.some(comp => normalizeName(comp) === nameNorm);
+        }).length;
+        const invitedLearningCount = userLearningEvents.length;
+        const learningProgress = invitedLearningCount > 0 ? Math.round((completedLearningCount / invitedLearningCount) * 100) : 0;
+
+        const baseSkills = ['Python', 'C', 'Solidworks', 'Leadership', 'Communication', 'Problem Solving'];
+        const skillScores = baseSkills.map(subject => {
+          let score = 40;
+          const matchingSkillLog = teamData.logs.find(log => 
+            log["Event Type"] === 'Skill' && 
+            normalizeName(log["Event Name"]) === normalizeName(subject)
+          );
+
+          if (matchingSkillLog) {
+            const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
+            const invitedList = matchingSkillLog["Invited/Assigned"] ? matchingSkillLog["Invited/Assigned"].split('\n') : [];
+            
+            if (completedList.some(c => normalizeName(c) === nameNorm)) {
+              score = 95;
+            } else if (invitedList.some(i => normalizeName(i) === nameNorm)) {
+              const overdue = new Date(matchingSkillLog["Due to Date"]) < new Date();
+              score = overdue ? 45 : 65;
+            }
+          }
+
+          if (subject === 'Leadership' && (currentUser.Rule && currentUser.Rule.toLowerCase().includes('lead') || currentUser.Rule && currentUser.Rule.toLowerCase().includes('supervisor'))) {
+            score = 95;
+          }
+          if (subject === 'Communication' && completedTasks > 0) score += Math.min(30, completedTasks * 10);
+          if (subject === 'Problem Solving' && completedTasks > 0) score += Math.min(40, completedTasks * 15);
+
+          return { subject, score: Math.min(100, score) };
+        });
+
+        const userMeets = teamData.logs.filter(log => log["Event Type"] === 'Meet');
+        const attendedMeets = userMeets.filter(log => {
+          const attendees = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          return attendees.some(att => normalizeName(att) === nameNorm);
+        }).length;
+        const invitedMeets = userMeets.filter(log => {
+          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          return invited.some(inv => normalizeName(inv) === nameNorm);
+        }).length;
+
+        return {
+          assignedTasksCount, completedTasks, pendingTasks, learningProgress,
+          completedLearningCount, invitedLearningCount, skillScores, attendedMeets, invitedMeets
+        };
+      }, [currentUser, teamData]);
+
+      const teamContributionData = useMemo(() => {
+        if (!teamData.team || !teamData.tasks) return { categories: [], assigned: [], completed: [] };
+
+        const categories = [];
+        const assigned = [];
+        const completed = [];
+
+        teamData.team.slice(0, 10).forEach(member => {
+          const nameNorm = normalizeName(member.Name);
+          categories.push(member.Name.split('-')[0]);
+          
+          const memberTasks = teamData.tasks.filter(t => {
+            if (!t.Assignees) return false;
+            return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+          });
+          assigned.push(memberTasks.length);
+          completed.push(memberTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length);
+        });
+
+        return { categories, assigned, completed };
+      }, [teamData]);
+
+      const userEventsAndStatus = useMemo(() => {
+        if (!currentUser) return [];
+
+        const nameNorm = normalizeName(currentUser.Name);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        return teamData.logs.map(log => {
+          const invitedList = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').map(x => x.trim()) : [];
+          const completedList = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').map(x => x.trim()) : [];
+          
+          const isInvited = invitedList.some(i => normalizeName(i) === nameNorm);
+          const isCompleted = completedList.some(c => normalizeName(c) === nameNorm);
+
+          let parsedDueDate = null;
+          if (log["Due to Date"]) {
+            parsedDueDate = new Date(log["Due to Date"]);
+            parsedDueDate.setHours(0,0,0,0);
+          }
+
+          let status = 'Inactive';
+          if (isInvited) {
+            if (isCompleted) {
+              status = 'Completed';
+            } else if (parsedDueDate && parsedDueDate < today) {
+              status = 'Overdue';
+            } else {
+              status = 'Active';
+            }
+          }
+
+          return {
+            ...log,
+            isInvited, isCompleted, status,
+            formattedDueDate: log["Due to Date"] || 'No deadline'
+          };
+        }).filter(e => e.isInvited);
+      }, [currentUser, teamData]);
+
+      const overdueCount = useMemo(() => userEventsAndStatus.filter(e => e.status === 'Overdue').length, [userEventsAndStatus]);
+      const activeCount = useMemo(() => userEventsAndStatus.filter(e => e.status === 'Active').length, [userEventsAndStatus]);
+
+      const isLeader = useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.Rule || '';
+        return role.toLowerCase().includes('lead') || role.toLowerCase().includes('supervisor') || normalizeName(currentUser.Name) === 'abdallah allam' || normalizeName(currentUser.Name) === 'abdallah-allam';
+      }, [currentUser]);
+
+      const getMemberMetrics = (member) => {
+        const nameNorm = normalizeName(member.Name);
+        const mTasks = teamData.tasks.filter(t => {
+          if (!t.Assignees) return false;
+          return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+        });
+        const completedCount = mTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length;
+        
+        const mLearningEvents = teamData.logs.filter(log => {
+          if (log["Event Type"] !== 'Learning' && log["Event Type"] !== 'Skill') return false;
+          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          return invited.some(inv => normalizeName(inv) === nameNorm);
+        });
+        const completedLearning = mLearningEvents.filter(log => {
+          const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          return completed.some(comp => normalizeName(comp) === nameNorm);
+        }).length;
+        
+        const learningProgress = mLearningEvents.length > 0 ? Math.round((completedLearning / mLearningEvents.length) * 100) : 0;
+
+        const baseSkills = ['Python', 'C', 'Solidworks', 'Leadership', 'Communication', 'Problem Solving'];
+        const skills = baseSkills.map(subject => {
+          let score = 40;
+          const matchingSkillLog = teamData.logs.find(log => 
+            log["Event Type"] === 'Skill' && normalizeName(log["Event Name"]) === normalizeName(subject)
+          );
+
+          if (matchingSkillLog) {
+            const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
+            if (completedList.some(c => normalizeName(c) === nameNorm)) score = 95;
+          }
+
+          if (subject === 'Leadership' && (member.Rule && member.Rule.toLowerCase().includes('lead') || member.Rule && member.Rule.toLowerCase().includes('supervisor'))) {
+            score = 95;
+          }
+          if (subject === 'Communication' && completedCount > 0) score += Math.min(30, completedCount * 10);
+          return { subject, score: Math.min(100, score) };
+        });
+
+        return { tasksCompleted: completedCount, tasksAssigned: mTasks.length, learningProgress, skills };
+      };
+
+      if (loading) {
+        return (
+          <div class="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+            <div class="relative w-16 h-16 mb-4">
+              <div class="absolute inset-0 rounded-full border-4 border-violet-100"></div>
+              <div class="absolute inset-0 rounded-full border-4 border-violet-500 border-t-transparent animate-spin"></div>
+            </div>
+            <p class="text-slate-600 font-semibold tracking-wide">Synthesizing Mock Workspace...</p>
+          </div>
+        );
+      }
+
+      return (
+        <div class="min-h-screen pb-16">
+          
+          <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div class="flex items-center justify-between h-16">
+                
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md shadow-brand-200">
+                    A
+                  </div>
+                  <div>
+                    <span class="font-extrabold text-lg text-slate-900 tracking-tight block">Azar Project Team</span>
+                    <span class="text-[10px] text-slate-400 font-medium block -mt-1 uppercase tracking-wider">Workspace Dashboard</span>
+                  </div>
+                </div>
+
+                <div class="hidden md:flex bg-slate-50 p-1 rounded-xl border border-slate-100 gap-1">
+                  {[
+                    { id: 'dashboard', name: 'Dashboard', icon: 'layout-dashboard' },
+                    { id: 'learning', name: 'Learning Tracks', icon: 'graduation-cap' },
+                    { id: 'team', name: 'Team Intelligence', icon: 'users' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      class={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === tab.id ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icon name={tab.icon} className="w-4 h-4" />
+                      {tab.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <button 
+                    onClick={() => setShowLogModal(true)}
+                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
+                  >
+                    <Icon name="plus" className="w-3.5 h-3.5" />
+                    Log Event
+                  </button>
+
+                  <div class="relative flex items-center bg-slate-50 rounded-xl border border-slate-100 pl-3 pr-2 py-1 gap-2">
+                    <div class="w-7 h-7 rounded-full bg-brand-50 text-brand-600 font-bold text-xs flex items-center justify-center border border-brand-200 uppercase">
+                      {currentUser ? currentUser.Name.charAt(0) : '?'}
+                    </div>
+                    <div class="text-left select-none mr-1">
+                      <select
+                        value={currentUser ? currentUser.Name : ''}
+                        onChange={(e) => handleUserChange(e.target.value)}
+                        class="bg-transparent text-slate-700 font-bold text-xs outline-none cursor-pointer pr-1"
+                      >
+                        {teamData.team.map((m, idx) => (
+                          <option key={idx} value={m.Name}>{m.Name}</option>
+                        ))}
+                      </select>
+                      <p class="text-[9px] text-slate-400 font-medium -mt-0.5">{currentUser ? (currentUser.Rule || 'Team Member') : ''}</p>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => fetchData(true)}
+                    class={`p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors ${syncing ? 'bg-slate-50 text-slate-400' : 'text-slate-500'}`}
+                    disabled={syncing}
+                  >
+                    <Icon name="refresh-cw" className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </header>
+
+          <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
+
+            {showNotification && teamData.logs.length > 0 && (
+              <div class="bg-gradient-to-r from-brand-50 to-indigo-50 border border-brand-100/50 p-4 sm:p-5 rounded-3xl relative flex items-start gap-4">
+                <div class="bg-brand-100 text-brand-600 p-2.5 rounded-full flex-shrink-0">
+                  <Icon name="bell" className="w-5 h-5 animate-bounce" />
+                </div>
+                <div class="flex-1 space-y-1">
+                  <h4 class="text-sm font-bold text-brand-900 leading-none">Live Workspace Webcast</h4>
+                  <p class="text-xs text-brand-800 font-medium">
+                    <span class="font-bold">Latest Event Added:</span> "{teamData.logs[0]["Event Name"]}" ({teamData.logs[0]["Event Type"]}) due on <span class="font-bold">{teamData.logs[0]["Due to Date"] || 'No Limit'}</span>.
+                  </p>
+                  <div class="pt-1.5 flex flex-wrap gap-x-6 gap-y-1.5 text-[11px]">
+                    {overdueCount > 0 && (
+                      <span class="text-rose-600 font-semibold flex items-center gap-1">
+                        <Icon name="alert-triangle" className="w-3.5 h-3.5" />
+                        You missed {overdueCount} event(s)! Locked from completing unless re-opened.
+                      </span>
+                    )}
+                    {activeCount > 0 && (
+                      <span class="text-emerald-600 font-semibold flex items-center gap-1">
+                        <Icon name="clock" className="w-3.5 h-3.5" />
+                        You have {activeCount} active event(s) waiting for log submission.
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => setShowNotification(false)} class="absolute top-4 right-4 text-brand-400 hover:text-brand-600 bg-white/60 hover:bg-white p-1 rounded-full transition-all">
+                  <Icon name="x" className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'dashboard' && (
+              <div class="space-y-6">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Learning Progress</span>
+                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{userProfileDetails.learningProgress}%</h3>
+                      </div>
+                      <div class="p-3 bg-brand-50 text-brand-500 rounded-2xl">
+                        <Icon name="graduation-cap" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-4 overflow-hidden">
+                      <div class="bg-brand-500 h-1.5 rounded-full" style={{ width: `${userProfileDetails.learningProgress}%` }}></div>
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Completed Tasks</span>
+                        <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">{userProfileDetails.completedTasks}</h3>
+                      </div>
+                      <div class="p-3 bg-emerald-50 text-emerald-500 rounded-2xl">
+                        <Icon name="check-circle" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-4">Out of {userProfileDetails.assignedTasksCount} total tasks assigned</p>
+                  </Card>
+
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Tasks</span>
+                        <h3 class="text-2xl font-extrabold text-amber-500 mt-1">{userProfileDetails.pendingTasks}</h3>
+                      </div>
+                      <div class="p-3 bg-amber-50 text-amber-500 rounded-2xl">
+                        <Icon name="briefcase" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-4">Awaiting Completion</p>
+                  </Card>
+
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Events</span>
+                        <h3 class="text-2xl font-extrabold text-rose-500 mt-1">{activeCount}</h3>
+                      </div>
+                      <div class="p-3 bg-rose-50 text-rose-500 rounded-2xl">
+                        <Icon name="calendar" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-4">Needs Log Submission</p>
+                  </Card>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Card class="lg:col-span-2 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Personal Skill Metric Matrix</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Dynamically compiled from log attendance and assignments</p>
+                      </div>
+                    </div>
+                    <div class="flex-1">
+                      <SkillRadar 
+                        data={userProfileDetails.skillScores.map(s => s.score)} 
+                        categories={userProfileDetails.skillScores.map(s => s.subject)} 
+                        memberName={currentUser ? currentUser.Name : ''} 
+                      />
+                    </div>
+                  </Card>
+
+                  <Card class="flex flex-col justify-between">
+                    <div class="mb-4">
+                      <h4 class="text-sm font-bold text-slate-900">Task Status Overview</h4>
+                      <p class="text-[11px] text-slate-400 font-medium">Breakdown of personal assignments</p>
+                    </div>
+                    <div class="flex-1 flex items-center justify-center">
+                      {userProfileDetails.assignedTasksCount > 0 ? (
+                        <div class="w-full">
+                          <TaskDonut 
+                            completed={userProfileDetails.completedTasks} 
+                            inProgress={userProfileDetails.pendingTasks} 
+                            pending={0}
+                          />
+                        </div>
+                      ) : (
+                        <div class="text-center py-10 space-y-2">
+                          <Icon name="folder-open" className="w-10 h-10 text-slate-300 mx-auto" />
+                          <p class="text-slate-400 text-xs font-semibold">No assigned tasks found</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Card class="lg:col-span-2">
+                    <div class="mb-4">
+                      <h4 class="text-sm font-bold text-slate-900">Team Contribution Index</h4>
+                      <p class="text-[11px] text-slate-400 font-medium">Assigned vs Completed tasks per team member</p>
+                    </div>
+                    <TeamContributionBar 
+                      categories={teamContributionData.categories}
+                      assigned={teamContributionData.assigned}
+                      completed={teamContributionData.completed}
+                    />
+                  </Card>
+
+                  <Card>
+                    <div class="mb-4">
+                      <h4 class="text-sm font-bold text-slate-900">Workspace Velocity</h4>
+                      <p class="text-[11px] text-slate-400 font-medium">Cumulative growth timeline index</p>
+                    </div>
+                    <CumulativeTimeline 
+                      categories={['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5']}
+                      completed={[4, 12, 18, 25, userProfileDetails.completedTasks]}
+                      assigned={[6, 15, 22, 30, userProfileDetails.assignedTasksCount]}
+                    />
+                  </Card>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">My Workspace Events & Forms</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Open registration windows and task validation forms</p>
+                      </div>
+                    </div>
+
+                    <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                      {userEventsAndStatus.length > 0 ? (
+                        userEventsAndStatus.map((ev, index) => (
+                          <div 
+                            key={index}
+                            class={`p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all ${
+                              ev.status === 'Completed' ? 'bg-slate-50/50 border-slate-100' : ev.status === 'Overdue' ? 'bg-rose-50/20 border-rose-100/50' : 'bg-white border-slate-100 shadow-sm'
+                            }`}
+                          >
+                            <div class="space-y-1 min-w-0">
+                              <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
+                                  ev["Event Type"] === 'Skill' ? 'bg-brand-50 text-brand-600' : ev["Event Type"] === 'Meet' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'
+                                }`}>
+                                  {ev["Event Type"]}
+                                </span>
+                                <h5 class="text-xs font-bold text-slate-800 truncate">{ev["Event Name"]}</h5>
+                              </div>
+                              <p class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                                <Icon name="calendar" className="w-3 h-3" />
+                                Deadline: {ev.formattedDueDate}
+                              </p>
+                            </div>
+
+                            <div class="flex-shrink-0 flex items-center gap-2">
+                              {ev.status === 'Completed' ? (
+                                <span class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 font-bold text-[10px] rounded-lg border border-emerald-100/30">
+                                  <Icon name="check-circle" className="w-3.5 h-3.5" /> Completed
+                                </span>
+                              ) : ev.status === 'Overdue' ? (
+                                <div class="flex items-center gap-1.5">
+                                  <span class="flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-500 font-bold text-[10px] rounded-lg border border-rose-100/30">
+                                    <Icon name="lock" className="w-3.5 h-3.5" /> Closed
+                                  </span>
+                                  {isLeader && (
+                                    <button
+                                      onClick={() => { setShowReopenModal(ev); setReopenDueDate(ev.formattedDueDate); }}
+                                      class="p-1 rounded bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors"
+                                    >
+                                      <Icon name="unlock" className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleAttendEvent(ev["Event ID"])}
+                                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-[10px] transition-all"
+                                >
+                                  <Icon name="check" className="w-3.5 h-3.5" /> Attend
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div class="text-center py-10">
+                          <p class="text-slate-400 text-xs font-semibold">No assigned events</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Upcoming Sync Meetings & Exams</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Team alignment meetings and technical examinations</p>
+                      </div>
+                    </div>
+
+                    <div class="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                      {teamData.meet.map((m, idx) => (
+                        <div key={`m-${idx}`} class="flex items-start gap-3.5 p-3 rounded-xl border border-slate-50">
+                          <div class="p-2.5 bg-blue-50 text-blue-500 rounded-xl flex-shrink-0">
+                            <Icon name="video" className="w-4 h-4" />
+                          </div>
+                          <div class="space-y-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                              <h5 class="text-xs font-bold text-slate-800">{m["Meeting title"]}</h5>
+                              <span class="text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full capitalize">
+                                {m["Meeting Type"]}
+                              </span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 leading-relaxed truncate">{m["Description"]}</p>
+                            <p class="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+                              <Icon name="calendar" className="w-3 h-3" /> Scheduled: {m["Date"]}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                      {teamData.exam.map((ex, idx) => (
+                        <div key={`ex-${idx}`} class="flex items-start gap-3.5 p-3 rounded-xl border border-slate-50">
+                          <div class="p-2.5 bg-brand-50 text-brand-500 rounded-xl flex-shrink-0">
+                            <Icon name="file-text" className="w-4 h-4" />
+                          </div>
+                          <div class="space-y-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                              <h5 class="text-xs font-bold text-slate-800">{ex["Exam name"]}</h5>
+                            </div>
+                            <p class="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+                              <Icon name="calendar" className="w-3 h-3" /> Date: {ex["Date"]}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+
+              </div>
+            )}
+
+            {activeTab === 'learning' && (
+              <div class="space-y-6">
+                <div>
+                  <h3 class="text-lg font-bold text-slate-900">Learning Tracks Intelligence</h3>
+                  <p class="text-xs text-slate-400 font-medium">Browse, launch, and validate course modules synced with the team learning track database.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {teamData.learning.map((track, idx) => {
+                    const nameNorm = currentUser ? normalizeName(currentUser.Name) : '';
+                    const isCompleted = teamData.logs.some(log => 
+                      (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+                      normalizeName(log["Event Name"]) === normalizeName(track["Topic name"]) &&
+                      log["Attendees/Completed"] && log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
+                    );
+
+                    const correspondingLog = teamData.logs.find(log => 
+                      (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+                      normalizeName(log["Event Name"]) === normalizeName(track["Topic name"])
+                    );
+
+                    const isOverdue = correspondingLog && !isCompleted && new Date(correspondingLog["Due to Date"]) < new Date();
+
+                    return (
+                      <Card key={idx} class="flex flex-col justify-between hover:translate-y-[-2px]">
+                        <div class="space-y-4">
+                          <div class="flex items-center justify-between">
+                            <span class={`text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase ${
+                              track["Obligability"] === 'Mandatory' ? 'bg-rose-50 text-rose-600 border border-rose-100/50' : 'bg-slate-50 text-slate-500 border border-slate-100'
+                            }`}>
+                              {track["Obligability"] || 'Optional'}
+                            </span>
+                            <span class="text-[10px] font-semibold text-slate-400 px-2 py-0.5 bg-slate-50 rounded border border-slate-100">
+                              {track["Platform"] || 'Platform'}
+                            </span>
+                          </div>
+
+                          <div class="space-y-1">
+                            <h4 class="text-sm font-extrabold text-slate-800 leading-snug">{track["Topic name"] || 'Topic details not specified'}</h4>
+                            <p class="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                              <Icon name="hash" className="w-3 h-3" />
+                              {track["Track Name"] ? track["Track Name"].replace('\n', '') : 'Track ID ' + track["Track ID"]}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                          {track["Link"] ? (
+                            <a href={track["Link"]} target="_blank" class="text-[11px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
+                              Launch Course <Icon name="external-link" className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <span class="text-[10px] text-slate-400">Link not set</span>
+                          )}
+
+                          {isCompleted ? (
+                            <span class="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                              <Icon name="check-circle" className="w-4 h-4" /> Validated
+                            </span>
+                          ) : isOverdue ? (
+                            <span class="flex items-center gap-1 text-[10px] font-bold text-rose-500">
+                              <Icon name="lock" className="w-4 h-4" /> Locked
+                            </span>
+                          ) : correspondingLog ? (
+                            <button onClick={() => handleAttendEvent(correspondingLog["Event ID"])} class="px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-600 font-bold text-[10px] rounded-lg">
+                              Log Progress
+                            </button>
+                          ) : (
+                            <span class="text-[10px] text-slate-400 italic">Unscheduled</span>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'team' && (
+              <div class="space-y-6">
+                <div>
+                  <h3 class="text-lg font-bold text-slate-900">Team Intelligence Matrix</h3>
+                  <p class="text-xs text-slate-400 font-medium">Click on any team member's card to view their dynamic skill mapping, completed logs, and key indices.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {teamData.team.map((member, idx) => {
+                    const metrics = getMemberMetrics(member);
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => setSelectedMember({ ...member, ...metrics })}
+                        class="bg-white border border-slate-100 rounded-3xl p-5 shadow-saas hover:shadow-saas-lg hover:border-brand-100/50 cursor-pointer transition-all duration-300 transform hover:scale-[1.01] flex flex-col items-center text-center space-y-4 group"
+                      >
+                        <div class="relative">
+                          <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-2xl border border-brand-100/30 uppercase">
+                            {member.Name.charAt(0)}
+                          </div>
+                          <span class="absolute bottom-[-4px] right-[-4px] bg-emerald-500 w-3.5 h-3.5 rounded-full border-2 border-white"></span>
+                        </div>
+
+                        <div>
+                          <h4 class="text-xs font-black text-slate-800 tracking-tight leading-tight">{member.Name}</h4>
+                          <p class="text-[10px] text-slate-400 font-semibold mt-0.5">{member.Rule || 'Software Engineer'}</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-x-4 w-full bg-slate-50/50 p-2.5 rounded-xl border border-slate-50 text-left">
+                          <div>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks</span>
+                            <span class="text-xs font-black text-slate-700 block mt-0.5">{metrics.tasksCompleted}/{metrics.tasksAssigned}</span>
+                          </div>
+                          <div class="border-l border-slate-200/60 pl-3">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning</span>
+                            <span class="text-xs font-black text-slate-700 block mt-0.5">{metrics.learningProgress}%</span>
+                          </div>
+                        </div>
+
+                        <span class="text-[10px] font-bold text-brand-500 flex items-center gap-0.5">
+                          View details <Icon name="chevron-right" className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          <Modal isOpen={showLogModal} onClose={() => setShowLogModal(false)} title="Log New Event">
+            <form onSubmit={handleLogSubmit} class="space-y-4">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Type</label>
+                <select
+                  value={newLogEntry.type}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, type: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                >
+                  <option value="Skill">Skill Workshop</option>
+                  <option value="Meet">Meeting Alignment</option>
+                  <option value="Learning">Training / Learning Track</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Event Name</label>
+                <input
+                  type="text" required placeholder="e.g. PySpark Big Data Workshop"
+                  value={newLogEntry.name}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, name: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Due Date (Open Window)</label>
+                <input
+                  type="date" required
+                  value={newLogEntry.dueDate}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, dueDate: e.target.value })}
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 text-slate-700"
+                />
+              </div>
+
+              <div class="pt-4 flex gap-3">
+                <button type="button" onClick={() => setShowLogModal(false)} class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-500">Cancel</button>
+                <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold shadow-sm shadow-brand-100">Log Event to Sheet</button>
+              </div>
+            </form>
+          </Modal>
+
+          <Modal isOpen={showReopenModal !== null} onClose={() => setShowReopenModal(null)} title="Re-open Registration Window">
+            {showReopenModal && (
+              <form onSubmit={handleReopenSubmit} class="space-y-4">
+                <div class="p-3 bg-brand-50/50 border border-brand-100/30 rounded-xl">
+                  <p class="text-[11px] text-brand-800 font-bold leading-none">Selected Event</p>
+                  <p class="text-xs text-brand-900 font-semibold mt-1">"{showReopenModal["Event Name"]}" ({showReopenModal["Event Type"]})</p>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">New Due Date (Open Window)</label>
+                  <input
+                    type="date" required
+                    value={reopenDueDate}
+                    onChange={(e) => setReopenDueDate(e.target.value)}
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 text-slate-700"
+                  />
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setShowReopenModal(null)} class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-500">Cancel</button>
+                  <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold">Update Window Date</button>
+                </div>
+              </form>
+            )}
+          </Modal>
+
+          <Modal isOpen={selectedMember !== null} onClose={() => setSelectedMember(null)} title="Member Intelligence Hub">
+            {selectedMember && (
+              <div class="space-y-6">
+                <div class="flex items-center gap-4 border-b border-slate-100 pb-4">
+                  <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-xl border border-brand-100/30 uppercase">
+                    {selectedMember.Name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-black text-slate-900 leading-none">{selectedMember.Name}</h4>
+                    <p class="text-[11px] text-slate-400 font-semibold mt-1">{selectedMember.Rule || 'Software Engineer'}</p>
+                    <p class="text-[10px] text-slate-300 font-bold mt-1 flex items-center gap-1">
+                      <Icon name="credit-card" className="w-3.5 h-3.5" /> ID: {selectedMember.ID || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks Completed</span>
+                    <span class="text-lg font-black text-slate-700 block mt-0.5">{selectedMember.tasksCompleted}/{selectedMember.tasksAssigned}</span>
+                  </div>
+                  <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning Track Index</span>
+                    <span class="text-lg font-black text-slate-700 block mt-0.5">{selectedMember.learningProgress}%</span>
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <h5 class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Dynamic Skill Mapping</h5>
+                  <div class="border border-slate-50 rounded-3xl p-3 flex justify-center bg-slate-50/20">
+                    <SkillRadar 
+                      data={selectedMember.skills.map(s => s.score)}
+                      categories={selectedMember.skills.map(s => s.subject)}
+                      memberName={selectedMember.Name}
+                    />
+                  </div>
+                </div>
+
+                <div class="space-y-3.5">
+                  <h5 class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Skill Index Breakdown</h5>
+                  <div class="space-y-2.5">
+                    {selectedMember.skills.slice(0, 3).map((sk, index) => (
+                      <div key={index} class="space-y-1">
+                        <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                          <span>{sk.subject}</span>
+                          <span>{sk.score}/100</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div class="bg-brand-500 h-1.5 rounded-full" style={{ width: `${sk.score}%` }}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                  <button onClick={() => setSelectedMember(null)} class="px-4 py-2 bg-slate-50 border border-slate-150 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 transition-colors">Close Hub</button>
+                </div>
+              </div>
+            )}
+          </Modal>
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <!-- Lucide Script Initialization -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
