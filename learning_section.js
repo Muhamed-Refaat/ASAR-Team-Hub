@@ -6,7 +6,8 @@
 
 // Normalizes name comparing: replace hyphen with spaces, lowercase, trim.
 function normalizeName(name) {
-  return name ? name.toLowerCase().replace(/-/g, ' ').trim() : '';
+  if (typeof name !== 'string') return '';
+  return name.toLowerCase().replace(/-/g, ' ').trim();
 }
 
 /**

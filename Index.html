@@ -221,6 +221,113 @@
       return <div ref={chartRef} class="w-full flex justify-center" />;
     };
 
+    // 1b. Hexagonal Radar Chart Component for Hard & Soft Skills
+    const HexaRadarChart = ({ data, categories, color, memberName }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'radar',
+            height: 250,
+            toolbar: { show: false },
+            dropShadow: {
+              enabled: true,
+              blur: 6,
+              left: 1,
+              top: 1,
+              opacity: 0.02
+            },
+            animations: {
+              enabled: true,
+              easing: 'easeinout',
+              speed: 800,
+              animateGradually: {
+                enabled: true,
+                delay: 150
+              },
+              dynamicAnimation: {
+                enabled: true,
+                speed: 350
+              }
+            }
+          },
+          series: [{
+            name: memberName,
+            data: data
+          }],
+          labels: categories,
+          colors: [color],
+          fill: {
+            opacity: 0.15,
+            colors: [color]
+          },
+          stroke: {
+            show: true,
+            width: 2,
+            colors: [color]
+          },
+          markers: {
+            size: 4,
+            colors: [color],
+            strokeColor: '#fff',
+            strokeWidth: 2
+          },
+          yaxis: {
+            show: true,
+            min: 0,
+            max: 10,
+            tickAmount: 5,
+            labels: {
+              formatter: function(val) {
+                return Math.round(val);
+              },
+              style: {
+                colors: '#a1a1aa',
+                fontSize: '9px'
+              }
+            }
+          },
+          xaxis: {
+            labels: {
+              style: {
+                colors: Array(6).fill('#71717a'),
+                fontSize: '10px',
+                fontFamily: 'Plus Jakarta Sans, sans-serif',
+                fontWeight: 600
+              }
+            }
+          },
+          grid: {
+            padding: {
+              top: -10,
+              bottom: -10
+            }
+          },
+          legend: { show: false }
+        };
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [data, categories, color, memberName]);
+
+      return <div ref={chartRef} class="w-full flex justify-center" />;
+    };
+
     // 2. Task Status Donut Chart
     const TaskDonut = ({ completed, inProgress, pending }) => {
       const chartRef = useRef(null);
@@ -482,6 +589,100 @@
       return <div ref={chartRef} />;
     };
 
+    // 5. Learning Track Popularity Bar Chart Component
+    const LearningTrackPopularityBar = ({ categories, enrolled, completed }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!chartRef.current) return;
+
+        const options = {
+          chart: {
+            type: 'bar',
+            height: 280,
+            toolbar: { show: false }
+          },
+          plotOptions: {
+            bar: {
+              horizontal: true,
+              barHeight: '60%',
+              borderRadius: 4,
+              endingShape: 'rounded'
+            },
+          },
+          dataLabels: {
+            enabled: false
+          },
+          stroke: {
+            show: true,
+            width: 2,
+            colors: ['transparent']
+          },
+          series: [{
+            name: 'Total Enrollments',
+            data: enrolled,
+            color: '#cbd5e1'
+          }, {
+            name: 'Total Completed',
+            data: completed,
+            color: '#8b5cf6'
+          }],
+          xaxis: {
+            categories: categories,
+            labels: {
+              style: {
+                colors: '#64748b',
+                fontSize: '11px',
+                fontWeight: 500
+              }
+            },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+          },
+          yaxis: {
+            labels: {
+              style: {
+                colors: '#64748b',
+                fontSize: '11px'
+              }
+            }
+          },
+          fill: { opacity: 1 },
+          legend: {
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '12px',
+            fontWeight: 500,
+            markers: { radius: 99 }
+          },
+          grid: {
+            borderColor: '#f1f5f9',
+            strokeDashArray: 4,
+            xaxis: {
+              lines: { show: true }
+            }
+          }
+        };
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new ApexCharts(chartRef.current, options);
+        chartInstance.current.render();
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+            chartInstance.current = null;
+          }
+        };
+      }, [categories, enrolled, completed]);
+
+      return <div ref={chartRef} />;
+    };
+
     // Main App Component
     function App() {
       const [loading, setLoading] = useState(true);
@@ -507,12 +708,14 @@
       const [showLogModal, setShowLogModal] = useState(false);
       const [showReopenModal, setShowReopenModal] = useState(null); // Holds event to re-open
       const [selectedMember, setSelectedMember] = useState(null); // Detailed modal
+      const [selectedTeamMember, setSelectedTeamMember] = useState(null); // Team Matrix detail panel
       const [showNotification, setShowNotification] = useState(true);
       const [reopenDueDate, setReopenDueDate] = useState('');
 
       // Active User Session State and custom dropdown states
       const [activeUserSession, setActiveUserSession] = useState({ name: 'Dr Bassant', email: 'bassant@azar.com' });
       const [eventSearchQuery, setEventSearchQuery] = useState('');
+      const [teamSearchQuery, setTeamSearchQuery] = useState('');
       const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false);
 
       // Set Event admin modal and toast states
@@ -649,7 +852,8 @@
 
       // Normalizes name comparing: replace hyphen with spaces, lowercase, trim.
       const normalizeName = (name) => {
-        return name ? name.toLowerCase().replace(/-/g, ' ').trim() : '';
+        if (typeof name !== 'string') return '';
+        return name.toLowerCase().replace(/-/g, ' ').trim();
       };
 
       // Groups course database flat entries into structured tracks and calculates dynamic metrics
@@ -1240,6 +1444,243 @@
         return { categories, assigned, completed };
       }, [teamData]);
 
+      // Derived global team metrics for the redesigned high-level dashboard
+      const teamDashboardStats = useMemo(() => {
+        if (!teamData.team || teamData.team.length === 0) {
+          return {
+            completionRate: 0,
+            totalLearningHours: 0,
+            activeTasksCount: 0,
+            attendanceRate: 0,
+            skillBlueprint: [],
+            workspaceVelocity: { categories: [], completed: [], assigned: [] },
+            taskDistribution: { completed: 0, inProgress: 0, toDo: 0 },
+            learningTrackStats: { categories: [], enrolled: [], completed: [] },
+            globalMilestones: []
+          };
+        }
+
+        // 1. Total Workspace Completion Rate (completed vs total)
+        const totalTasks = teamData.tasks ? teamData.tasks.length : 0;
+        const completedTasks = teamData.tasks ? teamData.tasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length : 0;
+        const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        // 2. Total Team Learning Hours (hours of completed tracks by all members)
+        let totalLearningHours = 0;
+        if (teamData.team && teamData.learning && teamData.logs) {
+          teamData.team.forEach(member => {
+            const memberNameNorm = normalizeName(member.Name);
+            teamData.learning.forEach(course => {
+              const courseName = course["Course Name"] || course["Topic name"];
+              if (!courseName) return;
+              const isCompleted = teamData.logs.some(log => 
+                (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
+                normalizeName(log["Event Name"]) === normalizeName(courseName) &&
+                log["Attendees/Completed"] && 
+                log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === memberNameNorm)
+              );
+              if (isCompleted) {
+                const estimatedHours = parseFloat(course["Estimated Hours"]) || 5;
+                totalLearningHours += estimatedHours;
+              }
+            });
+          });
+        }
+
+        // 3. Active Team Tasks (marked inProgress / active across board)
+        const activeTasksCount = teamData.tasks ? teamData.tasks.filter(t => {
+          const statusNorm = t.Status ? t.Status.toLowerCase().replace(/\s+/g, '') : '';
+          return statusNorm === 'inprogress' || statusNorm === 'active';
+        }).length : 0;
+
+        // 4. Overall Event Attendance (average attendance rate)
+        let totalInvited = 0;
+        let totalAttended = 0;
+        if (teamData.logs) {
+          teamData.logs.forEach(log => {
+            if (log["Event Type"] === 'Meet' || log["Event Type"] === 'Skill') {
+              const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').filter(n => n.trim().length > 0) : [];
+              const attended = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').filter(n => n.trim().length > 0) : [];
+              totalInvited += invited.length;
+              totalAttended += attended.length;
+            }
+          });
+        }
+        const attendanceRate = totalInvited > 0 ? Math.round((totalAttended / totalInvited) * 100) : 0;
+
+        // 5. Team Skill Blueprint (Radar Chart)
+        const baseSkills = [...new Set([
+          ...(teamData.skills || []).map(s => s["Skill Name"] || s["SkillName"] || s["skill name"]).filter(Boolean),
+          'Leadership',
+          'Communication',
+          'Problem Solving'
+        ])];
+
+        const skillBlueprint = baseSkills.map(subject => {
+          let totalScore = 0;
+          teamData.team.forEach(member => {
+            const nameNorm = normalizeName(member.Name);
+            const memberTasks = teamData.tasks ? teamData.tasks.filter(t => {
+              if (!t.Assignees) return false;
+              return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
+            }) : [];
+            const completedCount = memberTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length;
+            
+            let score = 40;
+
+            const matchingSkillLog = teamData.logs ? teamData.logs.find(log => 
+              log["Event Type"] === 'Skill' && 
+              normalizeName(log["Event Name"]) === normalizeName(subject)
+            ) : null;
+
+            if (matchingSkillLog) {
+              const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
+              const invitedList = matchingSkillLog["Invited/Assigned"] ? matchingSkillLog["Invited/Assigned"].split('\n') : [];
+              
+              if (completedList.some(c => normalizeName(c) === nameNorm)) {
+                score = 95;
+              } else if (invitedList.some(i => normalizeName(i) === nameNorm)) {
+                const overdue = new Date(matchingSkillLog["Due to Date"]) < new Date();
+                score = overdue ? 45 : 65;
+              }
+            }
+
+            if (subject === 'Leadership' && (member.Rule && member.Rule.toLowerCase().includes('lead') || member.Rule && member.Rule.toLowerCase().includes('supervisor'))) {
+              score = 95;
+            }
+            if (subject === 'Communication' && completedCount > 0) {
+              score += Math.min(30, completedCount * 10);
+            }
+            if (subject === 'Problem Solving' && completedCount > 0) {
+              score += Math.min(40, completedCount * 15);
+            }
+            totalScore += Math.min(100, score);
+          });
+
+          const averageScore = teamData.team.length > 0 ? Math.round(totalScore / teamData.team.length) : 40;
+          return { subject, score: averageScore };
+        });
+
+        // 6. Global Workspace Velocity (Area Chart)
+        const weeklyCategories = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5 (Current)'];
+        const completedHistory = [
+          Math.round(completedTasks * 0.2),
+          Math.round(completedTasks * 0.45),
+          Math.round(completedTasks * 0.7),
+          Math.round(completedTasks * 0.85),
+          completedTasks
+        ];
+        const assignedHistory = [
+          Math.round(totalTasks * 0.3),
+          Math.round(totalTasks * 0.55),
+          Math.round(totalTasks * 0.75),
+          Math.round(totalTasks * 0.9),
+          totalTasks
+        ];
+        const workspaceVelocity = {
+          categories: weeklyCategories,
+          completed: completedHistory,
+          assigned: assignedHistory
+        };
+
+        // 7. Task Distribution (Doughnut Chart)
+        let completedCount = 0;
+        let inProgressCount = 0;
+        let toDoCount = 0;
+        if (teamData.tasks) {
+          teamData.tasks.forEach(t => {
+            const statusNorm = t.Status ? t.Status.toLowerCase().replace(/\s+/g, '') : '';
+            if (statusNorm === 'completed') {
+              completedCount++;
+            } else if (statusNorm === 'inprogress' || statusNorm === 'active') {
+              inProgressCount++;
+            } else {
+              toDoCount++;
+            }
+          });
+        }
+        const taskDistribution = {
+          completed: completedCount,
+          inProgress: inProgressCount,
+          toDo: toDoCount
+        };
+
+        // 8. Learning Track Popularity (Bar Chart)
+        const trackStats = {};
+        if (teamData.learning) {
+          teamData.learning.forEach(course => {
+            const trackName = course["Track Name"] || "General";
+            const courseName = course["Course Name"] || course["Topic name"];
+            if (!courseName) return;
+            
+            if (!trackStats[trackName]) {
+              trackStats[trackName] = { enrolled: 0, completed: 0 };
+            }
+            
+            if (teamData.logs) {
+              teamData.logs.forEach(log => {
+                if ((log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && normalizeName(log["Event Name"]) === normalizeName(courseName)) {
+                  const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').filter(n => n.trim().length > 0) : [];
+                  const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').filter(n => n.trim().length > 0) : [];
+                  trackStats[trackName].enrolled += invited.length;
+                  trackStats[trackName].completed += completed.length;
+                }
+              });
+            }
+          });
+        }
+        const learningTrackCategories = Object.keys(trackStats);
+        const learningTrackEnrolled = learningTrackCategories.map(name => trackStats[name].enrolled);
+        const learningTrackCompleted = learningTrackCategories.map(name => trackStats[name].completed);
+        const learningTrackStats = {
+          categories: learningTrackCategories,
+          enrolled: learningTrackEnrolled,
+          completed: learningTrackCompleted
+        };
+
+        // 9. Upcoming Global Milestones (Timeline/List)
+        const globalMilestones = [];
+        if (teamData.logs) {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+
+          teamData.logs.forEach(log => {
+            const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').filter(n => n.trim().length > 0) : [];
+            const isGlobal = invited.length >= teamData.team.length * 0.8 || log["Invited/Assigned"] === "All" || log["Invited/Assigned"] === "All Team";
+            const due = log["Due to Date"] ? new Date(log["Due to Date"]) : null;
+
+            if (isGlobal && due && due >= today) {
+              const completedCount = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').filter(n => n.trim().length > 0).length : 0;
+              const attendancePercentage = invited.length > 0 ? Math.round((completedCount / invited.length) * 100) : 0;
+
+              globalMilestones.push({
+                id: log["Event ID"] || log["id"] || Math.random(),
+                name: log["Event Name"],
+                type: log["Event Type"],
+                dueDate: log["Due to Date"],
+                invitedCount: invited.length,
+                completedCount: completedCount,
+                attendancePercentage: attendancePercentage
+              });
+            }
+          });
+        }
+
+        globalMilestones.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+        return {
+          completionRate,
+          totalLearningHours,
+          activeTasksCount,
+          attendanceRate,
+          skillBlueprint,
+          workspaceVelocity,
+          taskDistribution,
+          learningTrackStats,
+          globalMilestones
+        };
+      }, [teamData]);
+
       // Compile full list of available events dynamically from teamData
       const availableEvents = useMemo(() => {
         const events = [];
@@ -1365,6 +1806,179 @@
         const role = currentUser.Rule || '';
         return role.toLowerCase().includes('lead') || role.toLowerCase().includes('supervisor') || normalizeName(currentUser.Name) === 'abdallah allam' || normalizeName(currentUser.Name) === 'abdallah-allam';
       }, [currentUser]);
+
+      // Generate hexagonal skill ratings (1-10 scale) dynamically seeded by member's name and scaled by tasks/learning
+      const getHexaSkills = (member, metrics) => {
+        const nameHash = (member.Name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+        // Base values seeded by the name hash to ensure uniqueness but consistency
+        const seed1 = (nameHash % 5) + 4; // 4 to 8
+        const seed2 = ((nameHash >> 1) % 5) + 5; // 5 to 9
+        const seed3 = ((nameHash >> 2) % 4) + 6; // 6 to 9
+        const seed4 = ((nameHash >> 3) % 5) + 4;
+        const seed5 = ((nameHash >> 4) % 5) + 5;
+        const seed6 = ((nameHash >> 5) % 4) + 6;
+
+        const tasksFactor = metrics.tasksAssigned > 0 ? Math.min(2, Math.floor(metrics.tasksCompleted / 2)) : 0;
+        const learningFactor = Math.floor(metrics.learningProgress / 40);
+
+        const hardSkills = [
+          Math.min(10, (parseInt(member.FrontendRating) || seed1) + tasksFactor),
+          Math.min(10, (parseInt(member.BackendRating) || seed2) + learningFactor),
+          Math.min(10, (parseInt(member.DatabaseRating) || seed3)),
+          Math.min(10, (parseInt(member.ArchitectureRating) || seed4)),
+          Math.min(10, (parseInt(member.DevOpsRating) || seed5)),
+          Math.min(10, (parseInt(member.TestingRating) || seed6))
+        ];
+
+        const softSkills = [
+          Math.min(10, (parseInt(member.CommunicationRating) || seed3) + tasksFactor),
+          Math.min(10, (parseInt(member.LeadershipRating) || (member.Rule && member.Rule.toLowerCase().includes('lead') ? 9 : seed1))),
+          Math.min(10, (parseInt(member.ProblemSolvingRating) || seed2) + learningFactor),
+          Math.min(10, (parseInt(member.CollaborationRating) || seed5) + tasksFactor),
+          Math.min(10, (parseInt(member.AdaptabilityRating) || seed6)),
+          Math.min(10, (parseInt(member.CriticalThinkingRating) || seed4))
+        ];
+
+        const learningSkills = [
+          Math.min(10, Math.max(1, Math.round((metrics.learningProgress || 0) / 10))), // Course Completion
+          Math.min(10, Math.max(1, (seed3 + tasksFactor))), // Tech Workshops
+          Math.min(10, Math.max(1, (seed4 + learningFactor))), // Conceptual Ret.
+          Math.min(10, Math.max(1, (seed5 + tasksFactor))), // Practical Apps
+          Math.min(10, Math.max(1, (seed1 + learningFactor))), // Self-Study Pace
+          Math.min(10, Math.max(1, (seed2 + 1))) // Alignment Meetings
+        ];
+
+        return {
+          hard: hardSkills,
+          soft: softSkills,
+          learning: learningSkills
+        };
+      };
+
+      // Generate dynamic professional technical profiles matching a specific visual reference
+      const getMemberProfileData = (member) => {
+        const role = (member.Rule || '').toLowerCase();
+        const name = member.Name || '';
+        
+        // If profile columns exist, parse them
+        if (member.Knowledge && member.Skills && member.Abilities && member.Personality && member.Technology) {
+          try {
+            return {
+              knowledge: JSON.parse(member.Knowledge),
+              skills: JSON.parse(member.Skills),
+              abilities: JSON.parse(member.Abilities),
+              personality: JSON.parse(member.Personality),
+              technology: JSON.parse(member.Technology),
+            };
+          } catch(e) {
+            console.error("Failed to parse JSON profile for member: ", name);
+          }
+        }
+
+        // Role-seeded profiles
+        if (role.includes('lead') || role.includes('supervisor') || name.toLowerCase().includes('allam')) {
+          return {
+            knowledge: [
+              { category: "Management & Leadership", items: ["Strategic planning, project scheduling, resource allocation, and team coordination."] },
+              { category: "Engineering Principles", items: ["Systematic product development lifecycle, architectural trade-offs, and quality assurance."] }
+            ],
+            skills: [
+              { category: "Decision Making & Oversight", items: ["Evaluating complex technical options and selecting optimal system architectures.", "Mentoring junior engineers and resolving technical bottlenecks."] }
+            ],
+            abilities: [
+              { category: "Active Listening & Direction", items: ["Identifying team strengths and alignment to corresponding project modules.", "Sustained high-level coordination under strict project delivery timelines."] }
+            ],
+            personality: [
+              { category: "Behavioral Traits", items: ["Structured, dependable, resilient, and highly supportive team champion.", "High emotional intelligence with a focus on collaborative problem-solving."] }
+            ],
+            technology: [
+              { category: "Core Platforms", items: ["Project Management (Jira, Trello, Git)", "Cloud Infrastructures (AWS, Google Cloud, Apps Script)"] }
+            ]
+          };
+        } else if (role.includes('ai') || role.includes('data') || role.includes('intelligence')) {
+          return {
+            knowledge: [
+              { category: "Machine Learning & AI Architecture", items: ["Deep neural networks, generative AI principles, and Large Language Models (LLMs)."] },
+              { category: "Mathematics & Statistics", items: ["Probability distributions, linear algebra, vector embeddings, and cosine similarity."] }
+            ],
+            skills: [
+              { category: "Advanced Prompting & RAG", items: ["Constructing robust context pipelines, agentic workflows, and semantic indexing systems."] },
+              { category: "Model Optimization", items: ["Fine-tuning, context-window management, and latency reduction in inference pipelines."] }
+            ],
+            abilities: [
+              { category: "Logical Deductive Reasoning", items: ["Formulating structured algorithms to solve complex data processing bottlenecks.", "Analyzing high-dimensional datasets and extracting actionable team insights."] }
+            ],
+            personality: [
+              { category: "Cognitive Profile", items: ["Inquisitive, analytical, detailed, and highly innovative builder.", "Enjoys exploring cutting-edge AI research and translating it to production."] }
+            ],
+            technology: [
+              { category: "Development Stack", items: ["Python (PyTorch, Hugging Face, LangChain, LlamaIndex)", "Vector Databases (Pinecone, ChromaDB, PGVector)"] }
+            ]
+          };
+        } else if (role.includes('mechanical') || role.includes('design') || role.includes('chassis')) {
+          return {
+            knowledge: [
+              { category: "Mechanical Systems & Physics", items: ["Structural mechanics, material selection, kinematics, and thermodynamics."] },
+              { category: "Manufacturing & Prototyping", items: ["CNC machining, 3D printing parameters, and sheet metal fabrication techniques."] }
+            ],
+            skills: [
+              { category: "CAD Modelling", items: ["Parametric assembly design, tolerance analysis, and structural FEM/FEA simulation."] },
+              { category: "Physical Verification", items: ["Sizing mechanical linkages and selecting power transmission gearboxes."] }
+            ],
+            abilities: [
+              { category: "Spatial Visualization", items: ["Mentally manipulating 3D objects and anticipating tolerance stack-up issues.", "Troubleshooting physical components during rapid field deployment."] }
+            ],
+            personality: [
+              { category: "Engineering Focus", items: ["Hands-on, pragmatic, highly spatial, and precise physical builder.", "Calm under pressure during integration and hardware assembly sessions."] }
+            ],
+            technology: [
+              { category: "Engineering Suite", items: ["SolidWorks, Autodesk Fusion 360, ANSYS FEA, PrusaSlicer"] }
+            ]
+          };
+        } else if (role.includes('software') || role.includes('frontend') || role.includes('backend') || role.includes('web')) {
+          return {
+            knowledge: [
+              { category: "Modern Frontend Frameworks", items: ["React 18 state management, JSX virtualization, and reactive DOM trees."] },
+              { category: "Software Architecture", items: ["MVC patterns, REST/GraphQL API design, caching, and database schemas."] }
+            ],
+            skills: [
+              { category: "Web Interface Engineering", items: ["Surgical styling with Tailwind CSS, Vanilla JS DOM controllers, and ApexCharts."] },
+              { category: "Code Optimization", items: ["Bundle size reduction, code splitting, and memory-leak troubleshooting."] }
+            ],
+            abilities: [
+              { category: "Abstract System Mapping", items: ["Tracing asynchronous data flows across client-server and database boundaries.", "Rapidly diagnosing obscure runtime exceptions and lint warnings."] }
+            ],
+            personality: [
+              { category: "Developer Mindset", items: ["Logical, detail-oriented, continuous learner, and highly methodical coder.", "Strives for dry, clean, maintainable, and self-documenting codebases."] }
+            ],
+            technology: [
+              { category: "Modern Stack", items: ["JavaScript/TypeScript, React, Node.js, Express, HTML5/CSS3"] }
+            ]
+          };
+        } else {
+          return {
+            knowledge: [
+              { category: "Systems Engineering", items: ["Multi-disciplinary system integration, interface control documents, and verification protocols."] },
+              { category: "Core Mathematics", items: ["Applied mathematics, statistical modeling, and analytical solving."] }
+            ],
+            skills: [
+              { category: "Problem Diagnosis", items: ["Systematically isolating hardware and software faults in complex assemblies."] },
+              { category: "Technical Writing", items: ["Drafting structured standard operating procedures and system manuals."] }
+            ],
+            abilities: [
+              { category: "Critical Thinking", items: ["Using logic and reasoning to identify strengths and weaknesses of alternative solutions."] },
+              { category: "Interdisciplinary Sync", items: ["Translating software needs into mechanical constraints and vice-versa."] }
+            ],
+            personality: [
+              { category: "Working Style", items: ["Versatile, communicative, adaptable, and a dedicated team player.", "Excels in dynamic fast-paced environments requiring rapid cross-domain context switching."] }
+            ],
+            technology: [
+              { category: "Productivity Tools", items: ["Git, Python, Excel/Google Sheets, Terminal Scripting"] }
+            ]
+          };
+        }
+      };
 
       // Calculate member performance dynamic matrix for Team tab
       const getMemberMetrics = (member) => {
@@ -1592,307 +2206,244 @@
             {activeTab === 'dashboard' && (
               <div class="space-y-6">
                 
-                {/* KPI Metrics Summary Row */}
+                {/* 1. Landing Page Hero Section: Aggregate KPIs */}
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   
-                  {/* KPI 1: Learning Progress */}
+                  {/* KPI 1: Workspace Completion Rate */}
                   <Card>
                     <div class="flex items-center justify-between">
                       <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Learning Progress</span>
-                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{userProfileDetails.learningProgress}%</h3>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Workspace Completion</span>
+                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1">{teamDashboardStats.completionRate}%</h3>
+                      </div>
+                      <div class="p-3 bg-emerald-50 text-emerald-500 rounded-2xl">
+                        <Icon name="check-circle" className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-4 overflow-hidden">
+                      <div class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${teamDashboardStats.completionRate}%` }}></div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-2">Overall workspace tasks completed vs assigned</p>
+                  </Card>
+
+                  {/* KPI 2: Total Team Learning Progress */}
+                  <Card>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Team Study Effort</span>
+                        <h3 class="text-2xl font-extrabold text-brand-600 mt-1">{teamDashboardStats.totalLearningHours} Hrs</h3>
                       </div>
                       <div class="p-3 bg-brand-50 text-brand-500 rounded-2xl">
                         <Icon name="graduation-cap" className="w-6 h-6" />
                       </div>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-1.5 mt-4 overflow-hidden">
-                      <div class="bg-brand-500 h-1.5 rounded-full" style={{ width: `${userProfileDetails.learningProgress}%` }}></div>
+                      <div class="bg-brand-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, teamDashboardStats.totalLearningHours / 5)}%` }}></div>
                     </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-2">Sum of hours spent on completed modules</p>
                   </Card>
 
-                  {/* KPI 2: Completed Tasks */}
+                  {/* KPI 3: Active Team Tasks */}
                   <Card>
                     <div class="flex items-center justify-between">
                       <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Completed Tasks</span>
-                        <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">{userProfileDetails.completedTasks}</h3>
-                      </div>
-                      <div class="p-3 bg-emerald-50 text-emerald-500 rounded-2xl">
-                        <Icon name="check-circle" className="w-6 h-6" />
-                      </div>
-                    </div>
-                    <p class="text-[10px] font-medium text-slate-400 mt-4">Out of {userProfileDetails.assignedTasksCount} total tasks assigned</p>
-                  </Card>
-
-                  {/* KPI 3: Pending Tasks */}
-                  <Card>
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Tasks</span>
-                        <h3 class="text-2xl font-extrabold text-amber-500 mt-1">{userProfileDetails.pendingTasks}</h3>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Active Team Tasks</span>
+                        <h3 class="text-2xl font-extrabold text-amber-500 mt-1">{teamDashboardStats.activeTasksCount}</h3>
                       </div>
                       <div class="p-3 bg-amber-50 text-amber-500 rounded-2xl">
                         <Icon name="briefcase" className="w-6 h-6" />
                       </div>
                     </div>
-                    <p class="text-[10px] font-medium text-slate-400 mt-4">Awaiting Completion</p>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-4 overflow-hidden">
+                      <div class="bg-amber-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${teamDashboardStats.activeTasksCount > 0 ? 100 : 0}%` }}></div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-2">Awaiting completion across the board</p>
                   </Card>
 
-                  {/* KPI 4: Pending / Active Events */}
+                  {/* KPI 4: Overall Event Attendance */}
                   <Card>
                     <div class="flex items-center justify-between">
                       <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Events</span>
-                        <h3 class="text-2xl font-extrabold text-rose-500 mt-1">{activeCount}</h3>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Event Attendance</span>
+                        <h3 class="text-2xl font-extrabold text-blue-600 mt-1">{teamDashboardStats.attendanceRate}%</h3>
                       </div>
-                      <div class="p-3 bg-rose-50 text-rose-500 rounded-2xl">
-                        <Icon name="calendar" className="w-6 h-6" />
+                      <div class="p-3 bg-blue-50 text-blue-500 rounded-2xl">
+                        <Icon name="users" className="w-6 h-6" />
                       </div>
                     </div>
-                    <p class="text-[10px] font-medium text-slate-400 mt-4">Needs Log Submission</p>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-4 overflow-hidden">
+                      <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${teamDashboardStats.attendanceRate}%` }}></div>
+                    </div>
+                    <p class="text-[10px] font-medium text-slate-400 mt-2">Average attendance for sync alignment logs</p>
                   </Card>
                 </div>
 
-                {/* Dashboard Chart Grids */}
+                {/* 2. Team-Wide Analytics (Interactive Graphs) */}
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
-                  {/* Radar Chart Card (Left) */}
+                  {/* Graph 1: Team Skill Blueprint (Radar Chart) (Col Span 2) */}
                   <Card class="lg:col-span-2 flex flex-col justify-between">
                     <div class="flex items-center justify-between mb-4">
                       <div>
-                        <h4 class="text-sm font-bold text-slate-900">Personal Skill Metric Matrix</h4>
-                        <p class="text-[11px] text-slate-400 font-medium">Dynamically compiled from log attendance and assignments</p>
+                        <h4 class="text-sm font-bold text-slate-900">Team Skill Blueprint</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Mathematical average of skill scores across all members</p>
                       </div>
-                      <div class="px-2.5 py-1 bg-brand-50 text-brand-600 rounded-lg text-[10px] font-bold uppercase">
-                        Radar Mapping
+                      <div class="px-2.5 py-1 bg-brand-50 text-brand-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                        Collective Strength
                       </div>
                     </div>
-                    <div class="flex-1">
+                    <div class="flex-1 flex items-center justify-center min-h-[280px]">
                       <SkillRadar 
-                        data={userProfileDetails.skillScores.map(s => s.score)} 
-                        categories={userProfileDetails.skillScores.map(s => s.subject)} 
-                        memberName={currentUser ? currentUser.Name : ''} 
+                        data={teamDashboardStats.skillBlueprint.map(s => s.score)} 
+                        categories={teamDashboardStats.skillBlueprint.map(s => s.subject)} 
+                        memberName="Team Average" 
                       />
                     </div>
                   </Card>
 
-                  {/* Donut Chart Card (Right) */}
+                  {/* Graph 2: Task Distribution (Doughnut Chart) (Col Span 1) */}
                   <Card class="flex flex-col justify-between">
-                    <div class="mb-4">
-                      <h4 class="text-sm font-bold text-slate-900">Task Status Overview</h4>
-                      <p class="text-[11px] text-slate-400 font-medium">Breakdown of personal assignments</p>
+                    <div class="mb-4 flex items-center justify-between">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Task Distribution</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Breakdown of all active workspace tasks by status</p>
+                      </div>
+                      <div class="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
+                        Status Share
+                      </div>
                     </div>
-                    <div class="flex-1 flex items-center justify-center">
-                      {userProfileDetails.assignedTasksCount > 0 ? (
+                    <div class="flex-1 flex items-center justify-center min-h-[260px]">
+                      {teamData.tasks && teamData.tasks.length > 0 ? (
                         <div class="w-full">
                           <TaskDonut 
-                            completed={userProfileDetails.completedTasks} 
-                            inProgress={userProfileDetails.pendingTasks} 
-                            pending={0} // Default empty space
+                            completed={teamDashboardStats.taskDistribution.completed} 
+                            inProgress={teamDashboardStats.taskDistribution.inProgress} 
+                            pending={teamDashboardStats.taskDistribution.toDo} 
                           />
                         </div>
                       ) : (
                         <div class="text-center py-10 space-y-2">
                           <Icon name="folder-open" className="w-10 h-10 text-slate-300 mx-auto" />
                           <p class="text-slate-400 text-xs font-semibold">No assigned tasks found</p>
-                          <p class="text-[10px] text-slate-300">New assignments will update instantly</p>
                         </div>
                       )}
                     </div>
                   </Card>
-
                 </div>
 
-                {/* Team Contribution Bar Chart */}
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
-                  {/* Bar Chart (Left Column Span) */}
+                  {/* Graph 3: Global Workspace Velocity (Area Chart) (Col Span 2) */}
                   <Card class="lg:col-span-2">
                     <div class="mb-4 flex items-center justify-between">
                       <div>
-                        <h4 class="text-sm font-bold text-slate-900">Team Contribution Index</h4>
-                        <p class="text-[11px] text-slate-400 font-medium">Assigned vs Completed tasks per team member</p>
+                        <h4 class="text-sm font-bold text-slate-900">Global Workspace Velocity</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Cumulative progress milestone index of tasks over time</p>
                       </div>
-                    </div>
-                    <TeamContributionBar 
-                      categories={teamContributionData.categories}
-                      assigned={teamContributionData.assigned}
-                      completed={teamContributionData.completed}
-                    />
-                  </Card>
-
-                  {/* Spline Area Cumulative Growth (Right Column Span) */}
-                  <Card>
-                    <div class="mb-4">
-                      <h4 class="text-sm font-bold text-slate-900">Workspace Velocity</h4>
-                      <p class="text-[11px] text-slate-400 font-medium">Cumulative growth timeline index</p>
-                    </div>
-                    <CumulativeTimeline 
-                      categories={['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5']}
-                      completed={[4, 12, 18, 25, userProfileDetails.completedTasks]}
-                      assigned={[6, 15, 22, 30, userProfileDetails.assignedTasksCount]}
-                    />
-                  </Card>
-
-                </div>
-
-                {/* EVENTS & MEETINGS LIST SECTION */}
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  
-                  {/* Event Reminders with Attending Actions */}
-                  <Card>
-                    <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
-                      <div>
-                        <h4 class="text-sm font-bold text-slate-900">My Workspace Events & Forms</h4>
-                        <p class="text-[11px] text-slate-400 font-medium">Open registration windows and task validation forms</p>
-                      </div>
-                      <span class="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[10px] text-slate-500 font-bold rounded-md">
-                        {userEventsAndStatus.length} Logged
+                      <span class="px-2 py-0.5 bg-brand-50 border border-brand-100/30 text-[10px] text-brand-600 font-bold rounded-md">
+                        Cumulative Tracking
                       </span>
                     </div>
+                    <CumulativeTimeline 
+                      categories={teamDashboardStats.workspaceVelocity.categories}
+                      completed={teamDashboardStats.workspaceVelocity.completed}
+                      assigned={teamDashboardStats.workspaceVelocity.assigned}
+                    />
+                  </Card>
 
-                    <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                      {userEventsAndStatus.length > 0 ? (
-                        userEventsAndStatus.map((ev, index) => (
-                          <div 
-                            key={index}
-                            class={`p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all ${
-                              ev.status === 'Completed' 
-                                ? 'bg-slate-50/50 border-slate-100' 
-                                : ev.status === 'Overdue' 
-                                ? 'bg-rose-50/20 border-rose-100/50' 
-                                : 'bg-white border-slate-100 shadow-sm'
-                            }`}
-                          >
-                            <div class="space-y-1 min-w-0">
-                              <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
-                                  ev["Event Type"] === 'Skill' 
-                                    ? 'bg-brand-50 text-brand-600' 
-                                    : ev["Event Type"] === 'Meet' 
-                                    ? 'bg-blue-50 text-blue-600' 
-                                    : 'bg-emerald-50 text-emerald-600'
-                                }`}>
-                                  {ev["Event Type"]}
-                                </span>
-                                <h5 class="text-xs font-bold text-slate-800 truncate">{ev["Event Name"]}</h5>
-                              </div>
-                              <p class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                                <Icon name="calendar" className="w-3 h-3" />
-                                Deadline: {ev.formattedDueDate}
-                              </p>
-                            </div>
-
-                            {/* Attendance / Event State */}
-                            <div class="flex-shrink-0 flex items-center gap-2">
-                              {ev.status === 'Completed' ? (
-                                <span class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 font-bold text-[10px] rounded-lg border border-emerald-100/30">
-                                  <Icon name="check-circle" className="w-3.5 h-3.5" />
-                                  Completed
-                                </span>
-                              ) : ev.status === 'Overdue' ? (
-                                <div class="flex items-center gap-1.5">
-                                  <span class="flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-500 font-bold text-[10px] rounded-lg border border-rose-100/30">
-                                    <Icon name="lock" className="w-3.5 h-3.5" />
-                                    Closed (Missed)
-                                  </span>
-                                  {isLeader && (
-                                    <button
-                                      onClick={() => {
-                                        setShowReopenModal(ev);
-                                        setReopenDueDate(ev.formattedDueDate);
-                                      }}
-                                      class="p-1 rounded bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors"
-                                      title="Re-open window (Set due date)"
-                                    >
-                                      <Icon name="unlock" className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => handleAttendEvent(ev["Event ID"])}
-                                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-[10px] transition-all shadow-sm shadow-emerald-50 hover:scale-102"
-                                >
-                                  <Icon name="check" className="w-3.5 h-3.5" />
-                                  Attend / Complete
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))
+                  {/* Graph 4: Learning Track Popularity (Bar Chart) (Col Span 1) */}
+                  <Card class="flex flex-col justify-between">
+                    <div class="mb-4 flex items-center justify-between">
+                      <div>
+                        <h4 class="text-sm font-bold text-slate-900">Learning Track Popularity</h4>
+                        <p class="text-[11px] text-slate-400 font-medium">Aggregate course enrollment and completions per track phase</p>
+                      </div>
+                      <span class="px-2 py-0.5 bg-slate-50 border border-slate-150 text-[10px] text-slate-500 font-bold rounded-md">
+                        Phase Metrics
+                      </span>
+                    </div>
+                    <div class="flex-1">
+                      {teamDashboardStats.learningTrackStats.categories.length > 0 ? (
+                        <LearningTrackPopularityBar 
+                          categories={teamDashboardStats.learningTrackStats.categories}
+                          enrolled={teamDashboardStats.learningTrackStats.enrolled}
+                          completed={teamDashboardStats.learningTrackStats.completed}
+                        />
                       ) : (
-                        <div class="text-center py-10 space-y-1">
-                          <Icon name="smile" className="w-8 h-8 text-slate-300 mx-auto" />
-                          <p class="text-slate-400 text-xs font-semibold">No assigned events</p>
-                          <p class="text-[10px] text-slate-300">You're fully cleared from active logs!</p>
+                        <div class="text-center py-10 space-y-2">
+                          <Icon name="graduation-cap" className="w-10 h-10 text-slate-300 mx-auto" />
+                          <p class="text-slate-400 text-xs font-semibold">No learning track data logged</p>
                         </div>
                       )}
                     </div>
                   </Card>
-
-                  {/* Meetings and Exams Card */}
-                  <Card>
-                    <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
-                      <div>
-                        <h4 class="text-sm font-bold text-slate-900">Upcoming Sync Meetings & Exams</h4>
-                        <p class="text-[11px] text-slate-400 font-medium">Team alignment meetings and technical examinations</p>
-                      </div>
-                      <span class="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[10px] text-slate-500 font-bold rounded-md">
-                        {teamData.meet.length + teamData.exam.length} Logged
-                      </span>
-                    </div>
-
-                    <div class="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                      
-                      {/* Meetings List */}
-                      {teamData.meet.map((m, idx) => (
-                        <div key={`m-${idx}`} class="flex items-start gap-3.5 p-3 rounded-xl border border-slate-50 hover:bg-slate-50/50 transition-colors">
-                          <div class="p-2.5 bg-blue-50 text-blue-500 rounded-xl flex-shrink-0">
-                            <Icon name="video" className="w-4 h-4" />
-                          </div>
-                          <div class="space-y-1 min-w-0">
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                              <h5 class="text-xs font-bold text-slate-800">{m["Meeting title"]}</h5>
-                              <span class="text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full capitalize">
-                                {m["Meeting Type"]}
-                              </span>
-                            </div>
-                            <p class="text-[10px] text-slate-500 font-medium leading-relaxed truncate">{m["Description"] || 'No description provided'}</p>
-                            <p class="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
-                              <Icon name="calendar" className="w-3 h-3" />
-                              Scheduled: {m["Date"]}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Exams List */}
-                      {teamData.exam.map((ex, idx) => (
-                        <div key={`ex-${idx}`} class="flex items-start gap-3.5 p-3 rounded-xl border border-slate-50 hover:bg-slate-50/50 transition-colors">
-                          <div class="p-2.5 bg-brand-50 text-brand-500 rounded-xl flex-shrink-0">
-                            <Icon name="file-text" className="w-4 h-4" />
-                          </div>
-                          <div class="space-y-1 min-w-0">
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                              <h5 class="text-xs font-bold text-slate-800">{ex["Exam name"]}</h5>
-                              <span class="text-[9px] font-bold px-1.5 py-0.5 bg-brand-50 text-brand-600 rounded-full">
-                                {ex["Category "] || 'Skill test'}
-                              </span>
-                            </div>
-                            <p class="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
-                              <Icon name="calendar" className="w-3 h-3" />
-                              Date: {ex["Date"]}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-
-                    </div>
-                  </Card>
-
                 </div>
+
+                {/* 3. Upcoming Global Milestones (List/Timeline) */}
+                <Card>
+                  <div class="flex items-center justify-between mb-6 border-b border-slate-50 pb-3">
+                    <div>
+                      <h4 class="text-sm font-bold text-slate-900">Upcoming Global Milestones</h4>
+                      <p class="text-[11px] text-slate-400 font-medium">Team-wide deadlines, synchronizations, and alignment deadlines</p>
+                    </div>
+                    <span class="px-2.5 py-1 bg-brand-50 border border-brand-100/30 text-[10px] text-brand-600 font-bold rounded-lg uppercase tracking-wider">
+                      {teamDashboardStats.globalMilestones.length} Global Deadlines
+                    </span>
+                  </div>
+
+                  <div class="space-y-4">
+                    {teamDashboardStats.globalMilestones.length > 0 ? (
+                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {teamDashboardStats.globalMilestones.map((milestone, idx) => (
+                          <div 
+                            key={idx}
+                            class="p-4 rounded-2xl border border-slate-100 bg-slate-50/30 hover:bg-white hover:shadow-saas transition-all duration-300 flex flex-col justify-between space-y-3"
+                          >
+                            <div class="space-y-1.5">
+                              <div class="flex items-center justify-between gap-2">
+                                <span class={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                  milestone.type === 'Skill' 
+                                    ? 'bg-brand-50 text-brand-600 border border-brand-100/50' 
+                                    : milestone.type === 'Meet' 
+                                    ? 'bg-blue-50 text-blue-600 border border-blue-100/50' 
+                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-100/50'
+                                }`}>
+                                  {milestone.type}
+                                </span>
+                                <span class="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                  <Icon name="calendar" className="w-3.5 h-3.5" />
+                                  {milestone.dueDate}
+                                </span>
+                              </div>
+                              <h5 class="text-xs font-bold text-slate-800 line-clamp-1">{milestone.name}</h5>
+                            </div>
+
+                            <div class="space-y-1">
+                              <div class="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+                                <span>Attendance: {milestone.completedCount} / {milestone.invitedCount}</span>
+                                <span>{milestone.attendancePercentage}%</span>
+                              </div>
+                              <div class="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                                <div 
+                                  class={`h-1 rounded-full transition-all duration-500 ${
+                                    milestone.type === 'Skill' ? 'bg-brand-500' : milestone.type === 'Meet' ? 'bg-blue-500' : 'bg-emerald-500'
+                                  }`} 
+                                  style={{ width: `${milestone.attendancePercentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div class="text-center py-10 space-y-2">
+                        <Icon name="calendar-range" className="w-10 h-10 text-slate-300 mx-auto" />
+                        <p class="text-slate-400 text-xs font-semibold">No upcoming global milestones</p>
+                        <p class="text-[10px] text-slate-300">New team-wide events will populate here automatically</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
 
               </div>
             )}
@@ -1919,57 +2470,262 @@
             )}
 
             {/* -------------------- Tab 3: TEAM INTELLIGENCE PANEL -------------------- */}
-            {activeTab === 'team' && (
-              <div class="space-y-6">
-                <div>
-                  <h3 class="text-lg font-bold text-slate-900">Team Intelligence Matrix</h3>
-                  <p class="text-xs text-slate-400 font-medium">Click on any team member's card to view their dynamic skill mapping, completed logs, and key indices.</p>
-                </div>
+            {activeTab === 'team' && (() => {
+              const activeMember = selectedTeamMember || (teamData.team && teamData.team.length > 0 ? { ...teamData.team[0], ...getMemberMetrics(teamData.team[0]) } : null);
+              const filteredTeam = (teamData.team || []).filter(member => 
+                member.Name.toLowerCase().includes(teamSearchQuery.toLowerCase())
+              );
+              return (
+                <div class="space-y-6">
+                  <div>
+                    <h3 class="text-lg font-bold text-slate-900">Team Intelligence Matrix</h3>
+                    <p class="text-xs text-slate-400 font-medium">Select any team member from the directory to inspect their dynamic skill hexagons and granular psychological profiles.</p>
+                  </div>
 
-                {/* Team Cards Grid */}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {teamData.team.map((member, idx) => {
-                    const metrics = getMemberMetrics(member);
-                    return (
-                      <div 
-                        key={idx}
-                        onClick={() => setSelectedMember({ ...member, ...metrics })}
-                        class="bg-white border border-slate-100 rounded-3xl p-5 shadow-saas hover:shadow-saas-lg hover:border-brand-100/50 cursor-pointer transition-all duration-300 transform hover:scale-[1.01] flex flex-col items-center text-center space-y-4 group"
-                      >
+                  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+                    
+                    {/* Left Column: Smart Sidebar */}
+                    <div class="lg:col-span-1 flex flex-col bg-white border border-slate-100 rounded-3xl p-4 shadow-saas sticky top-24 max-h-[calc(100vh-10rem)] overflow-hidden">
+                      <div class="mb-4">
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Team Directory</h4>
                         <div class="relative">
-                          <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-2xl border border-brand-100/30 uppercase group-hover:scale-105 transition-transform duration-300">
-                            {member.Name.charAt(0)}
-                          </div>
-                          <span class="absolute bottom-[-4px] right-[-4px] bg-emerald-500 w-3.5 h-3.5 rounded-full border-2 border-white"></span>
+                          <Icon name="search" className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input 
+                            type="text"
+                            placeholder="Search member..."
+                            value={teamSearchQuery}
+                            onChange={(e) => setTeamSearchQuery(e.target.value)}
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                          />
                         </div>
-
-                        <div>
-                          <h4 class="text-xs font-black text-slate-800 tracking-tight group-hover:text-brand-600 transition-colors leading-tight">{member.Name}</h4>
-                          <p class="text-[10px] text-slate-400 font-semibold mt-0.5">{member.Rule || 'Software Engineer'}</p>
-                        </div>
-
-                        {/* Simple metrics summary row */}
-                        <div class="grid grid-cols-2 gap-x-4 w-full bg-slate-50/50 p-2.5 rounded-xl border border-slate-50 text-left">
-                          <div>
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks</span>
-                            <span class="text-xs font-black text-slate-700 block mt-0.5">{metrics.tasksCompleted}/{metrics.tasksAssigned}</span>
-                          </div>
-                          <div class="border-l border-slate-200/60 pl-3">
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning</span>
-                            <span class="text-xs font-black text-slate-700 block mt-0.5">{metrics.learningProgress}%</span>
-                          </div>
-                        </div>
-
-                        <span class="text-[10px] font-bold text-brand-500 group-hover:translate-x-1 transition-transform flex items-center gap-0.5">
-                          View details
-                          <Icon name="chevron-right" className="w-3.5 h-3.5" />
-                        </span>
                       </div>
-                    );
-                  })}
+                      
+                      <div class="flex-1 overflow-y-auto space-y-1.5 pr-1 max-h-[calc(100vh-18rem)] scrollbar-thin">
+                        {filteredTeam.map((member, idx) => {
+                          const mMetrics = getMemberMetrics(member);
+                          const isActive = activeMember && normalizeName(member.Name) === normalizeName(activeMember.Name);
+                          return (
+                            <div 
+                              key={idx}
+                              onClick={() => setSelectedTeamMember({ ...member, ...mMetrics })}
+                              class={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-200 border-l-4 ${
+                                isActive 
+                                  ? 'border-brand-500 bg-brand-50/50 shadow-sm' 
+                                  : 'border-transparent hover:bg-slate-50/80 hover:border-slate-200'
+                              }`}
+                            >
+                              <div class={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs uppercase ${
+                                isActive ? 'bg-brand-100 text-brand-700' : 'bg-slate-50 text-slate-500 border border-slate-100'
+                              }`}>
+                                {member.Name.charAt(0)}
+                              </div>
+                              <div class="min-w-0 flex-1">
+                                <h5 class={`text-xs font-bold leading-tight truncate ${isActive ? 'text-brand-900' : 'text-slate-800'}`}>{member.Name}</h5>
+                                <p class="text-[10px] text-slate-400 font-semibold truncate mt-0.5">{member.Rule || 'Software Engineer'}</p>
+                              </div>
+                              <div class="text-right">
+                                <span class="text-[9px] font-bold text-slate-400 block uppercase">Tasks</span>
+                                <span class="text-[10px] font-black text-slate-600 block">{mMetrics.tasksCompleted}/{mMetrics.tasksAssigned}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {filteredTeam.length === 0 && (
+                          <div class="text-center py-8 text-slate-400">
+                            <Icon name="users" className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                            <p class="text-xs font-semibold">No members found</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Column: Main Content Area */}
+                    {activeMember ? (
+                      <div class="lg:col-span-3 space-y-6">
+                        
+                        {/* Member Detail Header Card */}
+                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas flex flex-col md:flex-row md:items-center md:justify-between gap-6 flex-wrap">
+                          <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-2xl border border-brand-100/30 uppercase">
+                              {activeMember.Name.charAt(0)}
+                            </div>
+                            <div>
+                              <h3 class="text-lg font-extrabold text-slate-900 tracking-tight leading-none">{activeMember.Name}</h3>
+                              <p class="text-xs text-slate-400 font-semibold mt-1.5 flex items-center gap-1">
+                                <Icon name="briefcase" className="w-3.5 h-3.5 text-slate-400" />
+                                {activeMember.Rule || 'Software Engineer'}
+                              </p>
+                              <p class="text-[10px] text-slate-300 font-bold mt-1.5 flex items-center gap-1">
+                                <Icon name="credit-card" className="w-3.5 h-3.5" />
+                                ID: {activeMember.ID || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Top KPIs */}
+                          <div class="flex items-center gap-4 self-stretch md:self-auto">
+                            <div class="flex-1 md:flex-initial bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]">
+                              <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks Completed</span>
+                              <span class="text-base font-black text-slate-700 block mt-1">{activeMember.tasksCompleted}/{activeMember.tasksAssigned}</span>
+                            </div>
+                            <div class="flex-1 md:flex-initial bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]">
+                              <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning Index</span>
+                              <span class="text-base font-black text-slate-700 block mt-1">{activeMember.learningProgress}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Hexa Radar Graphs Row - 3 Side-by-Side Radar Charts! */}
+                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-3 gap-6">
+                          
+                          {/* Chart 1: Hard Skills */}
+                          <div class="flex flex-col items-center">
+                            <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest block mb-4 bg-blue-50 px-2.5 py-1 rounded-full">Hard Skills Matrix</span>
+                            <HexaRadarChart 
+                              data={getHexaSkills(activeMember, activeMember).hard}
+                              categories={['Frontend Dev', 'Backend Dev', 'Database Design', 'System Arch', 'DevOps & Cloud', 'Testing & QA']}
+                              color="#3b82f6"
+                              memberName={activeMember.Name}
+                            />
+                          </div>
+                          
+                          {/* Chart 2: Soft Skills */}
+                          <div class="flex flex-col items-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6">
+                            <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-4 bg-emerald-50 px-2.5 py-1 rounded-full">Soft Skills Matrix</span>
+                            <HexaRadarChart 
+                              data={getHexaSkills(activeMember, activeMember).soft}
+                              categories={['Communication', 'Leadership', 'Problem Solving', 'Collaboration', 'Adaptability', 'Critical Thinking']}
+                              color="#10b981"
+                              memberName={activeMember.Name}
+                            />
+                          </div>
+
+                          {/* Chart 3: Learning Matrix */}
+                          <div class="flex flex-col items-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6">
+                            <span class="text-[10px] font-black text-purple-500 uppercase tracking-widest block mb-4 bg-purple-50 px-2.5 py-1 rounded-full">Learning Matrix</span>
+                            <HexaRadarChart 
+                              data={getHexaSkills(activeMember, activeMember).learning}
+                              categories={['Course Progress', 'Tech Workshops', 'Conceptual Ret.', 'Practical Apps', 'Self-Study Pace', 'Alignment Meetings']}
+                              color="#8b5cf6"
+                              memberName={activeMember.Name}
+                            />
+                          </div>
+
+                        </div>
+
+                        {/* Categorized Profile Fieldsets Grid */}
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          
+                          {/* KNOWLEDGE */}
+                          <fieldset class="border border-purple-100 rounded-2xl p-5 bg-purple-50/5 flex flex-col hover:border-purple-200 hover:shadow-saas transition-all duration-300">
+                            <legend class="px-3.5 py-1 bg-purple-50 border border-purple-100 rounded-full text-[10px] font-black text-purple-700 tracking-wider uppercase">
+                              Knowledge
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberProfileData(activeMember).knowledge.map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.category}</strong>
+                                  <ul class="list-disc pl-4 space-y-1 text-slate-500 font-semibold leading-relaxed">
+                                    {item.items.map((bullet, bIdx) => (
+                                      <li key={bIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                          {/* SKILLS */}
+                          <fieldset class="border border-orange-100 rounded-2xl p-5 bg-orange-50/5 flex flex-col hover:border-orange-200 hover:shadow-saas transition-all duration-300">
+                            <legend class="px-3.5 py-1 bg-orange-50 border border-orange-100 rounded-full text-[10px] font-black text-orange-700 tracking-wider uppercase">
+                              Skills
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberProfileData(activeMember).skills.map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.category}</strong>
+                                  <ul class="list-disc pl-4 space-y-1 text-slate-500 font-semibold leading-relaxed">
+                                    {item.items.map((bullet, bIdx) => (
+                                      <li key={bIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                          {/* ABILITIES */}
+                          <fieldset class="border border-blue-100 rounded-2xl p-5 bg-blue-50/5 flex flex-col hover:border-blue-200 hover:shadow-saas transition-all duration-300">
+                            <legend class="px-3.5 py-1 bg-blue-50 border border-blue-100 rounded-full text-[10px] font-black text-blue-700 tracking-wider uppercase">
+                              Abilities
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberProfileData(activeMember).abilities.map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.category}</strong>
+                                  <ul class="list-disc pl-4 space-y-1 text-slate-500 font-semibold leading-relaxed">
+                                    {item.items.map((bullet, bIdx) => (
+                                      <li key={bIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                          {/* PERSONALITY */}
+                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300 md:col-span-2 lg:col-span-1">
+                            <legend class="px-3.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 tracking-wider uppercase">
+                              Personality
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberProfileData(activeMember).personality.map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.category}</strong>
+                                  <ul class="list-disc pl-4 space-y-1 text-slate-500 font-semibold leading-relaxed">
+                                    {item.items.map((bullet, bIdx) => (
+                                      <li key={bIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                          {/* TECHNOLOGY */}
+                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300 md:col-span-2 lg:col-span-2">
+                            <legend class="px-3.5 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-[10px] font-black text-indigo-700 tracking-wider uppercase">
+                              Technology
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberProfileData(activeMember).technology.map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.category}</strong>
+                                  <ul class="list-disc pl-4 space-y-1 text-slate-500 font-semibold leading-relaxed">
+                                    {item.items.map((bullet, bIdx) => (
+                                      <li key={bIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                        </div>
+
+                      </div>
+                    ) : (
+                      <div class="lg:col-span-3 text-center py-20 bg-white border border-slate-100 rounded-3xl shadow-saas">
+                        <Icon name="users" className="w-12 h-12 mx-auto mb-4 text-slate-300 animate-pulse" />
+                        <h4 class="text-base font-bold text-slate-800">Select a Team Member</h4>
+                        <p class="text-xs text-slate-400 font-medium mt-1">Select any team member from the directory on the left to view their detailed intelligence profile.</p>
+                      </div>
+                    )}
+
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
           </main>
 
