@@ -9,11 +9,12 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 *   **Simulated Login Dropdown**: Easily switch between all synchronized team members (fully dynamic as the team grows) to audit individual dashboards and permission roles (stores profile in browser `localStorage`).
 *   **Active User Session Context**: Automatically populates the submitting user's context (User Name and Email) securely from the backend session, presenting them as read-only fields inside the event logging modal.
 *   **Searchable Event Dropdown with Due Date Validation**: Replaces the standard event name input with a fully searchable dropdown. It validates and excludes expired events dynamically, unless a special "re-opened" window is active for that event.
-*   **Dynamic Skill Radar Chart**: Compiles member skills dynamically based on your `Skill` sheet columns, completed sheet logs, tasks, and team roles (scales automatically as new skill records are added!).
+*   **Dynamic Skill Radar Chart**: Compiles member skills dynamically directly from the updated `Team` sheet's dedicated columns (`Hard Skill`, `Soft Skill`, `Technology`, `Personality`, `Abilities`, `Education`) alongside task ratings and completed logs.
 *   **Live Webcast Alerts**: Webcasts the latest created event from the sheet and issues warnings/notifications if a user has active or overdue tasks.
 *   **Deadline Lock Protocol**: Closed/Overdue events are locked from completion. Team Leads can re-open events by setting new due dates directly from the web interface.
-*   **Grouped Learning Tracks UI**: Courses fetched from the `Learning` sheet are grouped dynamically by learning track phase. The dashboard dynamically renders tracking boundaries, UI badges (e.g., Mandatory/Optional, Estimated Hours), track-level overview metadata, and computed progress bars using standard Vanilla JS mapping directly inside the React app. (Accessible via the backend `?action=learning` JSON API).
-*   **Team Intelligence Hub**: Compiles a performance card for all members. Clicking on a card opens a modal detailing their dynamic skill mapping and task statistics.
+*   **Grouped Learning Tracks UI**: Courses fetched from the `Learning` sheet are grouped dynamically by learning track phase and filtered by specific mapped skills using the new `Skill` column in the database (Accessible via the backend `?action=learning` JSON API).
+*   **Team Intelligence Hub**: Compiles a performance card for all members. Clicking on a card opens a modal detailing their dynamic skill mapping, task statistics, and soft/technical competency ratings.
+*   **🤖 Autonomous Mobile Robotics Upgrade Plan**: Highlights our comprehensive mechatronic upgrade framework, mapping out a 3-tier compute hierarchy, Extended Kalman Filter (EKF) sensor fusion, safety power isolation, and a custom Arabic educational pathway.
 
 ---
 
@@ -22,8 +23,9 @@ This application is built as a **Google Apps Script (GAS) Web App**, utilizing G
 *   **`Code.gs`**: The production Apps Script server-side database controller (manages spreadsheet reads and mutations).
 *   **`Index.html`**: The production Apps Script frontend template. Built on client-side React 18, Tailwind CSS, ApexCharts, and Lucide.
 *   **`local_test_dashboard.html`**: A fully functional local testing dashboard. Mocks Google Sheets by loading separate CSV database tables.
-*   **`sync_local_db.py`**: A python synchronization utility script. Parsed and extracts separate `.csv` tables from the master Excel workbook.
-*   **`spreedsheet-copy/`**: Contains the separate CSV database files (`Team.csv`, `Learning.csv`, `Log.csv`, etc.) parsed by the local test dashboard, alongside the master Excel backup (`ASAR-Team-Hub.xlsx`).
+*   **`sync_local_db.py`**: A python synchronization utility script. Parses and extracts separate `.csv` tables from the master Excel workbook.
+*   **`plan-copy/`**: Contains the master engineering upgrade blueprints, **Architectural Transformation for Autonomous Mobile Robotics**, in Microsoft Word (`ASAR ROBOT Plan .docx`) and interactive, rich web page (`ASAR ROBOT Plan.html`) formats.
+*   **`spreedsheet-copy/`**: Contains the separate CSV database files (`Team.csv`, `Learning.csv`, `Log.csv`, `Meet.csv`, `Supervisor.csv`, `Exam.csv`, `Task.csv`) parsed by the local test dashboard, alongside the master Excel backup (`ASAR-Team-Hub.xlsx`).
 *   **`GEMINI.md`**: Foundational repository rules and synchronization mandates.
 
 ---

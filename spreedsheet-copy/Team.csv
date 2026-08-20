@@ -1,24 +1,24 @@
-Name,ID,Mail,Phone number,Rule,overview
-Abdallah-Allam,2520550,,,,
-Abdelrahman M. Abdel-Fattah,2520780,,,,
-Mohamed H. Shaban,2540299,,,,
-Youssef Hammam Masoud,2540300,,,,
-Youssef Wagdy El-Sayed,2560148,,,,
-Assem Walid Khamis,2540213,,,,
-Mohamed Farhat Nasr,2540244,,,,
-Mostafa Ahmed Sayed,2520622,,,,
-Ezzat A. Ahmed Mbrok,2520673,,,,
-Fares Ibrahim Mohamed,2520070,,,,
-Ibrahim Faraj Abdel-Mawgoud,2520112,,,,
-Ahmed Fathy Ahmed,2521059,,,,
-Nour Yasser Zakaria,2520186,,,,
-Amani Bilal Abu Zeid,2560129,,,,
-Shams Mohamed Abdel-Hakim,2520971,,,,
-Manar Moussa Saeed,2520959,,,,
-Malak Ahmed Mohamed,2520175,,,,
-Alaa Mohamed El-Hefny,2520486,,,,
-Samah Mahdy Salah,2521121,,,,
-Yasmin Samir Abdessalam,2521242,,,,
-Asmaa Ashraf Attia,2550031,,,,
-Shams Mohamed Jaber,2520550,,,,
-Shaymaa Emad Mohamed,,,,,
+Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education
+mohamed allam,2510124.0,hhh@gmail.com,1017352734.0,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 5}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 3}
+{Kinematics & Motion Control , 3}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 3}
+{Adaptive Problem Solving & Agile Iteration , 4}
+{Cross-Domain Systems Integration , 5}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 5}
+{slam_toolbox & ROS 2 Nav2 , 4}
+{OpenCV & ONNX Runtime / TFLite , 4}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 2}",,,

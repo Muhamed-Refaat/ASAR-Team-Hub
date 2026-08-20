@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Robotics Engineering Framework & Arabic Learning Roadmap</title>
+    <!-- Chosen Palette: Warm Slate & Indigo Light Palette (Background: #F8FAFC, Neutral Cards: #FFFFFF, Primary: Indigo #4F46E5, Secondary: Teal #0D9488, Amber: #D97706, Rose: #E11D48) -->
+    <!-- Application Structure Plan: Designed as a 6-tier interactive dashboard. 1. System Architecture & Protocols. 2. Competencies & Soft Skills Matrix (with interactive filter & dynamic radar). 3. Mathematical Kinematics & EKF Simulation Tool (with real-time wheel velocity calculator & Mecanum vector plot). 4. Technology & Software Tools Matrix (searchable & filterable table). 5. Mapped Arabic Educational Directory (interactive cards with direct links & skill tags). 6. Custom PCB, Power Isolation & Actionable Roadmap. This logical layout prioritizes learning flow, system engineering clarity, and practical execution over linear report reading. -->
+    <!-- Visualization & Content Choices: 
+         - Architecture Latency vs FLOPS: Chart.js Bar Chart (Logarithmic)
+         - Engineering Skill Radar: Chart.js Radar Chart
+         - EKF Pose Error Convergence: Chart.js Line Chart
+         - Power Distribution Rails: Chart.js Doughnut Chart
+         - Development Timeline: Chart.js Stacked Bar Chart
+         - Mecanum Force Vectors: Plotly.js Polar Canvas Chart
+         - Kinematics Simulation: Vanilla JS real-time matrix calculator updating wheel outputs
+         - Interactive Educational Directory: HTML/JS filter buttons & searchable tool matrix
+         - NO SVG graphics or Mermaid JS used; Canvas and Tailwind HTML components used exclusively. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#F0F5FF',
+                            100: '#E0EAFF',
+                            500: '#6366F1',
+                            600: '#4F46E5',
+                            700: '#4338CA',
+                            900: '#1E1B4B'
+                        },
+                        tealAccent: {
+                            500: '#14B8A6',
+                            600: '#0D9488',
+                            700: '#0F766E'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 380px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-brand-500 selection:text-white custom-scrollbar">
+
+    <!-- Sticky Header Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <span class="w-3.5 h-3.5 rounded-full bg-brand-600 animate-pulse inline-block"></span>
+                <span class="text-xl font-extrabold tracking-tight text-slate-900">AUTONAV <span class="text-brand-600">ACADEMY</span></span>
+                <span class="text-xs bg-brand-50 text-brand-700 border border-brand-200 px-2.5 py-0.5 rounded-full font-semibold">3-TIER ROBOTICS & ARABIC ROADMAP</span>
+            </div>
+            <nav class="hidden lg:flex items-center space-x-6 text-sm font-medium text-slate-600">
+                <a href="#architecture" class="hover:text-brand-600 transition-colors">Architecture</a>
+                <a href="#skills" class="hover:text-brand-600 transition-colors">Skills & Soft Skills</a>
+                <a href="#kinematics" class="hover:text-brand-600 transition-colors">Kinematics & EKF</a>
+                <a href="#tools" class="hover:text-brand-600 transition-colors">Software Tools</a>
+                <a href="#courses" class="hover:text-brand-600 transition-colors">Arabic Directory</a>
+                <a href="#hardware" class="hover:text-brand-600 transition-colors">PCB & Power</a>
+                <a href="#roadmap" class="hover:text-brand-600 transition-colors">Roadmap</a>
+            </nav>
+            <div class="flex items-center space-x-2">
+                <a href="#courses" class="text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-lg transition-all shadow-sm">
+                    Free Courses Directory ↗
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- Hero & Overview Section -->
+        <section class="relative rounded-3xl bg-gradient-to-br from-white via-slate-50 to-brand-50 border border-slate-200/80 p-6 md:p-10 shadow-xl overflow-hidden">
+            <div class="max-w-4xl relative z-10">
+                <div class="inline-flex items-center space-x-2 bg-brand-100 border border-brand-200 px-3 py-1 rounded-full text-xs font-bold text-brand-700 mb-4">
+                    <span>⚡ Comprehensive Mechatronic Upgrade Framework</span>
+                </div>
+                <h1 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 mb-4 leading-tight">
+                    Architectural Transformation for <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-tealAccent-600 to-indigo-800">Autonomous Mobile Robotics</span>
+                </h1>
+                <p class="text-slate-600 text-base md:text-lg leading-relaxed mb-6">
+                    A complete engineering blueprint for upgrading a baseline mechatronic chassis (Arduino & ESP32 ASCII serial) into a high-level 3-tier autonomous mobile platform powered by ROS 2, Extended Kalman Filtering, custom PCB power isolation, and a fully mapped directory of free Arabic educational tracks.
+                </p>
+            </div>
+
+            <!-- Key Metric Cards Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-6 border-t border-slate-200">
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Compute Hierarchy</div>
+                    <div class="text-2xl font-extrabold text-brand-600">3 Tiers</div>
+                    <div class="text-xs text-slate-500 mt-1">Linux SBC + RTOS + MCU</div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Technical Skills</div>
+                    <div class="text-2xl font-extrabold text-tealAccent-600">10 Domains</div>
+                    <div class="text-xs text-slate-500 mt-1">Firmware, ROS 2, PCB, CAD</div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Arabic Directory</div>
+                    <div class="text-2xl font-extrabold text-indigo-600">7 Modules</div>
+                    <div class="text-xs text-slate-500 mt-1">100% Free Arabic Courses</div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Power System</div>
+                    <div class="text-2xl font-extrabold text-amber-600">3 Isolated Rails</div>
+                    <div class="text-xs text-slate-500 mt-1">5V Logic, 9V Gate, 12.6V Motor</div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm col-span-2 sm:col-span-1">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Execution Plan</div>
+                    <div class="text-2xl font-extrabold text-rose-600">4 Phases</div>
+                    <div class="text-xs text-slate-500 mt-1">CAD ➔ PCB ➔ Linux ➔ SLAM</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 1: System Evolution & Heterogeneous Architecture -->
+        <section id="architecture" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-8">
+            <div>
+                <div class="flex items-center space-x-2 text-brand-600 text-sm font-bold uppercase tracking-wider">
+                    <span>⚙️ Operational Computing Hierarchy</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">1. System Evolution & Heterogeneous Architecture</h2>
+                <p class="text-slate-600 mt-3 text-sm md:text-base leading-relaxed">
+                    Transitioning from a basic 115200 baud ASCII serial setup to a robust three-tier heterogeneous processing model resolves severe hardware bottlenecks. High-dimensional LiDAR point clouds, camera visual odometry, and real-time trajectory optimization are offloaded to a POSIX Linux Single-Board Computer (Raspberry Pi), leaving microcontrollers free for deterministic interrupt handling.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Tier 1 Card -->
+                <div class="bg-slate-50 border-t-4 border-tealAccent-500 border-x border-b border-slate-200 rounded-xl p-6 relative">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-xs font-bold px-2.5 py-1 bg-tealAccent-500/10 text-tealAccent-700 rounded-md border border-tealAccent-500/20">TIER 1 • LOW-LEVEL</span>
+                        <span class="text-2xl">⚙️</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-1">Arduino Mega 2560</h3>
+                    <p class="text-xs font-mono text-tealAccent-700 font-semibold mb-3">Hardware Timer Interrupts & Actuation</p>
+                    <ul class="text-xs text-slate-600 space-y-2 border-t border-slate-200 pt-3">
+                        <li class="flex items-start"><span class="text-tealAccent-600 font-bold mr-2">✓</span>Quadrature motor encoder interrupt decoding</li>
+                        <li class="flex items-start"><span class="text-tealAccent-600 font-bold mr-2">✓</span>High-frequency PID motor velocity control loop</li>
+                        <li class="flex items-start"><span class="text-tealAccent-600 font-bold mr-2">✓</span>Direct PWM generation for H-Bridge motor drivers</li>
+                        <li class="flex items-start"><span class="text-tealAccent-600 font-bold mr-2">✓</span>HC-SR04 ultrasonic distance array polling</li>
+                    </ul>
+                </div>
+
+                <!-- Tier 2 Card -->
+                <div class="bg-slate-50 border-t-4 border-amber-500 border-x border-b border-slate-200 rounded-xl p-6 relative">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-xs font-bold px-2.5 py-1 bg-amber-500/10 text-amber-700 rounded-md border border-amber-500/20">TIER 2 • MID-LEVEL</span>
+                        <span class="text-2xl">🛡️</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-1">ESP32 Gateway</h3>
+                    <p class="text-xs font-mono text-amber-700 font-semibold mb-3">Safety Supervisor & Telemetry Bridge</p>
+                    <ul class="text-xs text-slate-600 space-y-2 border-t border-slate-200 pt-3">
+                        <li class="flex items-start"><span class="text-amber-600 font-bold mr-2">✓</span>Wireless WebSockets / MQTT telemetry streaming</li>
+                        <li class="flex items-start"><span class="text-amber-600 font-bold mr-2">✓</span>Hardware E-Stop override & fault isolation</li>
+                        <li class="flex items-start"><span class="text-amber-600 font-bold mr-2">✓</span>Battery under-voltage lockout monitoring</li>
+                        <li class="flex items-start"><span class="text-amber-600 font-bold mr-2">✓</span>High-speed UART packet buffer & CRC check</li>
+                    </ul>
+                </div>
+
+                <!-- Tier 3 Card -->
+                <div class="bg-slate-50 border-t-4 border-brand-600 border-x border-b border-slate-200 rounded-xl p-6 relative">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-xs font-bold px-2.5 py-1 bg-brand-50 text-brand-700 rounded-md border border-brand-200">TIER 3 • HIGH-LEVEL</span>
+                        <span class="text-2xl">🧠</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-1">Raspberry Pi 4 / 5</h3>
+                    <p class="text-xs font-mono text-brand-600 font-semibold mb-3">ROS 2 Middleware & Spatial Perception</p>
+                    <ul class="text-xs text-slate-600 space-y-2 border-t border-slate-200 pt-3">
+                        <li class="flex items-start"><span class="text-brand-600 font-bold mr-2">✓</span>2D LiDAR range vector parsing (`slam_toolbox`)</li>
+                        <li class="flex items-start"><span class="text-brand-600 font-bold mr-2">✓</span>OpenCV visual pipelines & ONNX edge AI inference</li>
+                        <li class="flex items-start"><span class="text-brand-600 font-bold mr-2">✓</span>Global A* and local TEB trajectory planners</li>
+                        <li class="flex items-start"><span class="text-brand-600 font-bold mr-2">✓</span>Extended Kalman Filter (EKF) state estimation</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Inter-Tier Communication Protocol -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Structured Inter-Tier UART Protocol Frame (CRC-16 Framed)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 font-mono text-center text-xs">
+                    <div class="bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
+                        <div class="text-brand-600 font-bold mb-1">HEADER</div>
+                        <div class="text-slate-600">0xAA 0x55 (2 Bytes)</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
+                        <div class="text-brand-600 font-bold mb-1">CMD ID</div>
+                        <div class="text-slate-600">MSG_TYPE (1 Byte)</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-lg shadow-sm md:col-span-2">
+                        <div class="text-brand-600 font-bold mb-1">PAYLOAD</div>
+                        <div class="text-slate-600">Velocity (vx, vy, w) / Sonar / Encoders (12 Bytes)</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
+                        <div class="text-amber-600 font-bold mb-1">CHECKSUM</div>
+                        <div class="text-slate-600">CRC-16 (2 Bytes)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architecture Performance Comparison Chart -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center pt-4">
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-slate-900">Performance Metrics Across Computational Layers</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Comparing compute capacity and control loop latency across layers reveals why raw sensor reading loop rates must be physically separated from matrix operations. While the Raspberry Pi offers massive FLOPS for SLAM graph solving, the Arduino Mega guarantees microsecond interrupt determinism.
+                    </p>
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2 text-xs">
+                        <div class="flex justify-between text-slate-700">
+                            <span>Arduino Mega Interrupt Latency:</span>
+                            <span class="font-mono text-tealAccent-700 font-bold">&lt; 15 microseconds</span>
+                        </div>
+                        <div class="flex justify-between text-slate-700">
+                            <span>ESP32 Safety E-Stop Latency:</span>
+                            <span class="font-mono text-amber-700 font-bold">&lt; 2.5 milliseconds</span>
+                        </div>
+                        <div class="flex justify-between text-slate-700">
+                            <span>Raspberry Pi SLAM Map Update Loop:</span>
+                            <span class="font-mono text-brand-600 font-bold">100 - 200 milliseconds</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <div class="text-xs font-bold text-slate-500 mb-3 text-center uppercase tracking-wider">Compute Throughput (MFLOPS) vs Latency (ms)</div>
+                    <div class="chart-container">
+                        <canvas id="architectureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Technical Competencies & Soft Skills Matrix -->
+        <section id="skills" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-8">
+            <div>
+                <div class="flex items-center space-x-2 text-tealAccent-600 text-sm font-bold uppercase tracking-wider">
+                    <span>🎓 Multi-Disciplinary Skills Matrix</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">2. Technical Skills & Essential Soft Competencies</h2>
+                <p class="text-slate-600 mt-3 text-sm md:text-base leading-relaxed">
+                    Building a sophisticated autonomous platform demands mastery across low-level firmware, Linux middleware, printed circuit board design, physical kinematic models, and cognitive soft skills required for complex root-cause failure isolation.
+                </p>
+            </div>
+
+            <!-- Radar Chart + Technical Domain List -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <div class="text-xs font-bold text-slate-500 mb-2 text-center uppercase tracking-wider">10 Engineering Skill Domain Coverage</div>
+                    <div class="chart-container">
+                        <canvas id="skillsRadarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Technical Skills List with Programming Languages & Github Focus -->
+                <div class="lg:col-span-7 space-y-4">
+                    <h3 class="text-xl font-bold text-slate-900">Core Programming & Technical Competencies</h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                            <div class="text-brand-600 font-bold text-sm mb-1">💻 C / C++ Firmware Development</div>
+                            <p class="text-slate-600">Hardware registers, timer interrupts, non-blocking loops, quadrature encoder interrupts, and UART driver development.</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                            <div class="text-brand-600 font-bold text-sm mb-1">🐍 Python & ROS 2 Orchestration</div>
+                            <p class="text-slate-600">ROS 2 node scripting, OpenCV video pipelines, async WebSockets, and ONNX Runtime model bindings.</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                            <div class="text-tealAccent-600 font-bold text-sm mb-1">🐙 Git & GitHub Source Control</div>
+                            <p class="text-slate-600">Branching strategies, atomic commits, pull requests, merge conflict resolution, and version tagging.</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                            <div class="text-tealAccent-600 font-bold text-sm mb-1">🐧 Embedded Linux Administration</div>
+                            <p class="text-slate-600">Headless Raspberry Pi OS setup, GPIO via `libgpiod`, systemd service automation, and SSH workflows.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Essential Soft Engineering Competencies -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-900 mb-4">Essential Soft Engineering Competencies</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🧠</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Critical Architecture Trade-Offs</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Evaluating local SBC neural network inference latency vs cloud API execution bandwidth and network reliance.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🔍</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Systematic Root-Cause Isolation</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Methodically isolating platform failures across wheel mechanical slip, EMI ground shifts, UART corruption, or ROS deadlock.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🛡️</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Safety-First Design Mindset</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Designing hardware latching E-Stops, watchdog timers, under-voltage cutoffs, and fail-safe motion fallback routines.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🔄</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Adaptive Problem Solving</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Iteratively tuning filters and costmaps to account for real-world variables like floor friction changes and camera lighting.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2 sm:col-span-2 lg:col-span-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🌐</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Cross-Domain Integration Synthesis</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Bridging mechanical chassis CAD design, power electronics PCB trace routing, embedded firmware timers, and high-level ROS 2 middleware into one unified system.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Kinematics, Filtering & EKF State Estimation -->
+        <section id="kinematics" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-8">
+            <div>
+                <div class="flex items-center space-x-2 text-amber-600 text-sm font-bold uppercase tracking-wider">
+                    <span>📐 Interactive Kinematics & Filtering Engine</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">3. Kinematics, MPU-6050 & EKF Sensor Fusion</h2>
+                <p class="text-slate-600 mt-3 text-sm md:text-base leading-relaxed">
+                    Precise omnidirectional navigation requires physical inverse kinematic transformations and sensor state fusion. The tool below lets you dynamically calculate 4-wheel pulse rates based on target velocities.
+                </p>
+            </div>
+
+            <!-- Interactive Mecanum Velocity Calculator -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-6">
+                <h3 class="text-base font-bold text-slate-900">Interactive Mecanum Kinematics Calculator</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-700 flex justify-between">
+                                <span>Target Forward Speed (vx):</span>
+                                <span id="vxVal" class="text-brand-600 font-mono">0.50 m/s</span>
+                            </label>
+                            <input type="range" id="vxInput" min="-1" max="1" step="0.05" value="0.5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-700 flex justify-between">
+                                <span>Target Strafe Speed (vy):</span>
+                                <span id="vyVal" class="text-brand-600 font-mono">0.20 m/s</span>
+                            </label>
+                            <input type="range" id="vyInput" min="-1" max="1" step="0.05" value="0.2" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-700 flex justify-between">
+                                <span>Target Angular Speed (ωz):</span>
+                                <span id="wzVal" class="text-brand-600 font-mono">0.10 rad/s</span>
+                            </label>
+                            <input type="range" id="wzInput" min="-2" max="2" step="0.1" value="0.1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl space-y-2 text-xs font-mono">
+                        <div class="text-slate-500 font-bold font-sans uppercase mb-2">Calculated Wheel Speed Output</div>
+                        <div class="flex justify-between border-b border-slate-100 pb-1">
+                            <span>Front Left (ω_FL):</span>
+                            <span id="outFL" class="text-brand-600 font-bold">0.00 rad/s</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-100 pb-1">
+                            <span>Front Right (ω_FR):</span>
+                            <span id="outFR" class="text-brand-600 font-bold">0.00 rad/s</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-100 pb-1">
+                            <span>Rear Left (ω_RL):</span>
+                            <span id="outRL" class="text-brand-600 font-bold">0.00 rad/s</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-100 pb-1">
+                            <span>Rear Right (ω_RR):</span>
+                            <span id="outRR" class="text-brand-600 font-bold">0.00 rad/s</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center">
+                        <div id="mecanumVectorPlot" class="w-full h-56"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EKF Error Convergence Chart & Formula Breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-4">
+                <div class="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <div class="text-xs font-bold text-slate-500 mb-2 text-center uppercase tracking-wider">Odometry Position Error Convergence (Meters)</div>
+                    <div class="chart-container">
+                        <canvas id="ekfConvergenceChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 space-y-4">
+                    <h3 class="text-xl font-bold text-slate-900">Extended Kalman Filter State Fusion</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Raw wheel encoders drift due to mechanical wheel slip, while IMU accelerometers suffer from motor vibration noise. Discrete EKF balances prediction and measurement covariance matrices.
+                    </p>
+                    <div class="space-y-2 text-xs">
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-brand-600 font-bold block mb-1">1. Non-Linear State Prediction</span>
+                            <span class="font-mono text-slate-700">x̂_k⁻ = f(x̂_{k-1}, u_k) &amp; P_k⁻ = F_k P_{k-1} F_kᵀ + Q_k</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-tealAccent-700 font-bold block mb-1">2. Kalman Gain Update</span>
+                            <span class="font-mono text-slate-700">K_k = P_k⁻ H_kᵀ (H_k P_k⁻ H_kᵀ + R_k)⁻¹</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-amber-700 font-bold block mb-1">3. State &amp; Uncertainty Correction</span>
+                            <span class="font-mono text-slate-700">x̂_k = x̂_k⁻ + K_k (z_k - h(x̂_k⁻))</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Technology & Software Tools Matrix Table -->
+        <section id="tools" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+            <div>
+                <div class="flex items-center space-x-2 text-brand-600 text-sm font-bold uppercase tracking-wider">
+                    <span>🧰 Software Stack Reference</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">4. Technology & Software Tools Matrix</h2>
+                <p class="text-slate-600 mt-2 text-sm">Search and filter the complete robotics toolchain required across CAD, EDA, Firmware, ROS 2, and AI runtime frameworks.</p>
+            </div>
+
+            <!-- Search Filter Input -->
+            <div class="flex flex-col sm:flex-row justify-between gap-4">
+                <input type="text" id="toolSearchInput" placeholder="🔍 Search tools (e.g., KiCad, ROS 2, Fusion 360, OpenCV)..." class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <div class="text-xs text-slate-500 flex items-center">
+                    <span>Showing <strong id="toolCount" class="text-slate-800">9</strong> essential software tools</span>
+                </div>
+            </div>
+
+            <!-- Software Tools Table -->
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left text-xs border-collapse" id="toolsTable">
+                    <thead>
+                        <tr class="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
+                            <th class="p-3">Engineering Layer</th>
+                            <th class="p-3">Software Tool</th>
+                            <th class="p-3">Function in Architecture</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 text-slate-600">
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Mechanical CAD</td>
+                            <td class="p-3 font-bold text-slate-800">Autodesk Fusion 360 / SolidWorks</td>
+                            <td class="p-3">3D parametric chassis updates, component mounting layout, laser-cutting (.DXF) exports, and 3D printing (.STL).</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Electronic EDA</td>
+                            <td class="p-3 font-bold text-slate-800">KiCad EDA (v7.0+)</td>
+                            <td class="p-3">Schematic capture, custom footprints, PCB layout routing, Design Rule Checking (DRC), and Gerber file export.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Embedded Firmware</td>
+                            <td class="p-3 font-bold text-slate-800">PlatformIO / VS Code / Arduino IDE</td>
+                            <td class="p-3">Multi-target C/C++ compilation, board package management for ESP32 and AVR Mega, and static code analysis.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">SBC Operating System</td>
+                            <td class="p-3 font-bold text-slate-800">Raspberry Pi OS (64-bit) / Ubuntu Server</td>
+                            <td class="p-3">Headless Linux OS, systemd service automation, and hardware bus drivers (I2C, SPI, UART, CSI).</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Robotics Middleware</td>
+                            <td class="p-3 font-bold text-slate-800">ROS 2 (Humble Hawksbill)</td>
+                            <td class="p-3">Node pub/sub messaging, transform tree management (`tf2`), parameter management, and service orchestration.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">SLAM &amp; Navigation</td>
+                            <td class="p-3 font-bold text-slate-800">`slam_toolbox` &amp; ROS 2 Nav2</td>
+                            <td class="p-3">Occupancy grid generation from LiDAR range vectors, global A* pathfinding, and local TEB trajectory optimization.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Computer Vision &amp; AI</td>
+                            <td class="p-3 font-bold text-slate-800">OpenCV &amp; ONNX Runtime / TFLite</td>
+                            <td class="p-3">Frame capture pipelines, camera calibration, object detection, and local execution of quantized AI models.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Web &amp; API Gateway</td>
+                            <td class="p-3 font-bold text-slate-800">FastAPI (Python) / WebSockets</td>
+                            <td class="p-3">Local RESTful JSON endpoints, low-latency telemetry streaming, and web-based dashboard hosting.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-brand-600">Simulation &amp; Debugging</td>
+                            <td class="p-3 font-bold text-slate-800">Gazebo / RViz2</td>
+                            <td class="p-3">3D physics simulation, spatial transform visualization, and manual WebSockets telemetry testing.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Section 5: Free Arabic Educational Directory & Skill Pathways -->
+        <section id="courses" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-8">
+            <div>
+                <div class="flex items-center space-x-2 text-indigo-600 text-sm font-bold uppercase tracking-wider">
+                    <span>📚 Educational Directory</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">5. Free Arabic Educational Directory & Skill Mapping</h2>
+                <p class="text-slate-600 mt-3 text-sm md:text-base leading-relaxed">
+                    100% free Arabic educational tracks mapped directly to each required engineering domain. Filter by topic to empower your technical team.
+                </p>
+            </div>
+
+            <!-- Course Category Filter Buttons -->
+            <div class="flex flex-wrap gap-2" id="courseFilterBtnContainer">
+                <button onclick="filterCourses('all')" class="course-filter-btn active bg-brand-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">All Modules (7)</button>
+                <button onclick="filterCourses('version')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">Git &amp; Version Control</button>
+                <button onclick="filterCourses('embedded')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">C/C++ &amp; Embedded</button>
+                <button onclick="filterCourses('linux')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">Python, Linux &amp; ROS</button>
+                <button onclick="filterCourses('pcb')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">KiCad PCB Design</button>
+                <button onclick="filterCourses('cad')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">Mechanical CAD</button>
+                <button onclick="filterCourses('fusion')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">Kalman Filtering &amp; Fusion</button>
+                <button onclick="filterCourses('ai')" class="course-filter-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">Edge AI &amp; IoT Gateways</button>
+            </div>
+
+            <!-- Course Grid Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="courseGrid">
+                
+                <!-- Module 1 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all" data-category="version">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-brand-600 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded">MODULE 1</span>
+                            <span class="text-xs font-medium text-slate-500">Elzero Web School</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">Learn Git &amp; GitHub Complete Course</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> Version control, atomic commits, branching strategies, pull requests, resolving merge conflicts, and repository rollback tags.
+                        </p>
+                    </div>
+                    <a href="https://www.youtube.com/watch?v=ACOiGZoqC8w" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-3 rounded-lg transition-colors">
+                        <span>Open Free Arabic Course</span>
+                        <span>↗</span>
+                    </a>
+                </div>
+
+                <!-- Module 2 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all" data-category="embedded">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-tealAccent-700 bg-tealAccent-50 border border-tealAccent-200 px-2 py-0.5 rounded">MODULE 2</span>
+                            <span class="text-xs font-medium text-slate-500">Learn In Depth</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">Embedded Systems &amp; C/C++ Track</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> Hardware registers, timer interrupts, ISR routines, encoder interrupt handling, and UART/SPI/I2C low-level C drivers.
+                        </p>
+                    </div>
+                    <a href="https://ad.learn-in-depth-store.com/course/embedded-system" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-3 rounded-lg transition-colors">
+                        <span>Open Free Arabic Course</span>
+                        <span>↗</span>
+                    </a>
+                </div>
+
+                <!-- Module 3 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all" data-category="linux">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">MODULE 3</span>
+                            <span class="text-xs font-medium text-slate-500">Eng. Ashraf AlMadhoun &amp; Mahara-Tech</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">Raspberry Pi GPIO, Python &amp; IoT Track</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> Headless Linux server setup, GPIO control, OpenCV integration, ROS 2 Python nodes, and Mahara-Tech ITI IoT track.
+                        </p>
+                    </div>
+                    <div class="space-y-2">
+                        <a href="https://www.youtube.com/watch?v=AC2WuElEjgg" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-2.5 rounded-lg transition-colors w-full">
+                            <span>Open Raspberry Pi Course ↗</span>
+                        </a>
+                        <a href="https://maharatech.gov.eg/course/view.php?id=2145" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-800 py-1.5 px-2.5 rounded-lg transition-colors w-full">
+                            <span>Open Mahara-Tech Track ↗</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Module 4 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all" data-category="pcb">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">MODULE 4</span>
+                            <span class="text-xs font-medium text-slate-500">Dr. Walid Issa</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">KiCad PCB Design &amp; Fabrication</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> KiCad schematic capture, multi-layer trace routing, power pours, optocoupler isolation, star grounding, and Gerber export.
+                        </p>
+                    </div>
+                    <a href="https://www.youtube.com/watch?v=tKy9v-bi25U" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-3 rounded-lg transition-colors">
+                        <span>Open Free Arabic Course</span>
+                        <span>↗</span>
+                    </a>
+                </div>
+
+                <!-- Module 5 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all" data-category="cad">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">MODULE 5</span>
+                            <span class="text-xs font-medium text-slate-500">Fusion 360 / SolidWorks</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">Mechanical CAD &amp; Chassis Modeling</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> 3D parametric modeling, double-deck structural mounting, laser cutting (.DXF) exports, and 3D printing (.STL).
+                        </p>
+                    </div>
+                    <a href="https://www.youtube.com/watch?v=RDiI3K4rias" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-3 rounded-lg transition-colors">
+                        <span>Open Free Arabic Course</span>
+                        <span>↗</span>
+                    </a>
+                </div>
+
+                <!-- Module 6 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all" data-category="fusion">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded">MODULE 6</span>
+                            <span class="text-xs font-medium text-slate-500">Educational Engineering Series</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">Kalman Filtering &amp; Sensor Fusion</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> Complementary filter tuning, Extended Kalman Filter (EKF) matrix mechanics, covariance tuning, and odometry correction.
+                        </p>
+                    </div>
+                    <a href="https://www.youtube.com/watch?v=SntZO7uBzxA" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-2 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-3 rounded-lg transition-colors">
+                        <span>Open Free Arabic Course</span>
+                        <span>↗</span>
+                    </a>
+                </div>
+
+                <!-- Module 7 -->
+                <div class="course-card bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all sm:col-span-2 lg:col-span-3" data-category="ai">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-brand-600 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded">MODULE 7</span>
+                            <span class="text-xs font-medium text-slate-500">Mahara-Tech (ITI) &amp; Amideast</span>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900 mb-1">Edge AI Runtimes, Web APIs &amp; IoT Platform Track</h4>
+                        <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                            <strong>Mapped Skills:</strong> Local ONNX/TFLite model inference, RESTful JSON &amp; WebSockets gateway servers, MasterOfThings IoT development, and IBM IoT tracks.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <a href="https://maharatech.gov.eg/course/view.php?id=16" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-1 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white py-2 px-2 rounded-lg transition-colors">
+                            <span>MasterOfThings Track ↗</span>
+                        </a>
+                        <a href="https://www.amideast.org/tunisia/advancing-development-goals/experience-ai" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-1 text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 px-2 rounded-lg transition-colors">
+                            <span>Experience AI Program ↗</span>
+                        </a>
+                        <a href="https://maharatech.gov.eg/course/view.php?id=1265" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-1 text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 px-2 rounded-lg transition-colors">
+                            <span>IBM IoT Track ↗</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Section 6: Custom PCB Hardware, Circuit Safety & Power Rails -->
+        <section id="hardware" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-8">
+            <div>
+                <div class="flex items-center space-x-2 text-rose-600 text-sm font-bold uppercase tracking-wider">
+                    <span>🔋 Hardware & Power Isolation</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">6. Custom Safety PCB & Power Isolation Blueprint</h2>
+                <p class="text-slate-600 mt-3 text-sm md:text-base leading-relaxed">
+                    Directly driving high-current DC gear motors alongside sensitive high-speed digital logic causes voltage droops and inductive back-EMF spikes. A custom 2-layer KiCad PCB isolates logic, driver gate, and high-power rails.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <div class="text-xs font-bold text-slate-500 mb-2 text-center uppercase tracking-wider">Power Distribution Current Allocation (Amperes)</div>
+                    <div class="chart-container">
+                        <canvas id="powerRailChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 space-y-4">
+                    <h3 class="text-xl font-bold text-slate-900">Power Rails & Protection Architecture</h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div class="bg-slate-50 border-t-2 border-brand-600 p-3 rounded-lg border-x border-b border-slate-200">
+                            <div class="font-bold text-brand-600 text-sm mb-1">5.0V / 3A Logic Rail</div>
+                            <div class="text-slate-700 font-semibold mb-1">DC-DC Buck Regulator</div>
+                            <div class="text-slate-500">Powers Raspberry Pi 5, ESP32, Arduino Mega &amp; LiDAR.</div>
+                        </div>
+
+                        <div class="bg-slate-50 border-t-2 border-amber-500 p-3 rounded-lg border-x border-b border-slate-200">
+                            <div class="font-bold text-amber-600 text-sm mb-1">9.0V / 2A Gate Rail</div>
+                            <div class="text-slate-700 font-semibold mb-1">Isolated Buck Regulator</div>
+                            <div class="text-slate-500">Supplies logic gate inputs for motor H-Bridge drivers.</div>
+                        </div>
+
+                        <div class="bg-slate-50 border-t-2 border-rose-600 p-3 rounded-lg border-x border-b border-slate-200">
+                            <div class="font-bold text-rose-600 text-sm mb-1">12.6V Raw Rail</div>
+                            <div class="text-slate-700 font-semibold mb-1">Direct 3S LiPo Supply</div>
+                            <div class="text-slate-500">Feeds full current to motor driver high-power MOSFETs.</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2 text-xs">
+                        <h4 class="font-bold text-slate-800 uppercase tracking-wider">Circuit Safety Protections</h4>
+                        <ul class="text-slate-600 space-y-1.5 list-disc list-inside">
+                            <li><strong>Battery BMS:</strong> 3S 20A BMS with active balancing, UVLO (&lt;2.7V/cell), and over-voltage cutoff.</li>
+                            <li><strong>Overcurrent &amp; Reverse Polarity:</strong> 15A Automotive Blade Fuse + SUP90P06 P-MOSFET.</li>
+                            <li><strong>Optocoupler Signal Isolation:</strong> PC817 / 6N137 optocouplers isolating MCU PWM from drivers.</li>
+                            <li><strong>Transient Suppression:</strong> TVS Diodes + 1000µF bulk decoupling capacitors on power inputs.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KiCad Layout Rules -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                <h3 class="text-base font-bold text-slate-900 mb-4">KiCad PCB Design Rules & Star Grounding Topology</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                        <span class="text-brand-600 font-bold block mb-1">Trace Sizing & Copper Weight</span>
+                        <span class="text-slate-600">2 oz/ft² copper weight. High-current motor supply traces set to 3.0mm – 5.0mm width. Signal logic traces standard 0.25mm - 0.35mm.</span>
+                    </div>
+                    <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                        <span class="text-amber-600 font-bold block mb-1">Ground Plane Partitioning</span>
+                        <span class="text-slate-600">Preserve bottom layer for ground plane. Physically separate Analog GND, Digital GND, and Power GND.</span>
+                    </div>
+                    <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                        <span class="text-tealAccent-700 font-bold block mb-1">Star Ground Connection</span>
+                        <span class="text-slate-600">Connect separated ground zones at a single physical point using a net tie near the battery BMS negative terminal.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 7: Actionable Implementation Roadmap -->
+        <section id="roadmap" class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-8">
+            <div>
+                <div class="flex items-center space-x-2 text-purple-600 text-sm font-bold uppercase tracking-wider">
+                    <span>🚀 Development Execution</span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">7. Actionable Implementation Roadmap</h2>
+                <p class="text-slate-600 mt-3 text-sm md:text-base leading-relaxed">
+                    Executing the mechatronic transformation requires systematically progressing across mechanical chassis updates, custom circuit fabrication, firmware deployment, and high-level ROS 2 navigation stack integration.
+                </p>
+            </div>
+
+            <!-- Roadmap Stacked Bar Chart -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <div class="text-xs font-bold text-slate-500 mb-2 text-center uppercase tracking-wider">Roadmap Timeline & Work Allocation (Days)</div>
+                    <div class="chart-container">
+                        <canvas id="roadmapChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 space-y-3 text-xs">
+                    <h3 class="text-xl font-bold text-slate-900 mb-2">Phase Summary</h3>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <span class="font-bold text-brand-600">Phase 1: Mechanical CAD & Chassis</span>
+                        <p class="text-slate-600 mt-1">SolidWorks/Fusion 360 double-deck modeling, laser cut plates (.DXF) & 3D print mounts (.STL).</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <span class="font-bold text-purple-600">Phase 2: Custom Safety PCB</span>
+                        <p class="text-slate-600 mt-1">KiCad schematic capture, DRC checks, star ground routing, Gerber export, and board assembly.</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <span class="font-bold text-tealAccent-700">Phase 3: Linux & Middleware Setup</span>
+                        <p class="text-slate-600 mt-1">Flash headless 64-bit OS, ROS 2 Humble setup, Arduino Mega non-blocking loops & ESP32 WebSockets.</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <span class="font-bold text-amber-600">Phase 4: SLAM & Autonomous Navigation</span>
+                        <p class="text-slate-600 mt-1">EKF odometry node, LiDAR `slam_toolbox` mapping, Nav2 TEB costmap tuning & AI vision runtime.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>Autonomous Mobile Robotics Engineering Framework & Arabic Learning Roadmap • Single Page Interactive Application</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // Global Chart Defaults for Light Palette
+            Chart.defaults.color = '#64748B';
+            Chart.defaults.font.family = 'Plus Jakarta Sans, sans-serif';
+
+            // 1. Architecture Latency vs FLOPS Chart
+            const archCtx = document.getElementById('architectureChart').getContext('2d');
+            new Chart(archCtx, {
+                type: 'bar',
+                data: {
+                    labels: [
+                        ['Arduino Mega 2560', 'Low-Level MCU'],
+                        ['ESP32 Gateway', 'Safety & Telemetry'],
+                        ['Raspberry Pi 4/5', 'Linux & ROS 2 SBC']
+                    ],
+                    datasets: [
+                        {
+                            label: 'Execution Latency (ms)',
+                            data: [0.015, 2.5, 150],
+                            backgroundColor: '#0D9488',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Compute Capacity (MFLOPS)',
+                            data: [16, 240, 13500],
+                            backgroundColor: '#4F46E5',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'logarithmic',
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+                            ticks: { color: '#64748B' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748B' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#334155', font: { size: 11, weight: 'bold' } } },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    let label = item.chart.data.labels[item.dataIndex];
+                                    return Array.isArray(label) ? label.join(' ') : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Engineering Skill Radar Chart
+            const skillsCtx = document.getElementById('skillsRadarChart').getContext('2d');
+            new Chart(skillsCtx, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        ['Embedded C/C++', 'Drivers & Timers'],
+                        ['Python Scripting', '& ROS 2 Nodes'],
+                        ['Git & GitHub', 'Version Control'],
+                        ['Embedded Linux', '& SBC Admin'],
+                        ['KiCad PCB Design', '& Circuit Safety'],
+                        ['Power Electronics', '& Battery BMS'],
+                        ['Mechanical CAD', '& Chassis Design'],
+                        ['Kinematics', '& Motor PID'],
+                        ['Sensor Fusion', '& EKF Filtering'],
+                        ['Computer Vision', '& Edge AI']
+                    ],
+                    datasets: [{
+                        label: 'Competency Depth Target',
+                        data: [95, 90, 85, 88, 82, 85, 80, 92, 88, 84],
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        borderColor: '#4F46E5',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#D97706',
+                        pointBorderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(226, 232, 240, 0.8)' },
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+                            pointLabels: { color: '#475569', font: { size: 9, weight: 'bold' } },
+                            ticks: { display: false, backdropColor: 'transparent' },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    let label = item.chart.data.labels[item.dataIndex];
+                                    return Array.isArray(label) ? label.join(' ') : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. EKF Convergence Line Chart
+            const ekfCtx = document.getElementById('ekfConvergenceChart').getContext('2d');
+            new Chart(ekfCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0s', '10s', '20s', '30s', '40s', '50s', '60s', '70s', '80s', '90s'],
+                    datasets: [
+                        {
+                            label: 'Raw Encoder Drift (Meters)',
+                            data: [0, 0.12, 0.35, 0.68, 1.10, 1.55, 2.10, 2.80, 3.50, 4.30],
+                            borderColor: '#E11D48',
+                            backgroundColor: 'rgba(225, 29, 72, 0.05)',
+                            borderDash: [4, 4],
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Complementary Filter (IMU + Encoder)',
+                            data: [0, 0.05, 0.12, 0.22, 0.31, 0.42, 0.55, 0.70, 0.88, 1.05],
+                            borderColor: '#D97706',
+                            backgroundColor: 'rgba(217, 119, 6, 0.05)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Extended Kalman Filter (EKF Fused Pose)',
+                            data: [0, 0.01, 0.03, 0.04, 0.05, 0.06, 0.06, 0.07, 0.08, 0.08],
+                            borderColor: '#0D9488',
+                            backgroundColor: 'rgba(13, 148, 136, 0.15)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+                            ticks: { color: '#64748B' },
+                            title: { display: true, text: 'Position Error Drift (Meters)', color: '#475569' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+                            ticks: { color: '#64748B' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#334155', font: { size: 11, weight: 'bold' } } }
+                    }
+                }
+            });
+
+            // 4. Power Rail Doughnut Chart
+            const powerCtx = document.getElementById('powerRailChart').getContext('2d');
+            new Chart(powerCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [
+                        ['5.0V Logic Rail', '(Compute & Sensors)'],
+                        ['9.0V Driver Rail', '(Gate Drivers)'],
+                        ['12.6V Motor Rail', '(High Power H-Bridge)']
+                    ],
+                    datasets: [{
+                        data: [3.0, 2.0, 15.0],
+                        backgroundColor: ['#4F46E5', '#D97706', '#E11D48'],
+                        borderColor: '#FFFFFF',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#334155', font: { size: 11, weight: 'bold' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed + ' Amperes Maximum Capacity';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 5. Roadmap Timeline Chart
+            const roadmapCtx = document.getElementById('roadmapChart').getContext('2d');
+            new Chart(roadmapCtx, {
+                type: 'bar',
+                data: {
+                    labels: [
+                        ['Phase 1: Mechanical', 'CAD & Chassis'],
+                        ['Phase 2: Custom Safety', 'PCB & Power'],
+                        ['Phase 3: Firmware &', 'Linux Middleware'],
+                        ['Phase 4: SLAM, EKF', '& Nav2 Stack']
+                    ],
+                    datasets: [
+                        {
+                            label: 'Hardware & CAD Setup (Days)',
+                            data: [10, 14, 2, 0],
+                            backgroundColor: '#4F46E5',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Firmware & Low-Level Code (Days)',
+                            data: [2, 4, 12, 4],
+                            backgroundColor: '#0D9488',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Middleware & ROS 2 SLAM (Days)',
+                            data: [0, 0, 8, 18],
+                            backgroundColor: '#7C3AED',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { color: '#64748B' } },
+                        y: { stacked: true, grid: { color: 'rgba(226, 232, 240, 0.8)' }, ticks: { color: '#64748B' }, title: { display: true, text: 'Estimated Days Required', color: '#475569' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#334155', font: { size: 11, weight: 'bold' } } }
+                    }
+                }
+            });
+
+            // 6. Interactive Mecanum Kinematics Calculator & Plotly Polar Plot
+            const vxInput = document.getElementById('vxInput');
+            const vyInput = document.getElementById('vyInput');
+            const wzInput = document.getElementById('wzInput');
+
+            const R = 0.05; // wheel radius in meters
+            const L = 0.20; // Lx + Ly geometry dimension sum in meters
+
+            function updateKinematics() {
+                const vx = parseFloat(vxInput.value);
+                const vy = parseFloat(vyInput.value);
+                const wz = parseFloat(wzInput.value);
+
+                document.getElementById('vxVal').innerText = vx.toFixed(2) + ' m/s';
+                document.getElementById('vyVal').innerText = vy.toFixed(2) + ' m/s';
+                document.getElementById('wzVal').innerText = wz.toFixed(2) + ' rad/s';
+
+                const wFL = (vx - vy - L * wz) / R;
+                const wFR = (vx + vy + L * wz) / R;
+                const wRL = (vx + vy - L * wz) / R;
+                const wRR = (vx - vy + L * wz) / R;
+
+                document.getElementById('outFL').innerText = wFL.toFixed(1) + ' rad/s';
+                document.getElementById('outFR').innerText = wFR.toFixed(1) + ' rad/s';
+                document.getElementById('outRL').innerText = wRL.toFixed(1) + ' rad/s';
+                document.getElementById('outRR').innerText = wRR.toFixed(1) + ' rad/s';
+
+                const maxVel = Math.max(Math.abs(wFL), Math.abs(wFR), Math.abs(wRL), Math.abs(wRR), 1);
+                
+                var mecanumData = [{
+                    type: 'scatterpolar',
+                    mode: 'lines+markers',
+                    r: [Math.abs(wFL)/maxVel, Math.abs(wFR)/maxVel, Math.abs(wRR)/maxVel, Math.abs(wRL)/maxVel, Math.abs(wFL)/maxVel],
+                    theta: [45, 135, 225, 315, 45],
+                    fill: 'toself',
+                    fillcolor: 'rgba(79, 70, 229, 0.15)',
+                    line: { color: '#4F46E5', width: 2.5 },
+                    marker: { color: '#D97706', size: 8 }
+                }];
+
+                var mecanumLayout = {
+                    polar: {
+                        radialaxis: { visible: true, range: [0, 1.1], color: '#94A3B8', gridcolor: '#E2E8F0' },
+                        angularaxis: { color: '#475569', gridcolor: '#E2E8F0' },
+                        bgcolor: 'transparent'
+                    },
+                    paper_bgcolor: 'transparent',
+                    plot_bgcolor: 'transparent',
+                    showlegend: false,
+                    margin: { l: 20, r: 20, t: 20, b: 20 }
+                };
+
+                Plotly.react('mecanumVectorPlot', mecanumData, mecanumLayout, { responsive: true, displayModeBar: false });
+            }
+
+            vxInput.addEventListener('input', updateKinematics);
+            vyInput.addEventListener('input', updateKinematics);
+            wzInput.addEventListener('input', updateKinematics);
+
+            updateKinematics();
+
+            // 7. Software Tools Table Search Logic
+            const toolSearchInput = document.getElementById('toolSearchInput');
+            toolSearchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                const rows = document.querySelectorAll('#toolsTable tbody tr');
+                let count = 0;
+
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    if (text.includes(query)) {
+                        row.style.display = '';
+                        count++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                document.getElementById('toolCount').innerText = count;
+            });
+
+        });
+
+        // 8. Arabic Course Directory Filter Logic
+        function filterCourses(category) {
+            const buttons = document.querySelectorAll('.course-filter-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white', 'active');
+                btn.classList.add('bg-slate-100', 'text-slate-700');
+            });
+
+            event.currentTarget.classList.remove('bg-slate-100', 'text-slate-700');
+            event.currentTarget.classList.add('bg-brand-600', 'text-white', 'active');
+
+            const cards = document.querySelectorAll('.course-card');
+            cards.forEach(card => {
+                if (category === 'all' || card.getAttribute('data-category') === category) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
