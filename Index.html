@@ -157,7 +157,7 @@
         const options = {
           chart: {
             type: 'radar',
-            height: 280,
+            height: 340,
             toolbar: { show: false },
             dropShadow: {
               enabled: true,
@@ -232,7 +232,7 @@
         const options = {
           chart: {
             type: 'radar',
-            height: 250,
+            height: 340,
             toolbar: { show: false },
             dropShadow: {
               enabled: true,
@@ -294,7 +294,7 @@
           xaxis: {
             labels: {
               style: {
-                colors: Array(6).fill('#71717a'),
+                colors: Array(categories.length).fill('#71717a'),
                 fontSize: '10px',
                 fontFamily: 'Plus Jakarta Sans, sans-serif',
                 fontWeight: 600
@@ -972,6 +972,11 @@
                     <span class="text-[9px] font-extrabold text-slate-500 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md uppercase tracking-wider">
                       ⏱ ${course.estimatedHours} Hours
                     </span>
+                    ${course.platform ? `
+                      <span class="text-[9px] font-extrabold text-purple-700 px-2 py-0.5 bg-purple-50 border border-purple-200 rounded-md uppercase tracking-wider">
+                        ☁️ ${course.platform}
+                      </span>
+                    ` : ''}
                   </div>
                   
                   ${course.isCompleted ? `
@@ -1807,7 +1812,8 @@
         return role.toLowerCase().includes('lead') || role.toLowerCase().includes('supervisor') || normalizeName(currentUser.Name) === 'abdallah allam' || normalizeName(currentUser.Name) === 'abdallah-allam';
       }, [currentUser]);
 
-      // Generate hexagonal skill ratings (1-10 scale) dynamically seeded by member's name and scaled by tasks/learning
+      // Generate hexagonal skill ratings (1-10 scale) dynamically parsed from sheet columns
+      // with seeded fallbacks to ensure consistency and continuous rating support
       const getHexaSkills = (member, metrics) => {
         const nameHash = (member.Name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
@@ -1822,24 +1828,112 @@
         const tasksFactor = metrics.tasksAssigned > 0 ? Math.min(2, Math.floor(metrics.tasksCompleted / 2)) : 0;
         const learningFactor = Math.floor(metrics.learningProgress / 40);
 
-        const hardSkills = [
-          Math.min(10, (parseInt(member.FrontendRating) || seed1) + tasksFactor),
-          Math.min(10, (parseInt(member.BackendRating) || seed2) + learningFactor),
-          Math.min(10, (parseInt(member.DatabaseRating) || seed3)),
-          Math.min(10, (parseInt(member.ArchitectureRating) || seed4)),
-          Math.min(10, (parseInt(member.DevOpsRating) || seed5)),
-          Math.min(10, (parseInt(member.TestingRating) || seed6))
+        // Parse serialized ratings from columns
+        const parseSerializedRatings = (serializedStr) => {
+          const ratings = {};
+          if (!serializedStr) return ratings;
+          const matches = serializedStr.match(/\{([^}]+)\}/g);
+          if (matches) {
+            matches.forEach(m => {
+              const content = m.slice(1, -1);
+              const parts = content.split(',');
+              if (parts.length >= 2) {
+                const valStr = parts.pop().trim();
+                const key = parts.join(',').trim();
+                const rating = parseInt(valStr, 10);
+                if (!isNaN(rating)) {
+                  ratings[key] = rating;
+                }
+              }
+            });
+          }
+          return ratings;
+        };
+
+        const parsedHard = parseSerializedRatings(member["Hard Skill"] || member["HardSkill"]);
+        const parsedSoft = parseSerializedRatings(member["Soft Skill"] || member["SoftSkill"]);
+        const parsedTech = parseSerializedRatings(member["Technology"]);
+
+        const getMatchedRating = (parsedRatings, targetCategory, fallbackValue) => {
+          const clean = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const targetClean = clean(targetCategory);
+          
+          for (const key in parsedRatings) {
+            if (clean(key) === targetClean) {
+              return parsedRatings[key];
+            }
+          }
+          for (const key in parsedRatings) {
+            const keyClean = clean(key);
+            if (keyClean.startsWith(targetClean) || targetClean.startsWith(keyClean)) {
+              return parsedRatings[key];
+            }
+          }
+          return fallbackValue;
+        };
+
+        // 1. Hard Skills Matrix (11 categories)
+        const hardCategories = [
+          "Embedded Systems & Firmware (C/C++)",
+          "High-Level Scripting & Middleware (Python)",
+          "Version Control & Collaboration (Git/GitHub)",
+          "Embedded Linux & SBC Administration",
+          "Circuit Design & EDA Routing",
+          "Power Electronics & Circuit Protection",
+          "Mechanical Engineering & CAD",
+          "Kinematics & Motion Control",
+          "Sensor Fusion & State Estimation",
+          "Computer Vision & Spatial AI",
+          "SLM Fine tuning & Edge AI deployment"
         ];
 
-        const softSkills = [
-          Math.min(10, (parseInt(member.CommunicationRating) || seed3) + tasksFactor),
-          Math.min(10, (parseInt(member.LeadershipRating) || (member.Rule && member.Rule.toLowerCase().includes('lead') ? 9 : seed1))),
-          Math.min(10, (parseInt(member.ProblemSolvingRating) || seed2) + learningFactor),
-          Math.min(10, (parseInt(member.CollaborationRating) || seed5) + tasksFactor),
-          Math.min(10, (parseInt(member.AdaptabilityRating) || seed6)),
-          Math.min(10, (parseInt(member.CriticalThinkingRating) || seed4))
+        const hardSkills = hardCategories.map((cat, idx) => {
+          const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed1, seed2, seed3, seed4, seed5][idx];
+          const factor = (idx === 0) ? tasksFactor : (idx === 1) ? learningFactor : 0;
+          const val = getMatchedRating(parsedHard, cat, defaultSeed);
+          return Math.min(10, val + factor);
+        });
+
+        // 2. Soft Skills Matrix (5 categories)
+        const softCategories = [
+          "Systematic Root-Cause Isolation",
+          "Critical Thinking & Architecture Trade-Off Analysis",
+          "Safety-First Engineering Mindset (Fail-Safe Design)",
+          "Adaptive Problem Solving & Agile Iteration",
+          "Cross-Domain Systems Integration"
         ];
 
+        const softSkills = softCategories.map((cat, idx) => {
+          const defaultSeed = [seed3, seed1, seed2, seed5, seed6][idx];
+          const factor = (idx === 0 || idx === 3) ? tasksFactor : (idx === 2) ? learningFactor : 0;
+          let val = getMatchedRating(parsedSoft, cat, defaultSeed);
+          if (idx === 1 && member.Rule && member.Rule.toLowerCase().includes('lead')) {
+            val = 9;
+          }
+          return Math.min(10, val + factor);
+        });
+
+        // 3. Technologies & Tools Matrix (9 categories)
+        const techCategories = [
+          "Autodesk Fusion 360 / SolidWorks",
+          "KiCad EDA (v7.0+) / Proetus",
+          "PlatformIO / VS Code / Arduino IDE 2.x",
+          "Raspberry Pi OS (64-bit) / Ubuntu Server",
+          "ROS 2 (Humble Hawksbill)",
+          "slam_toolbox & ROS 2 Nav2",
+          "OpenCV & ONNX Runtime / TFLite",
+          "FastAPI (Python) / Express & WebSockets",
+          "Gazebo / RViz2 / WebSockets Injection"
+        ];
+
+        const techSkills = techCategories.map((cat, idx) => {
+          const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed2, seed3, seed4][idx];
+          const factor = (idx === 4) ? tasksFactor : (idx === 6) ? learningFactor : 0;
+          const val = getMatchedRating(parsedTech, cat, defaultSeed);
+          return Math.min(10, val + factor);
+        });
+
+        // 4. Learning Matrix (6 categories)
         const learningSkills = [
           Math.min(10, Math.max(1, Math.round((metrics.learningProgress || 0) / 10))), // Course Completion
           Math.min(10, Math.max(1, (seed3 + tasksFactor))), // Tech Workshops
@@ -1852,6 +1946,7 @@
         return {
           hard: hardSkills,
           soft: softSkills,
+          tech: techSkills,
           learning: learningSkills
         };
       };
@@ -1977,6 +2072,77 @@
               { category: "Productivity Tools", items: ["Git, Python, Excel/Google Sheets, Terminal Scripting"] }
             ]
           };
+        }
+      };
+
+      // Helper to parse or generate education records dynamically (reads Col L: Education)
+      const getMemberEducation = (member) => {
+        const rawEd = member.Education || member["Education"] || "";
+        
+        const parseSerializedEducation = (serializedStr) => {
+          const items = [];
+          if (!serializedStr) return items;
+          const matches = serializedStr.match(/\{([^}]+)\}/g);
+          if (matches) {
+            matches.forEach(m => {
+              const content = m.slice(1, -1);
+              const parts = content.split(',');
+              if (parts.length >= 2) {
+                const detail = parts.pop().trim();
+                const degree = parts.join(',').trim();
+                items.push({ degree, detail });
+              } else {
+                items.push({ degree: content.trim(), detail: '' });
+              }
+            });
+          } else {
+            const lines = serializedStr.split('\n').map(s => s.trim()).filter(Boolean);
+            lines.forEach(line => {
+              const parts = line.split(',');
+              if (parts.length >= 2) {
+                const detail = parts.pop().trim();
+                const degree = parts.join(',').trim();
+                items.push({ degree, detail });
+              } else {
+                items.push({ degree: line, detail: '' });
+              }
+            });
+          }
+          return items;
+        };
+
+        const parsedList = parseSerializedEducation(rawEd);
+        if (parsedList.length > 0) {
+          return parsedList;
+        }
+
+        const role = (member.Rule || '').toLowerCase();
+        const name = member.Name || '';
+        
+        if (role.includes('lead') || role.includes('supervisor') || name.toLowerCase().includes('allam')) {
+          return [
+            { degree: "B.Sc. in Mechatronics Engineering", detail: "Cairo University (First-Class Honors)" },
+            { degree: "M.Sc. in Autonomous Robotics", detail: "In Progress (Focus: EKF State Fusion & Deep RL)" }
+          ];
+        } else if (role.includes('ai') || role.includes('data') || role.includes('intelligence')) {
+          return [
+            { degree: "B.Sc. in Computer Science & AI", detail: "Cairo University" },
+            { degree: "DeepLearning.AI Certified Specialist", detail: "Generative AI & LLM Systems" }
+          ];
+        } else if (role.includes('mechanical') || role.includes('design') || role.includes('chassis')) {
+          return [
+            { degree: "B.Sc. in Mechanical Engineering", detail: "Cairo University" },
+            { degree: "Autodesk Certified Professional", detail: "Mechanical Design & Simulation" }
+          ];
+        } else if (role.includes('software') || role.includes('frontend') || role.includes('backend') || role.includes('web')) {
+          return [
+            { degree: "B.Sc. in Computer Engineering", detail: "Cairo University" },
+            { degree: "Full-Stack Developer Certification", detail: "React & Cloud Infrastructure" }
+          ];
+        } else {
+          return [
+            { degree: "B.Sc. in Mechatronics & Systems Engineering", detail: "Cairo University" }
+          ];
         }
       };
 
@@ -2575,15 +2741,15 @@
                           </div>
                         </div>
 
-                        {/* Hexa Radar Graphs Row - 3 Side-by-Side Radar Charts! */}
-                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Hexa Radar Graphs Row - 2x2 Grid Radar Charts! */}
+                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-2 gap-6">
                           
                           {/* Chart 1: Hard Skills */}
                           <div class="flex flex-col items-center">
                             <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest block mb-4 bg-blue-50 px-2.5 py-1 rounded-full">Hard Skills Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).hard}
-                              categories={['Frontend Dev', 'Backend Dev', 'Database Design', 'System Arch', 'DevOps & Cloud', 'Testing & QA']}
+                              categories={['Embedded C/C++', 'Python Scripting', 'Git & GitHub', 'Embedded Linux', 'Circuit & PCB EDA', 'Power Electronics', 'Mechanical CAD', 'Kinematics & Control', 'Sensor Fusion', 'Computer Vision', 'SLM & Edge AI']}
                               color="#3b82f6"
                               memberName={activeMember.Name}
                             />
@@ -2594,14 +2760,25 @@
                             <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-4 bg-emerald-50 px-2.5 py-1 rounded-full">Soft Skills Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).soft}
-                              categories={['Communication', 'Leadership', 'Problem Solving', 'Collaboration', 'Adaptability', 'Critical Thinking']}
+                              categories={['Root-Cause Isolation', 'Critical Thinking', 'Fail-Safe Mindset', 'Problem Solving', 'Systems Integration']}
                               color="#10b981"
                               memberName={activeMember.Name}
                             />
                           </div>
 
-                          {/* Chart 3: Learning Matrix */}
-                          <div class="flex flex-col items-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6">
+                          {/* Chart 3: Technologies & Tools */}
+                          <div class="flex flex-col items-center border-t border-slate-100 pt-6">
+                            <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest block mb-4 bg-cyan-50 px-2.5 py-1 rounded-full">Technologies & Tools</span>
+                            <HexaRadarChart 
+                              data={getHexaSkills(activeMember, activeMember).tech}
+                              categories={['Autodesk/SolidWorks', 'KiCad PCB EDA', 'PlatformIO & IDEs', 'Raspberry Pi/Linux', 'ROS 2 Humble', 'SLAM & Nav2', 'OpenCV & AI', 'FastAPI & WebSockets', 'Gazebo & RViz2']}
+                              color="#06b6d4"
+                              memberName={activeMember.Name}
+                            />
+                          </div>
+
+                          {/* Chart 4: Learning Matrix */}
+                          <div class="flex flex-col items-center border-t border-slate-100 pt-6 md:border-l md:pl-6">
                             <span class="text-[10px] font-black text-purple-500 uppercase tracking-widest block mb-4 bg-purple-50 px-2.5 py-1 rounded-full">Learning Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).learning}
@@ -2674,7 +2851,7 @@
                           </fieldset>
 
                           {/* PERSONALITY */}
-                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300 md:col-span-2 lg:col-span-1">
+                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300">
                             <legend class="px-3.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 tracking-wider uppercase">
                               Personality
                             </legend>
@@ -2693,7 +2870,7 @@
                           </fieldset>
 
                           {/* TECHNOLOGY */}
-                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300 md:col-span-2 lg:col-span-2">
+                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300">
                             <legend class="px-3.5 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-[10px] font-black text-indigo-700 tracking-wider uppercase">
                               Technology
                             </legend>
@@ -2706,6 +2883,21 @@
                                       <li key={bIdx}>{bullet}</li>
                                     ))}
                                   </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                          {/* EDUCATION */}
+                          <fieldset class="border border-amber-100 rounded-2xl p-5 bg-amber-50/5 flex flex-col hover:border-amber-200 hover:shadow-saas transition-all duration-300">
+                            <legend class="px-3.5 py-1 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-black text-amber-700 tracking-wider uppercase">
+                              Education
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberEducation(activeMember).map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.degree}</strong>
+                                  <span class="text-slate-500 font-semibold leading-relaxed block">{item.detail}</span>
                                 </li>
                               ))}
                             </ul>

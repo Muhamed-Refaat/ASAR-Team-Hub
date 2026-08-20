@@ -120,31 +120,61 @@
   <!-- MOCK DATA PREVIEWS FOR FALLBACK USE -->
   <script>
     const FALLBACK_SUPERVISOR_CSV = `Name,phone\nDr Bassant,17352734`;
-    const FALLBACK_TEAM_CSV = `Name,ID,Mail,Phone number,Rule,overview\nAbdallah-Allam,2520550,,,Team Lead,\nAbdelrahman M. Abdel-Fattah,2520780,,,,\nMohamed H. Shaban,2540299,,,,\nYoussef Hammam Masoud,2540300,,,,\nYoussef Wagdy El-Sayed,2560148,,,,\nAssem Walid Khamis,2540213,,,,\nMohamed Farhat Nasr,2540244,,,,\nMostafa Ahmed Sayed,2520622,,,,\nEzzat A. Ahmed Mbrok,2520673,,,,\nFares Ibrahim Mohamed,2520070,,,,\nIbrahim Faraj Abdel-Mawgoud,2520112,,,,\nAhmed Fathy Ahmed,2521059,,,,\nNour Yasser Zakaria,2520186,,,,\nAmani Bilal Abu Zeid,2560129,,,,\nShams Mohamed Abdel-Hakim,2520971,,,,\nManar Moussa Saeed,2520959,,,,\nMalak Ahmed Mohamed,2520175,,,,\nAlaa Mohamed El-Hefny,2520486,,,,\nSamah Mahdy Salah,2521121,,,,\nYasmin Samir Abdessalam,2521242,,,,\nAsmaa Ashraf Attia,2550031,,,,\nShams Mohamed Jaber,2520550,,,,\nShaymaa Emad Mohamed,,,,,`;
+    const FALLBACK_TEAM_CSV = `Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education
+Abdallah-Allam,2520550,,,Team Lead,,"{Embedded Systems & Firmware (C/C++) , 8}\n{High-Level Scripting & Middleware (Python) , 7}\n{Version Control & Collaboration (Git/GitHub) , 9}\n{Embedded Linux & SBC Administration , 6}\n{Circuit Design & EDA Routing , 7}\n{Power Electronics & Circuit Protection , 8}\n{Mechanical Engineering & CAD , 5}\n{Kinematics & Motion Control , 6}\n{Sensor Fusion & State Estimation , 8}\n{Computer Vision & Spatial AI , 7}\n{SLM Fine tuning & Edge AI deployment , 6}","{Systematic Root-Cause Isolation , 9}\n{Critical Thinking & Architecture Trade-Off Analysis , 8}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 9}\n{Adaptive Problem Solving & Agile Iteration , 8}\n{Cross-Domain Systems Integration , 9}","{Autodesk Fusion 360 / SolidWorks , 5}\n{KiCad EDA (v7.0+) / Proetus , 7}\n{PlatformIO / VS Code / Arduino IDE 2.x , 8}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 8}\n{ROS 2 (Humble Hawksbill) , 9}\n{slam_toolbox & ROS 2 Nav2 , 8}\n{OpenCV & ONNX Runtime / TFLite , 7}\n{FastAPI (Python) / Express & WebSockets , 9}\n{Gazebo / RViz2 / WebSockets Injection , 8}",,,,"{B.Sc. in Mechatronics Engineering, Cairo University (First-Class Honors)}\n{M.Sc. in Autonomous Robotics, In Progress}"
+Abdelrahman M. Abdel-Fattah,2520780,,,,,,,,,,,
+Mohamed H. Shaban,2540299,,,,,,,,,,,
+Youssef Hammam Masoud,2540300,,,,,,,,,,,
+Youssef Wagdy El-Sayed,2560148,,,,,,,,,,,
+Assem Walid Khamis,2540213,,,,,,,,,,,
+Mohamed Farhat Nasr,2540244,,,,,,,,,,,
+Mostafa Ahmed Sayed,2520622,,,,,,,,,,,
+Ezzat A. Ahmed Mbrok,2520673,,,,,,,,,,,
+Fares Ibrahim Mohamed,2520070,,,,,,,,,,,
+Ibrahim Faraj Abdel-Mawgoud,2520112,,,,,,,,,,,
+Ahmed Fathy Ahmed,2521059,,,,,,,,,,,
+Nour Yasser Zakaria,2520186,,,,,,,,,,,
+Amani Bilal Abu Zeid,2560129,,,,,,,,,,,
+Shams Mohamed Abdel-Hakim,2520971,,,,,,,,,,,
+Manar Moussa Saeed,2520959,,,,,,,,,,,
+Malak Ahmed Mohamed,2520175,,,,,,,,,,,
+Alaa Mohamed El-Hefny,2520486,,,,,,,,
+Samah Mahdy Salah,2521121,,,,,,,,
+Yasmin Samir Abdessalam,2521242,,,,,,,,
+Asmaa Ashraf Attia,2550031,,,,,,,,
+Shams Mohamed Jaber,2520550,,,,,,,,
+Shaymaa Emad Mohamed,,,,,,,,,`;
     const FALLBACK_SKILL_CSV = `Skill Name,Skill Category,Skill Rank\nPython,Software,5\nC,Software,8\nSoildwroks,Mechanical,10`;
-    const FALLBACK_LEARNING_CSV = `Course Name,Track ID,Track Name,Track Overview,Mandatory/Optional,Platform,Estimated Hours,Course URL
-AI for Everyone,1,AI for Everyone,"Introduction to Artificial Intelligence concepts, workflows, and business applications.",Mandatory,DeepLearning,4,https://www.deeplearning.ai/courses/ai-for-everyone
-Generative AI for Everyone,1,AI for Everyone,"Introduction to Artificial Intelligence concepts, workflows, and business applications.",Mandatory,DeepLearning,5,https://www.deeplearning.ai/courses/generative-ai-for-everyone
-AI Prompting for Everyone,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Mandatory,DeepLearning,3,https://www.deeplearning.ai/courses/ai-prompting-for-everyone
-Large Multimodal Model Prompting with Gemini,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,4,https://learn.deeplearning.ai/courses/large-multimodal-model-prompting-with-gemini/information
-Reasoning with o1,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,2,https://www.deeplearning.ai/courses/reasoning-with-o1
-Open Source Models with Hugging Face,2,Foundations & Prompting,"Master the art of prompt engineering, model alignment, and advanced prompting techniques.",Optional,DeepLearning,6,https://www.deeplearning.ai/courses/open-source-models-hugging-face
-Gemini CLI: Code & Create,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Mandatory,DeepLearning,6,https://www.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent
-Spec-Driven Development with Coding Agents,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Mandatory,DeepLearning,8,https://www.deeplearning.ai/courses/spec-driven-development-with-coding-agents
-Pair Programming with a Large Language Model,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,4,https://www.deeplearning.ai/courses/pair-programming-llm
-Building Gen AI Applications with Gradio,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,5,https://www.deeplearning.ai/courses/huggingface-gradio
-Pydantic for LLM Workflows,3,AI Coding Assistants & App Development,Build and scale intelligent web applications and CLI agents using Google Gemini and modern development methodologies.,Optional,DeepLearning,3,https://www.deeplearning.ai/courses/pydantic-for-llm-workflows
-Understanding and Applying Text Embeddings,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Mandatory,DeepLearning,4,https://learn.deeplearning.ai/courses/google-cloud-vertex-ai/information
-LangChain Chat with Your Data,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Mandatory,DeepLearning,6,https://learn.deeplearning.ai/courses/langchain-chat-with-your-data/information
-Large Language Models with Semantic Search,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,5,https://www.deeplearning.ai/courses/large-language-models-semantic-search
-Semantic Caching for AI Agents,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,3,https://www.deeplearning.ai/courses/semantic-caching-for-ai-agents
-Knowledge Graphs for RAG,4,Data Search & RAG,"Dive deep into semantic search, document retrieval, embeddings, and vector databases for Retrieval-Augmented Generation.",Optional,DeepLearning,4,https://learn.deeplearning.ai/courses/knowledge-graphs-rag/information
-,5,AI Agents & Workflows,Design build and deploy multi-agent autonomous frameworks and workflow orchestration models.,,DeepLearning,,
-,6,Evaluation & Safety,Validate AI system safety alignment response quality and performance monitoring strategies.,,DeepLearning,,
-,7,Fine-Tuning Optimization & LLMOps,Optimize model efficiency through parameter-efficient fine-tuning and orchestrate production-grade LLMOps pipelines.,,DeepLearning,,
-C Programming From Basics to Mastery,8,C & Embedded systems,"Foundational and advanced C programming for robust, hardware-level software development.",Mandatory,MaharaTech,12,https://maharatech.gov.eg/course/view.php?id=2247
-Embedded C: Hardware Essentials and Device Driver Development,8,C & Embedded systems,"Foundational and advanced C programming for robust, hardware-level software development.",Mandatory,MaharaTech,16,https://maharatech.gov.eg/course/view.php?id=2271
-PCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desing,"Hardware prototyping, circuit schematic design, and multilayer PCB layout techniques.",Mandatory,MaharaTech,10,https://maharatech.gov.eg/`;
+    const FALLBACK_LEARNING_CSV = `Topic name,Track ID,Track Name,Obligability,Skill,Platform,Link
+Complete Git & GitHub Course from Zero to Professional,1.0,Git & DevOps Mastery,Mandatory,"Branching, Commits, Pull Requests, Conflict Resolution, Rollback",YouTube (Elzero Web School),https://www.youtube.com/watch?v=ACOiGZoqC8w
+Learn Git & GitHub Version Control System for Software,1.0,Git & DevOps Mastery,Mandatory,"Local Repositories, Staging, Revert, Commit History",YouTube (Ghareeb Elshaikh),https://www.youtube.com/watch?v=fDkR0TDR9dI
+Team Workflow and Software Life Cycle: Git Flow Workflows,1.0,Git & DevOps Mastery,Optional,"Remote Repos, Merge Requests, Team Code Reviews",YouTube (CloudKode),https://www.youtube.com/watch?v=AkIpdnup6G4
+Basics of C Programming for Microcontrollers,2.0,C & Embedded Systems,Mandatory,"Pointers, Memory Allocation, Non-blocking millis() Loops",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247
+Device Driver Development and C Code Generation for Microcontrollers (Embedded C Drivers),2.0,C & Embedded Systems,Mandatory,"Hardware Registers, ISR Interrupts, Quadrature Encoders, PWM Loop Tuning",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system
+Software Interfacing for Microcontrollers via Protocols (I2C / SPI / UART),2.0,C & Embedded Systems,Mandatory,"Serial Peripheral Drivers, Timer Hardware Interfacing",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg
+Linux System Administration and Software Components for Raspberry Pi,3.0,Embedded Linux & SBC Administration,Mandatory,"Headless SSH Setup, Systemd Service Automation, POSIX Threads",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg
+Controlling SBC Inputs and Outputs using libgpiod and Python,3.0,Embedded Linux & SBC Administration,Mandatory,"SBC GPIO Bus Control, Linux Hardware Kernel Drivers",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system
+Building IoT Gateways & Networks Track,3.0,Embedded Linux & SBC Administration,Optional,"Linux Networking, Data Telemetry Buffering, System Services",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145
+PCB Design and Manufacturing using KiCad (In Lab),4.0,Electronics & PCB Design,Mandatory,"KiCad Schematic Capture, Footprint Design, Design Rule Checks (DRC)",YouTube (Dr. Walid Issa),https://www.youtube.com/watch?v=tKy9v-bi25U
+Multi-Layer PCB Routing,4.0,Electronics & PCB Design,Mandatory,"High-Current Motor Traces, Ground Plane Separation, Gerber Export",YouTube (Specialized Electronics),https://www.youtube.com/watch?v=tt9BgSrsqPg
+"Design of Protection Circuits, Power Supply, and Signal Isolation (Electro-Safety)",4.0,Electronics & PCB Design,Mandatory,"Buck Regulators (LM2596), BMS 3S, Optocouplers, TVS Diodes",YouTube,https://www.youtube.com/watch?v=W0y5D223NJ4
+Parametric Mechanical Design using Autodesk Fusion 360,5.0,Mechanical CAD & Structure,Mandatory,"3D Parametric Modeling, Mounting Brackets, (.STL) 3D Printing",YouTube,https://www.youtube.com/watch?v=RDiI3K4rias
+Robot Chassis Design and Load Distribution from Scratch in SolidWorks,5.0,Mechanical CAD & Structure,Mandatory,"Center of Gravity Optimization, Sheet Metal Laser Cutting (.DXF)",YouTube,https://www.youtube.com/watch?v=XE9PlUljcyc
+Chassis Assembly and Mechanical Interference Calculation (CAD Assemblies),5.0,Mechanical CAD & Structure,Optional,"Mechanical Assembly Interference Checks, Chassis Tolerances",YouTube,https://www.youtube.com/watch?v=ISf3moboQB0
+Basics of Robot Operating System ROS 2 (Humble) in Arabic,6.0,Robotics & ROS 2 Navigation,Mandatory,"ROS 2 Nodes, Topic Pub/Sub, Service Orchestration",YouTube,https://www.youtube.com/watch?v=T-k9t3QsoT4
+Mechanical Kinematics Calculations for Robots and Navigation Application (slam_toolbox & Nav2),6.0,Robotics & ROS 2 Navigation,Mandatory,"Mecanum Inverse Kinematics, PID Tuning, TEB Local Planner",YouTube / MaharaTech,https://www.youtube.com/watch?v=hMTxb8Y2cxI
+Developing Web-Based Robot Control Interfaces (WebSockets & FastAPI),6.0,Robotics & ROS 2 Navigation,Optional,"Async WebSockets Telemetry, REST JSON API Gateways",MaharaTech,https://maharatech.gov.eg/course/view.php?id=16
+Kalman Filter Mechanics and Sensor Fusion Application,7.0,Sensor Fusion & State Estimation,Mandatory,"Complementary Filtering, MPU-6050 IMU, Gyro Angle Estimation",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA
+Extended Kalman Filter (EKF) for Pose Estimation,7.0,Sensor Fusion & State Estimation,Mandatory,"EKF Matrix Calculations, Noise Covariance Tuning (Q & R)",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA
+Computer Vision and Image Processing using OpenCV and Python,8.0,Computer Vision & Spatial AI,Mandatory,"Camera Calibration, Frame Capture Pipelines, Object Tracking",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145
+Applying AI Models on Edge Devices (ONNX / TFLite Edge AI),8.0,Computer Vision & Spatial AI,Mandatory,"Quantized Model Execution, OpenCV Pipeline Integration",Amideast / MaharaTech,https://www.amideast.org/tunisia/advancing-development-goals/experience-ai
+IBM IoT Developer Track (AI and IoT),8.0,Computer Vision & Spatial AI,Optional,"Telemetry Pipelines, Dynamic API AI Model Triggers",MaharaTech,https://maharatech.gov.eg/course/view.php?id=1265
+Basics of TinyML and Model Deployment on Microcontrollers,9.0,SLM Fine-Tuning & Edge AI Deployment,Mandatory,"Microcontroller Machine Learning Deployment, TinyML",MaharaTech,https://maharatech.gov.eg/course/index.php?categoryid=8
+SLM Fine-Tuning & Quantization (Small Language Models),9.0,SLM Fine-Tuning & Edge AI Deployment,Mandatory,"SLM Optimization, INT8 Model Quantization, Local Edge Inference",MaharaTech / YouTube,https://maharatech.gov.eg/course/view.php?id=1265
+Local AI Applications based on Rapid Processing (Edge AI Control),9.0,SLM Fine-Tuning & Edge AI Deployment,Optional,"Microcontroller AI Latency Tuning, Fallback Controller Logic",MaharaTech,https://maharatech.gov.eg/course/view.php?id=7075
+"Fault Analysis, Correction, and Effective Engineering Risk Management (FMEA)",10.0,Engineering Practice & Soft Skills,Mandatory,"Failure Mode & Effects Analysis, Root-Cause Fault Isolation",Edraak / MaharaTech,https://courses.edraak.org/courses/course-v1:edraak+RM101+T2_2020/course/
+Critical Thinking and Trade-off Analysis of Advanced Engineering Solutions,10.0,Engineering Practice & Soft Skills,Mandatory,"Critical Thinking, Architecture System Trade-off Evaluation",Edraak,https://courses.edraak.org/courses/course-v1:Edraak+CT100+2018_T2/course/
+Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering Practice & Soft Skills,Mandatory,"Safety-First Mindset, Emergency Stop Protocols, Hardware Redundancy",Edraak,https://www.edraak.org/programs/specialization/project-management-1/`;
     const FALLBACK_MEET_CSV = `Meeting title,Meeting Type,Date,Description,Attachments\nProject overview,online,2026-07-30,overview about the project asfasf,\nRoobt ,offline,2026-08-30,afsasfafs,`;
     const FALLBACK_EXAM_CSV = `Exam name,Date,Category ,# Attendee\nC exam,2026-07-30,Software,`;
     const FALLBACK_TASK_CSV = `Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale\nAAA,fsafa,"1-hi\n2-bye",Abdallah-Allam,Completed,3,,2026-07-30,2026-07-30,day\nbbb,fsafa,"1-hi\n2-bye",Abdallah-Allam,inProgress,3,,6,8,hour`;
@@ -496,7 +526,7 @@ PCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desin
         const options = {
           chart: {
             type: 'radar',
-            height: 280,
+            height: 340,
             toolbar: { show: false }
           },
           series: [{
@@ -557,7 +587,7 @@ PCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desin
         const options = {
           chart: {
             type: 'radar',
-            height: 250,
+            height: 340,
             toolbar: { show: false },
             dropShadow: {
               enabled: true,
@@ -619,7 +649,7 @@ PCB Design Essentials: A Practical Guide to Innovation,9,Electronics & PCB Desin
           xaxis: {
             labels: {
               style: {
-                colors: Array(6).fill('#71717a'),
+                colors: Array(categories.length).fill('#71717a'),
                 fontSize: '10px',
                 fontFamily: 'Plus Jakarta Sans, sans-serif',
                 fontWeight: 600
@@ -1173,6 +1203,11 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
               <span class="text-[9px] font-extrabold text-slate-500 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md uppercase tracking-wider">
                 ⏱ ${course.estimatedHours} Hours
               </span>
+              ${course.platform ? `
+                <span class="text-[9px] font-extrabold text-purple-700 px-2 py-0.5 bg-purple-50 border border-purple-200 rounded-md uppercase tracking-wider">
+                  ☁️ ${course.platform}
+                </span>
+              ` : ''}
             </div>
             
             ${course.isCompleted ? `
@@ -1938,7 +1973,8 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
         return role.toLowerCase().includes('lead') || role.toLowerCase().includes('supervisor') || normalizeName(currentUser.Name) === 'abdallah allam' || normalizeName(currentUser.Name) === 'abdallah-allam';
       }, [currentUser]);
 
-      // Generate hexagonal skill ratings (1-10 scale) dynamically seeded by member's name and scaled by tasks/learning
+      // Generate hexagonal skill ratings (1-10 scale) dynamically parsed from sheet columns
+      // with seeded fallbacks to ensure consistency and continuous rating support
       const getHexaSkills = (member, metrics) => {
         const nameHash = (member.Name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
@@ -1953,24 +1989,112 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
         const tasksFactor = metrics.tasksAssigned > 0 ? Math.min(2, Math.floor(metrics.tasksCompleted / 2)) : 0;
         const learningFactor = Math.floor(metrics.learningProgress / 40);
 
-        const hardSkills = [
-          Math.min(10, (parseInt(member.FrontendRating) || seed1) + tasksFactor),
-          Math.min(10, (parseInt(member.BackendRating) || seed2) + learningFactor),
-          Math.min(10, (parseInt(member.DatabaseRating) || seed3)),
-          Math.min(10, (parseInt(member.ArchitectureRating) || seed4)),
-          Math.min(10, (parseInt(member.DevOpsRating) || seed5)),
-          Math.min(10, (parseInt(member.TestingRating) || seed6))
+        // Parse serialized ratings from columns
+        const parseSerializedRatings = (serializedStr) => {
+          const ratings = {};
+          if (!serializedStr) return ratings;
+          const matches = serializedStr.match(/\{([^}]+)\}/g);
+          if (matches) {
+            matches.forEach(m => {
+              const content = m.slice(1, -1);
+              const parts = content.split(',');
+              if (parts.length >= 2) {
+                const valStr = parts.pop().trim();
+                const key = parts.join(',').trim();
+                const rating = parseInt(valStr, 10);
+                if (!isNaN(rating)) {
+                  ratings[key] = rating;
+                }
+              }
+            });
+          }
+          return ratings;
+        };
+
+        const parsedHard = parseSerializedRatings(member["Hard Skill"] || member["HardSkill"]);
+        const parsedSoft = parseSerializedRatings(member["Soft Skill"] || member["SoftSkill"]);
+        const parsedTech = parseSerializedRatings(member["Technology"]);
+
+        const getMatchedRating = (parsedRatings, targetCategory, fallbackValue) => {
+          const clean = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const targetClean = clean(targetCategory);
+          
+          for (const key in parsedRatings) {
+            if (clean(key) === targetClean) {
+              return parsedRatings[key];
+            }
+          }
+          for (const key in parsedRatings) {
+            const keyClean = clean(key);
+            if (keyClean.startsWith(targetClean) || targetClean.startsWith(keyClean)) {
+              return parsedRatings[key];
+            }
+          }
+          return fallbackValue;
+        };
+
+        // 1. Hard Skills Matrix (11 categories)
+        const hardCategories = [
+          "Embedded Systems & Firmware (C/C++)",
+          "High-Level Scripting & Middleware (Python)",
+          "Version Control & Collaboration (Git/GitHub)",
+          "Embedded Linux & SBC Administration",
+          "Circuit Design & EDA Routing",
+          "Power Electronics & Circuit Protection",
+          "Mechanical Engineering & CAD",
+          "Kinematics & Motion Control",
+          "Sensor Fusion & State Estimation",
+          "Computer Vision & Spatial AI",
+          "SLM Fine tuning & Edge AI deployment"
         ];
 
-        const softSkills = [
-          Math.min(10, (parseInt(member.CommunicationRating) || seed3) + tasksFactor),
-          Math.min(10, (parseInt(member.LeadershipRating) || (member.Rule && member.Rule.toLowerCase().includes('lead') ? 9 : seed1))),
-          Math.min(10, (parseInt(member.ProblemSolvingRating) || seed2) + learningFactor),
-          Math.min(10, (parseInt(member.CollaborationRating) || seed5) + tasksFactor),
-          Math.min(10, (parseInt(member.AdaptabilityRating) || seed6)),
-          Math.min(10, (parseInt(member.CriticalThinkingRating) || seed4))
+        const hardSkills = hardCategories.map((cat, idx) => {
+          const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed1, seed2, seed3, seed4, seed5][idx];
+          const factor = (idx === 0) ? tasksFactor : (idx === 1) ? learningFactor : 0;
+          const val = getMatchedRating(parsedHard, cat, defaultSeed);
+          return Math.min(10, val + factor);
+        });
+
+        // 2. Soft Skills Matrix (5 categories)
+        const softCategories = [
+          "Systematic Root-Cause Isolation",
+          "Critical Thinking & Architecture Trade-Off Analysis",
+          "Safety-First Engineering Mindset (Fail-Safe Design)",
+          "Adaptive Problem Solving & Agile Iteration",
+          "Cross-Domain Systems Integration"
         ];
 
+        const softSkills = softCategories.map((cat, idx) => {
+          const defaultSeed = [seed3, seed1, seed2, seed5, seed6][idx];
+          const factor = (idx === 0 || idx === 3) ? tasksFactor : (idx === 2) ? learningFactor : 0;
+          let val = getMatchedRating(parsedSoft, cat, defaultSeed);
+          if (idx === 1 && member.Rule && member.Rule.toLowerCase().includes('lead')) {
+            val = 9;
+          }
+          return Math.min(10, val + factor);
+        });
+
+        // 3. Technologies & Tools Matrix (9 categories)
+        const techCategories = [
+          "Autodesk Fusion 360 / SolidWorks",
+          "KiCad EDA (v7.0+) / Proetus",
+          "PlatformIO / VS Code / Arduino IDE 2.x",
+          "Raspberry Pi OS (64-bit) / Ubuntu Server",
+          "ROS 2 (Humble Hawksbill)",
+          "slam_toolbox & ROS 2 Nav2",
+          "OpenCV & ONNX Runtime / TFLite",
+          "FastAPI (Python) / Express & WebSockets",
+          "Gazebo / RViz2 / WebSockets Injection"
+        ];
+
+        const techSkills = techCategories.map((cat, idx) => {
+          const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed2, seed3, seed4][idx];
+          const factor = (idx === 4) ? tasksFactor : (idx === 6) ? learningFactor : 0;
+          const val = getMatchedRating(parsedTech, cat, defaultSeed);
+          return Math.min(10, val + factor);
+        });
+
+        // 4. Learning Matrix (6 categories)
         const learningSkills = [
           Math.min(10, Math.max(1, Math.round((metrics.learningProgress || 0) / 10))), // Course Completion
           Math.min(10, Math.max(1, (seed3 + tasksFactor))), // Tech Workshops
@@ -1983,6 +2107,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
         return {
           hard: hardSkills,
           soft: softSkills,
+          tech: techSkills,
           learning: learningSkills
         };
       };
@@ -2108,6 +2233,77 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
               { category: "Productivity Tools", items: ["Git, Python, Excel/Google Sheets, Terminal Scripting"] }
             ]
           };
+        }
+      };
+
+      // Helper to parse or generate education records dynamically (reads Col L: Education)
+      const getMemberEducation = (member) => {
+        const rawEd = member.Education || member["Education"] || "";
+        
+        const parseSerializedEducation = (serializedStr) => {
+          const items = [];
+          if (!serializedStr) return items;
+          const matches = serializedStr.match(/\{([^}]+)\}/g);
+          if (matches) {
+            matches.forEach(m => {
+              const content = m.slice(1, -1);
+              const parts = content.split(',');
+              if (parts.length >= 2) {
+                const detail = parts.pop().trim();
+                const degree = parts.join(',').trim();
+                items.push({ degree, detail });
+              } else {
+                items.push({ degree: content.trim(), detail: '' });
+              }
+            });
+          } else {
+            const lines = serializedStr.split('\n').map(s => s.trim()).filter(Boolean);
+            lines.forEach(line => {
+              const parts = line.split(',');
+              if (parts.length >= 2) {
+                const detail = parts.pop().trim();
+                const degree = parts.join(',').trim();
+                items.push({ degree, detail });
+              } else {
+                items.push({ degree: line, detail: '' });
+              }
+            });
+          }
+          return items;
+        };
+
+        const parsedList = parseSerializedEducation(rawEd);
+        if (parsedList.length > 0) {
+          return parsedList;
+        }
+
+        const role = (member.Rule || '').toLowerCase();
+        const name = member.Name || '';
+        
+        if (role.includes('lead') || role.includes('supervisor') || name.toLowerCase().includes('allam')) {
+          return [
+            { degree: "B.Sc. in Mechatronics Engineering", detail: "Cairo University (First-Class Honors)" },
+            { degree: "M.Sc. in Autonomous Robotics", detail: "In Progress (Focus: EKF State Fusion & Deep RL)" }
+          ];
+        } else if (role.includes('ai') || role.includes('data') || role.includes('intelligence')) {
+          return [
+            { degree: "B.Sc. in Computer Science & AI", detail: "Cairo University" },
+            { degree: "DeepLearning.AI Certified Specialist", detail: "Generative AI & LLM Systems" }
+          ];
+        } else if (role.includes('mechanical') || role.includes('design') || role.includes('chassis')) {
+          return [
+            { degree: "B.Sc. in Mechanical Engineering", detail: "Cairo University" },
+            { degree: "Autodesk Certified Professional", detail: "Mechanical Design & Simulation" }
+          ];
+        } else if (role.includes('software') || role.includes('frontend') || role.includes('backend') || role.includes('web')) {
+          return [
+            { degree: "B.Sc. in Computer Engineering", detail: "Cairo University" },
+            { degree: "Full-Stack Developer Certification", detail: "React & Cloud Infrastructure" }
+          ];
+        } else {
+          return [
+            { degree: "B.Sc. in Mechatronics & Systems Engineering", detail: "Cairo University" }
+          ];
         }
       };
 
@@ -2670,15 +2866,15 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                           </div>
                         </div>
 
-                        {/* Hexa Radar Graphs Row - 3 Side-by-Side Radar Charts! */}
-                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Hexa Radar Graphs Row - 2x2 Grid Radar Charts! */}
+                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-2 gap-6">
                           
                           {/* Chart 1: Hard Skills */}
                           <div class="flex flex-col items-center">
                             <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest block mb-4 bg-blue-50 px-2.5 py-1 rounded-full">Hard Skills Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).hard}
-                              categories={['Frontend Dev', 'Backend Dev', 'Database Design', 'System Arch', 'DevOps & Cloud', 'Testing & QA']}
+                              categories={['Embedded C/C++', 'Python Scripting', 'Git & GitHub', 'Embedded Linux', 'Circuit & PCB EDA', 'Power Electronics', 'Mechanical CAD', 'Kinematics & Control', 'Sensor Fusion', 'Computer Vision', 'SLM & Edge AI']}
                               color="#3b82f6"
                               memberName={activeMember.Name}
                             />
@@ -2689,14 +2885,25 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                             <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-4 bg-emerald-50 px-2.5 py-1 rounded-full">Soft Skills Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).soft}
-                              categories={['Communication', 'Leadership', 'Problem Solving', 'Collaboration', 'Adaptability', 'Critical Thinking']}
+                              categories={['Root-Cause Isolation', 'Critical Thinking', 'Fail-Safe Mindset', 'Problem Solving', 'Systems Integration']}
                               color="#10b981"
                               memberName={activeMember.Name}
                             />
                           </div>
 
-                          {/* Chart 3: Learning Matrix */}
-                          <div class="flex flex-col items-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6">
+                          {/* Chart 3: Technologies & Tools */}
+                          <div class="flex flex-col items-center border-t border-slate-100 pt-6">
+                            <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest block mb-4 bg-cyan-50 px-2.5 py-1 rounded-full">Technologies & Tools</span>
+                            <HexaRadarChart 
+                              data={getHexaSkills(activeMember, activeMember).tech}
+                              categories={['Autodesk/SolidWorks', 'KiCad PCB EDA', 'PlatformIO & IDEs', 'Raspberry Pi/Linux', 'ROS 2 Humble', 'SLAM & Nav2', 'OpenCV & AI', 'FastAPI & WebSockets', 'Gazebo & RViz2']}
+                              color="#06b6d4"
+                              memberName={activeMember.Name}
+                            />
+                          </div>
+
+                          {/* Chart 4: Learning Matrix */}
+                          <div class="flex flex-col items-center border-t border-slate-100 pt-6 md:border-l md:pl-6">
                             <span class="text-[10px] font-black text-purple-500 uppercase tracking-widest block mb-4 bg-purple-50 px-2.5 py-1 rounded-full">Learning Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).learning}
@@ -2769,7 +2976,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                           </fieldset>
 
                           {/* PERSONALITY */}
-                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300 md:col-span-2 lg:col-span-1">
+                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300">
                             <legend class="px-3.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 tracking-wider uppercase">
                               Personality
                             </legend>
@@ -2788,7 +2995,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                           </fieldset>
 
                           {/* TECHNOLOGY */}
-                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300 md:col-span-2 lg:col-span-2">
+                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300">
                             <legend class="px-3.5 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-[10px] font-black text-indigo-700 tracking-wider uppercase">
                               Technology
                             </legend>
@@ -2801,6 +3008,21 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                                       <li key={bIdx}>{bullet}</li>
                                     ))}
                                   </ul>
+                                </li>
+                              ))}
+                            </ul>
+                          </fieldset>
+
+                          {/* EDUCATION */}
+                          <fieldset class="border border-amber-100 rounded-2xl p-5 bg-amber-50/5 flex flex-col hover:border-amber-200 hover:shadow-saas transition-all duration-300">
+                            <legend class="px-3.5 py-1 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-black text-amber-700 tracking-wider uppercase">
+                              Education
+                            </legend>
+                            <ul class="space-y-4 text-xs font-medium text-slate-600 mt-2 flex-1">
+                              {getMemberEducation(activeMember).map((item, idx) => (
+                                <li key={idx} class="space-y-1">
+                                  <strong class="text-slate-800 font-bold block">{item.degree}</strong>
+                                  <span class="text-slate-500 font-semibold leading-relaxed block">{item.detail}</span>
                                 </li>
                               ))}
                             </ul>

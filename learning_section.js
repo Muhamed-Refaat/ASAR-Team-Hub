@@ -177,6 +177,11 @@ function renderLearningTracks(containerElement, courses, logs, currentUser) {
               <span class="text-[9px] font-extrabold text-slate-500 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md uppercase tracking-wider">
                 ⏱ ${course.estimatedHours} Hours
               </span>
+              ${course.platform ? `
+                <span class="text-[9px] font-extrabold text-purple-700 px-2 py-0.5 bg-purple-50 border border-purple-200 rounded-md uppercase tracking-wider">
+                  ☁️ ${course.platform}
+                </span>
+              ` : ''}
             </div>
             
             ${course.isCompleted ? `
