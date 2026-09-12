@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Local Test - Azar Project Team Dashboard</title>
+  <title>Local Test - ASAR Project Team Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- Premium Google Font -->
@@ -47,6 +47,9 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
+  <!-- DOCX export support -->
+  <script src="https://unpkg.com/docx@9.5.1/dist/index.iife.js"></script>
+
   <!-- ApexCharts CDN -->
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
@@ -58,6 +61,48 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
+    :root { color-scheme: light; --azar-bg: #f8fafc; --azar-surface: rgba(255,255,255,.86); --azar-ink: #172033; }
+    html.dark { color-scheme: dark; --azar-bg: #090d18; --azar-surface: rgba(16,23,42,.88); --azar-ink: #e5e7eb; }
+    html.dark body { background: var(--azar-bg) !important; color: var(--azar-ink) !important; }
+    html.dark .bg-white, html.dark .bg-white\/80 { background-color: var(--azar-surface) !important; }
+    html.dark .bg-slate-50, html.dark .bg-\[\#fcfcfd\] { background-color: #111827 !important; }
+    html.dark .bg-slate-50\/30, html.dark .bg-slate-50\/50, html.dark .bg-slate-50\/20 { background-color: rgba(30,41,59,.55) !important; }
+    html.dark .text-slate-900, html.dark .text-slate-800, html.dark .text-slate-700 { color: #f1f5f9 !important; }
+    html.dark .text-slate-600, html.dark .text-slate-500 { color: #cbd5e1 !important; }
+    html.dark .text-slate-400, html.dark .text-slate-300 { color: #94a3b8 !important; }
+    html.dark [class*="border-slate"] { border-color: rgba(100,116,139,.3) !important; }
+    html.dark input, html.dark select, html.dark textarea { color: #e5e7eb !important; background-color: #172033 !important; }
+    html.dark option { background: #172033; color: #e5e7eb; }
+    html.dark .shadow-saas, html.dark .shadow-saas-lg { box-shadow: 0 18px 50px rgba(0,0,0,.28) !important; }
+    html.dark .azar-glass { background: rgba(15,23,42,.7) !important; border-color: rgba(148,163,184,.2) !important; }
+    .azar-hero { background: radial-gradient(circle at 10% 10%, rgba(129,140,248,.34), transparent 34%), radial-gradient(circle at 90% 15%, rgba(45,212,191,.25), transparent 32%), linear-gradient(120deg,#111827 0%,#312e81 48%,#0f766e 100%); }
+    .asar-app { background: radial-gradient(circle at 0% 0%, rgba(129,140,248,.10), transparent 28%), radial-gradient(circle at 100% 40%, rgba(45,212,191,.08), transparent 25%), linear-gradient(180deg, #fbfdff 0%, #f6f7ff 52%, #f4fbfa 100%); }
+    html.dark .asar-app { background: radial-gradient(circle at 0% 0%, rgba(99,102,241,.18), transparent 28%), radial-gradient(circle at 100% 40%, rgba(20,184,166,.12), transparent 25%), linear-gradient(180deg, #090d18 0%, #10152a 52%, #071b1b 100%); }
+    .azar-orb { animation: azar-float 8s ease-in-out infinite; }
+    .azar-orb.delay { animation-delay: -3s; }
+    .azar-reveal { animation: azar-reveal .75s cubic-bezier(.2,.8,.2,1) both; }
+    .azar-scroll-reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); }
+    .azar-scroll-reveal.is-visible { opacity: 1; transform: translateY(0); }
+    .azar-grid { background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent); }
+    .azar-float-card { animation: azar-card-float 6s ease-in-out infinite; }
+    .azar-float-card.delay { animation-delay: -2s; }
+    .azar-orb, .azar-float-card { animation: none !important; }
+    .asar-app { background-attachment: fixed; }
+    .asar-brand-lockup, .asar-brand-title { flex-shrink: 0; white-space: nowrap; }
+    @media (max-width: 1023px) {
+      .asar-header-action { font-size: 0 !important; width: 2.5rem; justify-content: center; padding-left: .65rem !important; padding-right: .65rem !important; }
+      .asar-account-details { display: none; }
+    }
+    @media (max-width: 639px) {
+      .asar-brand-lockup { gap: .55rem; }
+      .asar-brand-lockup > div:last-child > span:last-child { display: none; }
+      .asar-brand-title { font-size: .9rem !important; }
+      .asar-account-card, .asar-app button[title="Synchronize sheet data"] { display: none !important; }
+      .theme-toggle { font-size: 0 !important; width: 2.5rem !important; padding-left: .65rem !important; padding-right: .65rem !important; }
+    }
+    @keyframes azar-card-float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-10px) rotate(1deg); } }
+    @keyframes azar-float { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-16px,0) scale(1.05); } }
+    @keyframes azar-reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -74,7 +119,7 @@
     }
   </style>
 </head>
-<body class="bg-[#fcfcfd] text-slate-800 antialiased min-h-screen pb-48">
+<body class="bg-[#fcfcfd] text-slate-800 antialiased min-h-screen pb-48 overflow-x-hidden">
 
   <!-- LOCAL TEST HEADER / CONTROL STRIP -->
   <div id="test-header" class="bg-amber-500 text-white text-xs font-bold px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm select-none">
@@ -180,43 +225,32 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
     const FALLBACK_TASK_CSV = `Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale\nAAA,fsafa,"1-hi\n2-bye",Abdallah-Allam,Completed,3,,2026-07-30,2026-07-30,day\nbbb,fsafa,"1-hi\n2-bye",Abdallah-Allam,inProgress,3,,6,8,hour`;
     const FALLBACK_LOG_CSV = `Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date\nSkill,1,Python,"Abdallah-Allam\nAbdelrahman M. Abdel-Fattah\nMohamed H. Shaban\nYoussef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\nAhmed Fathy Ahmed\nNour Yasser Zakaria\nAmani Bilal Abu Zeid\nShams Mohamed Abdel-Hakim\nManar Moussa Saeed\nMalak Ahmed Mohamed\nAlaa Mohamed El-Hefny\nSamah Mahdy Salah\nYasmin Samir Abdessalam\nAsmaa Ashraf Attia\nShams Mohamed Jaber\nShaymaa Emad Mohamed","Youssef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud",2026-07-30\nMeet,2,bbb,"Abdallah-Allam",Abdallah-Allam,2026-07-30`;
 
-    // CSV line-parser supporting nested quotes and escaped characters
+    // RFC-4180 CSV parser: quoted newlines belong to the same spreadsheet row.
     function parseCSV(csvText) {
-      const lines = csvText.split('\n');
-      if (lines.length < 1 || !lines[0]) return [];
-      
-      const parseLine = (line) => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            result.push(current);
-            current = '';
-          } else {
-            current += char;
-          }
+      const records = [];
+      let row = [], cell = '', quoted = false;
+      for (let i = 0; i < String(csvText || '').length; i++) {
+        const char = csvText[i];
+        const next = csvText[i + 1];
+        if (char === '"' && quoted && next === '"') { cell += '"'; i++; continue; }
+        if (char === '"') { quoted = !quoted; continue; }
+        if (char === ',' && !quoted) { row.push(cell); cell = ''; continue; }
+        if ((char === '\n' || char === '\r') && !quoted) {
+          if (char === '\r' && next === '\n') i++;
+          row.push(cell); cell = '';
+          if (row.some(value => String(value).trim() !== '')) records.push(row);
+          row = [];
+          continue;
         }
-        result.push(current);
-        return result.map(x => x.replace(/^"|"$/g, '').replace(/\\n/g, '\n').trim());
-      };
-
-      const headers = parseLine(lines[0]);
-      const data = [];
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        const rowVals = parseLine(line);
-        const rowObj = {};
-        for (let j = 0; j < headers.length; j++) {
-          rowObj[headers[j]] = rowVals[j] || null;
-        }
-        data.push(rowObj);
+        cell += char;
       }
-      return data;
+      if (cell !== '' || row.length) { row.push(cell); records.push(row); }
+      if (!records.length) return [];
+      const headers = records[0].map(value => String(value).trim());
+      return records.slice(1).map(values => headers.reduce((object, header, index) => {
+        object[header] = values[index] !== undefined && String(values[index]).trim() !== '' ? String(values[index]).trim() : null;
+        return object;
+      }, {}));
     }
 
     // Console Logging
@@ -341,8 +375,8 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
                 const dbCopy = JSON.parse(JSON.stringify(LOCAL_DB));
                 dbCopy.webAppUrl = "https://script.google.com/macros/s/AKfycbz_mock_url/exec";
                 dbCopy.activeUserSession = {
-                  name: "Dr Bassant",
-                  email: "bassant@azar.com"
+                  name: LOCAL_DB.team[0] && LOCAL_DB.team[0].Name || "Test Member",
+                  email: LOCAL_DB.team[0] && (LOCAL_DB.team[0].Mail || LOCAL_DB.team[0].Email) || "test.member@azar.com"
                 };
                 this.successHandler(dbCopy);
               }
@@ -411,6 +445,24 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
               window.dispatchEvent(new Event('localDBChanged'));
             }, 300);
           },
+          updateTaskStatus(payload) {
+            setTimeout(() => {
+              const task = LOCAL_DB.tasks.find(item => String(item["Task Title"]).trim().toLowerCase() === String(payload.title).trim().toLowerCase());
+              if (!task) { if (this.failureHandler) this.failureHandler(new Error('Task not found')); return; }
+              Object.keys(payload).filter(key => ['newTitle', 'description', 'dod', 'assignees', 'status', 'score', 'feedback', 'ata', 'eta', 'scale', 'archived'].includes(key)).forEach(key => { const column = key === 'newTitle' ? 'Task Title' : key === 'description' ? 'Task description' : key === 'dod' ? 'Break down (DOD)' : key === 'assignees' ? 'Assignees' : key === 'status' ? 'Status' : key === 'score' ? 'Score' : key === 'feedback' ? 'Feedback' : key === 'ata' ? 'ATA' : key === 'eta' ? 'ETA' : key === 'scale' ? 'Scale' : 'Archived'; task[column] = key === 'archived' ? (payload[key] ? 'TRUE' : '') : key === 'assignees' && Array.isArray(payload[key]) ? payload[key].join(',') : payload[key]; });
+              appendLog(`Task '${payload.title}' updated by ${payload.email || 'unknown account'}.`, 'write');
+              if (this.successHandler) this.successHandler({ success: true });
+              window.dispatchEvent(new Event('localDBChanged'));
+            }, 250);
+          },
+          createTask(payload) {
+            setTimeout(() => {
+              LOCAL_DB.tasks.unshift({ "Task Title": payload.title, "Task description": payload.description || '', "Break down (DOD)": payload.dod || '', Assignees: (payload.assignees || []).join(','), Status: payload.status || 'Pending', Score: payload.score || '', Feedback: payload.feedback || '', ETA: payload.eta || '', Scale: payload.scale || 'day' });
+              appendLog(`Task '${payload.title}' created by ${payload.email || 'unknown account'}.`, 'write');
+              if (this.successHandler) this.successHandler({ success: true });
+              window.dispatchEvent(new Event('localDBChanged'));
+            }, 250);
+          },
           reopenEvent(eventId, newDueDate) {
             setTimeout(() => {
               appendLog(`google.script.run.reopenEvent(${eventId}, '${newDueDate}') triggered.`, "write");
@@ -472,21 +524,13 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
       const ref = useRef(null);
       useEffect(() => {
         if (window.lucide && ref.current) {
-          ref.current.innerHTML = '';
-          const iconEl = window.lucide.createIcons({
-            attrs: {
-              class: className,
-              'stroke-width': strokeWidth
-            },
-            name: name
-          });
-          if (iconEl && iconEl[name]) {
-            ref.current.appendChild(iconEl[name].cloneNode(true));
-          }
+          ref.current.setAttribute('data-lucide', name);
+          ref.current.setAttribute('aria-hidden', 'true');
+          window.lucide.createIcons({ nodes: [ref.current], attrs: { class: className, 'stroke-width': strokeWidth } });
         }
       }, [name, className, strokeWidth]);
 
-      return <span ref={ref} className="inline-flex items-center justify-center" />;
+      return <i ref={ref} className={`inline-flex items-center justify-center ${className}`} />;
     };
 
     // Card component
@@ -921,11 +965,22 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
       return <div ref={chartRef} />;
     };
 
+    const todayForInput = () => { const now = new Date(); return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-'); };
+
     // Main App Component
     function App() {
       const [loading, setLoading] = useState(true);
       const [syncing, setSyncing] = useState(false);
       const [activeTab, setActiveTab] = useState('dashboard');
+      const [theme, setTheme] = useState(() => localStorage.getItem('azar_theme') || 'light');
+      const [taskFilter, setTaskFilter] = useState('all');
+      const [taskSearch, setTaskSearch] = useState('');
+      const [showTaskModal, setShowTaskModal] = useState(false);
+      const [taskDraft, setTaskDraft] = useState({ title: '', description: '', dod: '', assignees: [], status: 'Pending', eta: '', scale: 'day' });
+      const [editingTaskTitle, setEditingTaskTitle] = useState(null);
+      const [taskView, setTaskView] = useState('board');
+      const [draggedTaskTitle, setDraggedTaskTitle] = useState(null);
+      const [archivedTaskTitles, setArchivedTaskTitles] = useState(() => { try { return JSON.parse(localStorage.getItem('asar_archived_tasks') || '[]'); } catch (_) { return []; } });
       
       const [teamData, setTeamData] = useState({
         supervisor: [], team: [], skills: [], learning: [], meet: [], exam: [], tasks: [], logs: []
@@ -950,10 +1005,22 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
       const [setEventEntry, setSetEventEntry] = useState({
         type: 'Skill',
         name: '',
-        dueDate: '',
+        dueDate: todayForInput(),
         assignedMembers: []
       });
       const [toast, setToast] = useState(null);
+
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        localStorage.setItem('azar_theme', theme);
+      }, [theme]);
+      useEffect(() => { localStorage.setItem('asar_archived_tasks', JSON.stringify(archivedTaskTitles)); }, [archivedTaskTitles]);
+
+      useEffect(() => {
+        const observer = new IntersectionObserver(entries => entries.forEach(entry => entry.isIntersecting && entry.target.classList.add('is-visible')), { threshold: 0.12 });
+        const timer = setTimeout(() => document.querySelectorAll('[data-reveal]').forEach(node => { node.classList.add('azar-scroll-reveal'); observer.observe(node); }), 40);
+        return () => { clearTimeout(timer); observer.disconnect(); };
+      }, [activeTab, loading]);
 
       const showToastNotification = (msg) => {
         setToast(msg);
@@ -1000,11 +1067,10 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
               setActiveUserSession(data.activeUserSession);
             }
             
-            const savedName = localStorage.getItem('active_member_name');
             let defaultUser = null;
-            if (savedName && data.team) {
-              defaultUser = data.team.find(t => normalizeName(t.Name) === normalizeName(savedName));
-            }
+            const session = data.activeUserSession || {};
+            if (data.team && session.name) defaultUser = data.team.find(t => normalizeName(t.Name) === normalizeName(session.name));
+            if (!defaultUser && data.team && session.email) defaultUser = data.team.find(t => String(t.Mail || t.Email || '').toLowerCase() === String(session.email).toLowerCase());
             if (!defaultUser && data.team && data.team.length > 0) {
               defaultUser = data.team[0];
             }
@@ -1027,6 +1093,11 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
         if (typeof name !== 'string') return '';
         return name.toLowerCase().replace(/-/g, ' ').trim();
       };
+
+      const splitPeople = (value) => String(value || '').split(/[\n,]/).map(item => item.trim()).filter(Boolean);
+      const parseScore = (value, fallback = 0) => { const score = Number.parseFloat(String(value ?? '').replace(',', '.')); return Number.isFinite(score) ? score : fallback; };
+      const isCompletedStatus = (value) => ['completed', 'complete', 'done', 'closed'].includes(String(value || '').toLowerCase().replace(/[ _-]/g, ''));
+      const parseRatingColumn = (value) => { const ratings = []; const matches = String(value || '').match(/\{([^}]+)\}/g) || []; matches.forEach(item => { const parts = item.slice(1, -1).split(','); const score = parseScore(parts.pop(), NaN); const label = parts.join(',').trim(); if (label && Number.isFinite(score)) ratings.push({ label, score: Math.max(0, Math.min(10, score)) }); }); return ratings; };
 /**
  * Azar Project Team - Learning Tracks Section Controller
  * This file contains the vanilla JS logic to fetch, group, calculate,
@@ -1314,14 +1385,6 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 }
 
 
-      const handleUserChange = (userName) => {
-        const found = teamData.team.find(t => normalizeName(t.Name) === normalizeName(userName));
-        if (found) {
-          setCurrentUser(found);
-          localStorage.setItem('active_member_name', found.Name);
-        }
-      };
-
       const handleSetSubmit = (e) => {
         e.preventDefault();
         
@@ -1355,7 +1418,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
           .then(() => {
             showToastNotification(`Successfully created new ${setEventEntry.type} event: "${setEventEntry.name}"`);
             setShowSetModal(false);
-            setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+            setSetEventEntry({ type: 'Skill', name: '', dueDate: todayForInput(), assignedMembers: [] });
             fetchData(true); // Dynamic refresh
           })
           .catch((err) => {
@@ -1373,7 +1436,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
             .withSuccessHandler((res) => {
               showToastNotification(`Successfully created new ${payload.type} event: "${payload.name}"`);
               setShowSetModal(false);
-              setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+              setSetEventEntry({ type: 'Skill', name: '', dueDate: todayForInput(), assignedMembers: [] });
               fetchData(true); // Dynamic refresh
             })
             .withFailureHandler((err) => {
@@ -1398,7 +1461,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
           }));
           showToastNotification(`[LOCAL SIM] Successfully created ${payload.type} event: "${payload.name}"`);
           setShowSetModal(false);
-          setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+          setSetEventEntry({ type: 'Skill', name: '', dueDate: todayForInput(), assignedMembers: [] });
           setSyncing(false);
         }
       };
@@ -1988,6 +2051,8 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 
         const tasksFactor = metrics.tasksAssigned > 0 ? Math.min(2, Math.floor(metrics.tasksCompleted / 2)) : 0;
         const learningFactor = Math.floor(metrics.learningProgress / 40);
+        const examFactor = Math.floor((metrics.examProgress || 0) / 50);
+        const commitmentFactor = Math.floor((metrics.commitment || 0) / 50);
 
         // Parse serialized ratings from columns
         const parseSerializedRatings = (serializedStr) => {
@@ -2050,7 +2115,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 
         const hardSkills = hardCategories.map((cat, idx) => {
           const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed1, seed2, seed3, seed4, seed5][idx];
-          const factor = (idx === 0) ? tasksFactor : (idx === 1) ? learningFactor : 0;
+          const factor = (idx === 0) ? tasksFactor : (idx === 1) ? learningFactor : (idx === 8) ? examFactor : 0;
           const val = getMatchedRating(parsedHard, cat, defaultSeed);
           return Math.min(10, val + factor);
         });
@@ -2066,7 +2131,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 
         const softSkills = softCategories.map((cat, idx) => {
           const defaultSeed = [seed3, seed1, seed2, seed5, seed6][idx];
-          const factor = (idx === 0 || idx === 3) ? tasksFactor : (idx === 2) ? learningFactor : 0;
+          const factor = (idx === 0 || idx === 3) ? tasksFactor : (idx === 2) ? learningFactor : (idx === 4) ? commitmentFactor : 0;
           let val = getMatchedRating(parsedSoft, cat, defaultSeed);
           if (idx === 1 && member.Rule && member.Rule.toLowerCase().includes('lead')) {
             val = 9;
@@ -2089,7 +2154,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 
         const techSkills = techCategories.map((cat, idx) => {
           const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed2, seed3, seed4][idx];
-          const factor = (idx === 4) ? tasksFactor : (idx === 6) ? learningFactor : 0;
+          const factor = (idx === 4) ? tasksFactor : (idx === 6) ? learningFactor : (idx === 7) ? examFactor : 0;
           const val = getMatchedRating(parsedTech, cat, defaultSeed);
           return Math.min(10, val + factor);
         });
@@ -2101,7 +2166,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
           Math.min(10, Math.max(1, (seed4 + learningFactor))), // Conceptual Ret.
           Math.min(10, Math.max(1, (seed5 + tasksFactor))), // Practical Apps
           Math.min(10, Math.max(1, (seed1 + learningFactor))), // Self-Study Pace
-          Math.min(10, Math.max(1, (seed2 + 1))) // Alignment Meetings
+          Math.min(10, Math.max(1, Math.round((metrics.commitment || 0) / 10))) // Alignment Meetings / commitment
         ];
 
         return {
@@ -2363,7 +2428,54 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
           return { subject, score: Math.min(100, score) };
         });
 
-        return { tasksCompleted: completedCount, tasksAssigned: mTasks.length, learningProgress, skills };
+        const invitedEvents = teamData.logs.filter(log => ['Meet', 'Skill', 'Learning', 'Exam'].includes(log["Event Type"]) && splitPeople(log["Invited/Assigned"]).some(person => normalizeName(person) === nameNorm));
+        const attendedEvents = invitedEvents.filter(log => splitPeople(log["Attendees/Completed"]).some(person => normalizeName(person) === nameNorm));
+        const commitment = invitedEvents.length ? Math.round((attendedEvents.length / invitedEvents.length) * 100) : 0;
+        const memberExams = teamData.logs.filter(log => log["Event Type"] === 'Exam' && splitPeople(log["Invited/Assigned"]).some(person => normalizeName(person) === nameNorm));
+        const completedExams = memberExams.filter(log => splitPeople(log["Attendees/Completed"]).some(person => normalizeName(person) === nameNorm));
+        const examProgress = memberExams.length ? Math.round((completedExams.length / memberExams.length) * 100) : 0;
+        const overallScore = Math.round((Math.min(100, completedCount * 25) * .2) + (learningProgress * .35) + (commitment * .2) + (examProgress * .25));
+        return { tasksCompleted: completedCount, tasksAssigned: mTasks.length, learningProgress, commitment, examProgress, overallScore, skills };
+      };
+
+      const applyTaskLocally = (title, changes) => setTeamData(previous => ({ ...previous, tasks: previous.tasks.map(task => task["Task Title"] === title ? { ...task, ...changes } : task) }));
+      const persistTaskUpdate = (task, changes) => { const localChanges = {}; if (changes.status !== undefined) localChanges.Status = changes.status; if (changes.score !== undefined) localChanges.Score = changes.score; if (changes.feedback !== undefined) localChanges.Feedback = changes.feedback; if (changes.ata !== undefined) localChanges.ATA = changes.ata; if (changes.archived !== undefined) localChanges.Archived = changes.archived ? 'TRUE' : ''; applyTaskLocally(task["Task Title"], localChanges); setSyncing(true); if (google && google.script && google.script.run) { google.script.run.withSuccessHandler(() => { setSyncing(false); showToastNotification('Task updated and recorded for ' + activeUserSession.email); }).withFailureHandler(() => { setSyncing(false); showToastNotification('Task kept locally; backend update failed'); }).updateTaskStatus({ action: 'updateTask', title: task["Task Title"], email: activeUserSession.email, ...changes }); } else setSyncing(false); };
+      const handleTaskDrop = (status) => { if (!draggedTaskTitle) return; const task = (teamData.tasks || []).find(item => item["Task Title"] === draggedTaskTitle); if (task) persistTaskUpdate(task, { status }); setDraggedTaskTitle(null); };
+      const archiveTask = (task) => { setArchivedTaskTitles(previous => previous.includes(task["Task Title"]) ? previous : [...previous, task["Task Title"]]); persistTaskUpdate(task, { archived: true }); };
+      const restoreTask = (task) => { setArchivedTaskTitles(previous => previous.filter(title => title !== task["Task Title"])); persistTaskUpdate(task, { archived: false }); };
+      const openTaskEditor = (task) => { setEditingTaskTitle(task["Task Title"]); setTaskDraft({ title: task["Task Title"] || '', description: task["Task description"] || '', dod: task["Break down (DOD)"] || '', assignees: splitPeople(task.Assignees), status: task.Status || 'Pending', eta: task.ETA || '', scale: task.Scale || 'day' }); setShowTaskModal(true); };
+      const handleCreateTask = (event) => { event.preventDefault(); if (!taskDraft.title.trim() || !taskDraft.assignees.length) return; if (editingTaskTitle) { const originalTitle = editingTaskTitle; const changes = { newTitle: taskDraft.title.trim(), description: taskDraft.description, dod: taskDraft.dod, assignees: taskDraft.assignees, status: taskDraft.status || 'Pending', eta: taskDraft.eta, scale: taskDraft.scale }; setTeamData(previous => ({ ...previous, tasks: previous.tasks.map(item => item["Task Title"] === originalTitle ? { ...item, "Task Title": changes.newTitle, "Task description": changes.description, "Break down (DOD)": changes.dod, Assignees: changes.assignees.join(','), Status: changes.status, ETA: changes.eta, Scale: changes.scale } : item) })); setEditingTaskTitle(null); setShowTaskModal(false); setTaskDraft({ title: '', description: '', dod: '', assignees: [], status: 'Pending', eta: '', scale: 'day' }); google.script.run.withSuccessHandler(() => showToastNotification('Task details updated for ' + activeUserSession.email)).withFailureHandler(() => showToastNotification('Task details kept locally; backend update failed')).updateTaskStatus({ action: 'updateTask', title: originalTitle, email: activeUserSession.email, ...changes }); return; } const task = { "Task Title": taskDraft.title.trim(), "Task description": taskDraft.description, "Break down (DOD)": taskDraft.dod, Assignees: taskDraft.assignees.join(','), Status: taskDraft.status || 'Pending', Score: '', ETA: taskDraft.eta, Scale: taskDraft.scale }; setTeamData(previous => ({ ...previous, tasks: [task, ...previous.tasks] })); setShowTaskModal(false); setTaskDraft({ title: '', description: '', dod: '', assignees: [], status: 'Pending', eta: '', scale: 'day' }); google.script.run.withSuccessHandler(() => showToastNotification('Task created for ' + activeUserSession.email)).withFailureHandler(() => showToastNotification('Task kept locally; backend update failed')).createTask({ action: 'createTask', email: activeUserSession.email, title: task["Task Title"], description: task["Task description"], dod: task["Break down (DOD)"], assignees: taskDraft.assignees, status: task.Status, eta: task.ETA, scale: task.Scale }); };
+      const exportMemberCV = (member) => { const metrics = getMemberMetrics(member); const lines = [`${member.Name} — Azar CV`, `Role: ${member.Rule || 'Team member'}`, `Email: ${member.Mail || activeUserSession.email || ''}`, `Tasks: ${metrics.tasksCompleted}/${metrics.tasksAssigned}`, `Learning: ${metrics.learningProgress}%`, '', 'Skills:']; (metrics.skills || []).forEach(item => lines.push(`${item.subject}: ${item.score}/100`)); const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${member.Name.replace(/[^a-z0-9]+/gi, '-')}-azar-cv.txt`; link.click(); URL.revokeObjectURL(url); };
+
+      const exportMemberCVDocx = async (member) => {
+        if (!member) return;
+        const metrics = getMemberMetrics(member);
+        const education = getMemberEducation(member);
+        const profile = getMemberProfileData(member);
+        const docxApi = window.docx;
+        if (!docxApi) { showToastNotification('DOCX export is unavailable; please reload and try again'); return; }
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle } = docxApi;
+        const ink = '172033', purple = '5B21B6', violet = '7C3AED', muted = '64748B', line = 'E2E8F0';
+        const clean = value => String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+        const metricCell = (value, label) => new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { fill: 'F5F3FF', type: ShadingType.CLEAR }, margins: { top: 120, bottom: 120, left: 140, right: 140 }, children: [new Paragraph({ children: [new TextRun({ text: String(value), bold: true, size: 22, color: purple })], spacing: { after: 30 } }), new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), bold: true, size: 13, color: muted })] })] });
+        const sectionHeading = label => new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), bold: true, size: 17, color: violet, characterSpacing: 24 })], spacing: { before: 260, after: 100 }, border: { bottom: { color: line, style: BorderStyle.SINGLE, size: 6, space: 5 } } });
+        const skillRows = (metrics.skills || []).slice(0, 12).map(skill => new TableRow({ children: [new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: clean(skill.subject), size: 16, color: ink })] })] }), new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `${skill.score}/100`, bold: true, size: 16, color: purple })] })] })] }));
+        const assignedTasks = (LOCAL_DB.tasks || []).filter(task => splitPeople(task.Assignees).some(owner => owner.toLowerCase() === clean(member.Name).toLowerCase())).slice(0, 5);
+        const profileItems = (profile.skills || []).flatMap(group => group.items || []).map(clean).filter(Boolean).slice(0, 10);
+        const children = [
+          new Paragraph({ children: [new TextRun({ text: clean(member.Name), bold: true, size: 36, color: purple })], spacing: { after: 40 } }),
+          new Paragraph({ children: [new TextRun({ text: clean(member.Rule || 'Team Member'), bold: true, size: 20, color: ink })], spacing: { after: 40 } }),
+          new Paragraph({ children: [new TextRun({ text: [member.Mail, member.ID ? `ID ${member.ID}` : ''].filter(Boolean).map(clean).join('  ·  '), size: 16, color: muted })], spacing: { after: 220 } }),
+          new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } }, rows: [new TableRow({ children: [metricCell(metrics.overallScore + '/100', 'Overall score'), metricCell(`${metrics.tasksCompleted}/${metrics.tasksAssigned}`, 'Tasks delivered'), metricCell(`${metrics.learningProgress}%`, 'Learning'), metricCell(`${metrics.commitment}%`, 'Commitment')] })] }),
+          sectionHeading('Professional profile'), new Paragraph({ children: [new TextRun({ text: `Performance-focused ${clean(member.Rule || 'team member')} contributing to ASAR Project Team delivery, learning, and continuous improvement.`, size: 17, color: ink })], spacing: { after: 100, line: 276 } }),
+          sectionHeading('Technical skills'), new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { insideHorizontal: { color: line, style: BorderStyle.SINGLE, size: 3 }, bottom: { color: line, style: BorderStyle.SINGLE, size: 3 } }, rows: skillRows }),
+          profileItems.length ? sectionHeading('Strengths & working style') : null, ...profileItems.map(item => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 50 } })),
+          education.length ? sectionHeading('Education & credentials') : null, ...education.map(item => new Paragraph({ children: [new TextRun({ text: clean(item.degree), bold: true, size: 17, color: ink }), new TextRun({ text: item.detail ? `  ·  ${clean(item.detail)}` : '', size: 16, color: muted })], spacing: { after: 70 } })),
+          assignedTasks.length ? sectionHeading('Selected delivery') : null, ...assignedTasks.map(task => new Paragraph({ children: [new TextRun({ text: `${clean(task['Task Title'])}  `, bold: true, size: 16, color: ink }), new TextRun({ text: `${clean(task.Status || 'Pending')} · Score ${clean(task.Score || '—')}`, size: 15, color: muted })], bullet: { level: 0 }, spacing: { after: 50 } })),
+          new Paragraph({ children: [new TextRun({ text: `Prepared from ASAR Project Team workspace data · ${todayForInput()}`, italic: true, size: 13, color: muted })], spacing: { before: 280 } })
+        ].filter(Boolean);
+        const cvDocument = new Document({ sections: [{ properties: { page: { margin: { top: 620, right: 700, bottom: 620, left: 700 } } }, children }] });
+        const blob = await Packer.toBlob(cvDocument); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${clean(member.Name).replace(/[^a-z0-9]+/gi, '-')}-ASAR-CV.docx`; link.click(); URL.revokeObjectURL(url); showToastNotification('Modern DOCX CV downloaded');
       };
 
       if (loading) {
@@ -2379,18 +2491,18 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
       }
 
       return (
-        <div class="min-h-screen pb-16">
+        <div class="asar-app min-h-screen pb-16">
           
-          <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100">
+          <header class="asar-shell-header bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div class="flex items-center justify-between h-16">
                 
-                <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md shadow-brand-200">
-                    A
+                <div class="asar-brand-lockup flex items-center gap-3">
+                  <div class="asar-brand-mark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white font-extrabold shadow-md shadow-brand-200">
+                    <Icon name="layers-3" className="h-5 w-5" />
                   </div>
-                  <div>
-                    <span class="font-extrabold text-lg text-slate-900 tracking-tight block">Azar Project Team</span>
+                  <div class="whitespace-nowrap">
+                    <span class="asar-brand-title font-extrabold text-lg text-slate-900 tracking-tight block">ASAR Project Team</span>
                     <span class="text-[10px] text-slate-400 font-medium block -mt-1 uppercase tracking-wider">Workspace Dashboard</span>
                   </div>
                 </div>
@@ -2398,6 +2510,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                 <div class="hidden md:flex bg-slate-50 p-1 rounded-xl border border-slate-100 gap-1">
                   {[
                     { id: 'dashboard', name: 'Dashboard', icon: 'layout-dashboard' },
+                    { id: 'tasks', name: 'Tasks', icon: 'check-square-2' },
                     { id: 'learning', name: 'Learning Tracks', icon: 'graduation-cap' },
                     { id: 'team', name: 'Team Intelligence', icon: 'users' }
                   ].map((tab) => (
@@ -2415,10 +2528,11 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                 </div>
 
                 <div class="flex items-center gap-3">
+                  <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} class="theme-toggle inline-flex w-[4.5rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-100 px-2.5 py-2 text-[10px] font-extrabold text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition-colors" title="Toggle light or dark theme" aria-label="Toggle light or dark theme"><Icon name={theme === 'dark' ? 'sun' : 'moon'} className="w-4 h-4" /><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
                   {/* Set Event Trigger */}
                   <button 
                     onClick={() => setShowSetModal(true)}
-                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm shadow-indigo-100"
+                    class="asar-header-action flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm shadow-indigo-100"
                   >
                     <Icon name="calendar-plus" className="w-3.5 h-3.5" />
                     Set Event
@@ -2426,27 +2540,19 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 
                   <button 
                     onClick={() => setShowLogModal(true)}
-                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
+                    class="asar-header-action flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
                   >
                     <Icon name="plus" className="w-3.5 h-3.5" />
                     Log Event
                   </button>
 
-                  <div class="relative flex items-center bg-slate-50 rounded-xl border border-slate-100 pl-3 pr-2 py-1 gap-2">
+                  <div class="asar-account-card relative flex items-center bg-slate-50 rounded-xl border border-slate-100 pl-3 pr-3 py-1 gap-2">
                     <div class="w-7 h-7 rounded-full bg-brand-50 text-brand-600 font-bold text-xs flex items-center justify-center border border-brand-200 uppercase">
-                      {currentUser ? currentUser.Name.charAt(0) : '?'}
+                      {(activeUserSession.name || activeUserSession.email || '?').charAt(0)}
                     </div>
-                    <div class="text-left select-none mr-1">
-                      <select
-                        value={currentUser ? currentUser.Name : ''}
-                        onChange={(e) => handleUserChange(e.target.value)}
-                        class="bg-transparent text-slate-700 font-bold text-xs outline-none cursor-pointer pr-1"
-                      >
-                        {teamData.team.map((m, idx) => (
-                          <option key={idx} value={m.Name}>{m.Name}</option>
-                        ))}
-                      </select>
-                      <p class="text-[9px] text-slate-400 font-medium -mt-0.5">{currentUser ? (currentUser.Rule || 'Team Member') : ''}</p>
+                    <div class="asar-account-details text-left select-none mr-1">
+                      <p class="text-xs font-bold text-slate-700 leading-tight">{activeUserSession.name || 'Signed-in member'}</p>
+                      <p class="max-w-[170px] truncate text-[9px] text-slate-400 font-medium -mt-0.5">{activeUserSession.email}</p>
                     </div>
                   </div>
 
@@ -2499,8 +2605,10 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
             {activeTab === 'dashboard' && (
               <div class="space-y-6">
                 
+                <section data-reveal class="azar-hero relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-12 text-white shadow-2xl azar-reveal"><div class="azar-orb absolute -right-8 -top-12 h-48 w-48 rounded-full bg-fuchsia-400/20 blur-2xl"></div><div class="azar-orb delay absolute bottom-[-4rem] left-1/3 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl"></div><div class="relative max-w-3xl"><div class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.2em] text-cyan-100"><span class="h-2 w-2 animate-pulse rounded-full bg-emerald-300"></span> Live team intelligence</div><h1 class="text-3xl font-black tracking-tight sm:text-5xl">Move the whole team forward, beautifully.</h1><p class="mt-4 max-w-2xl text-sm leading-7 text-indigo-100 sm:text-base">ASAR turns tasks, learning, exams, skills, and commitment into one clear pulse for your project.</p><div class="mt-7 flex flex-wrap gap-3"><button onClick={() => setActiveTab('tasks')} class="rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-indigo-700">Open task command center</button><button onClick={() => setActiveTab('learning')} class="rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-xs font-bold text-white">Explore learning paths</button></div></div></section>
+
                 {/* 1. Landing Page Hero Section: Aggregate KPIs */}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div data-reveal class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   
                   {/* KPI 1: Workspace Completion Rate */}
                   <Card>
@@ -2572,7 +2680,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                 </div>
 
                 {/* 2. Team-Wide Analytics (Interactive Graphs) */}
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div data-reveal class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Graph 1: Team Skill Blueprint (Radar Chart) (Col Span 2) */}
                   <Card class="lg:col-span-2 flex flex-col justify-between">
@@ -2624,7 +2732,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                   </Card>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div data-reveal class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Graph 3: Global Workspace Velocity (Area Chart) (Col Span 2) */}
                   <Card class="lg:col-span-2">
@@ -2739,7 +2847,28 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                 </Card>
 
               </div>
-            )}{/* -------------------- Tab 2: LEARNING TRACKS PANEL -------------------- */}
+            )}
+
+            {activeTab === 'tasks' && (() => {
+              const kanbanColumns = [{ id: 'Backlog', label: 'Backlog', icon: 'inbox', tint: 'border-slate-200 bg-slate-50/70' }, { id: 'Pending', label: 'To do', icon: 'circle-dashed', tint: 'border-amber-200 bg-amber-50/50' }, { id: 'InProgress', label: 'In progress', icon: 'loader-circle', tint: 'border-blue-200 bg-blue-50/50' }, { id: 'Completed', label: 'Done', icon: 'check-circle-2', tint: 'border-emerald-200 bg-emerald-50/50' }, { id: 'Blocked', label: 'Blocked', icon: 'octagon-alert', tint: 'border-rose-200 bg-rose-50/50' }];
+              const taskStatus = task => { const value = String(task.Status || 'Pending').toLowerCase().replace(/[ _-]/g, ''); return value === 'inprogress' ? 'InProgress' : value === 'completed' ? 'Completed' : value === 'blocked' ? 'Blocked' : value === 'backlog' ? 'Backlog' : 'Pending'; };
+              const isArchived = task => archivedTaskTitles.includes(task["Task Title"]) || String(task.Archived || '').toUpperCase() === 'TRUE';
+              const taskMatchesSearch = task => `${task["Task Title"] || ''} ${task["Task description"] || ''} ${task.Assignees || ''}`.toLowerCase().includes(taskSearch.toLowerCase());
+              const boardTasks = (teamData.tasks || []).filter(task => !isArchived(task) && taskMatchesSearch(task));
+              const archivedTasks = (teamData.tasks || []).filter(task => isArchived(task) && taskMatchesSearch(task));
+              return <div class="space-y-6 azar-reveal"><div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[.2em] text-brand-500">Execution layer</p><h3 class="mt-1 text-2xl font-black text-slate-900">Task command center</h3><p class="mt-1 text-xs font-medium text-slate-500">Drag work between stages. Completed and blocked work can be archived when you are ready to clear the active board.</p></div><div class="flex flex-wrap gap-2"><div class="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks or owners" class="w-56 rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold outline-none" /></div><button onClick={() => setTaskView('board')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'board' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="kanban" className="h-4 w-4" /> Board</button><button onClick={() => setTaskView('archive')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'archive' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="archive" className="h-4 w-4" /> Archive <span class="rounded-full bg-white/20 px-1.5">{archivedTasks.length}</span></button><button onClick={() => setShowTaskModal(true)} class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white"><Icon name="plus" className="h-4 w-4" /> New task</button></div></div>{taskView === 'board' ? <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">{kanbanColumns.map(column => { const columnTasks = boardTasks.filter(task => taskStatus(task) === column.id); return <section key={column.id} onDragOver={event => event.preventDefault()} onDrop={() => handleTaskDrop(column.id)} class={`min-h-[24rem] rounded-2xl border p-3 ${column.tint}`}><div class="mb-3 flex items-center justify-between"><div class="flex items-center gap-2"><Icon name={column.icon} className="h-4 w-4 text-slate-500" /><h4 class="text-xs font-black uppercase tracking-wider text-slate-700">{column.label}</h4></div><span class="rounded-full bg-white/80 px-2 py-1 text-[10px] font-black text-slate-500">{columnTasks.length}</span></div><div class="space-y-3">{columnTasks.map((task, index) => <article key={`${task["Task Title"]}-${index}`} draggable onDragStart={() => setDraggedTaskTitle(task["Task Title"])} class="azar-glass cursor-grab rounded-2xl border border-white/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-1 hover:shadow-saas-lg active:cursor-grabbing"><div class="flex items-start justify-between gap-2"><h5 class="text-sm font-black leading-tight text-slate-900">{task["Task Title"] || 'Untitled task'}</h5><div class="flex items-center gap-1"><button onClick={() => openTaskEditor(task)} title="Edit task" class="rounded-lg p-1.5 text-brand-500 hover:bg-brand-50"><Icon name="pencil" className="h-4 w-4" /></button><button onClick={() => (taskStatus(task) === 'Completed' || taskStatus(task) === 'Blocked') && archiveTask(task)} disabled={!['Completed','Blocked'].includes(taskStatus(task))} title={['Completed','Blocked'].includes(taskStatus(task)) ? 'Archive task' : 'Only done or blocked tasks can be archived'} class={`rounded-lg p-1.5 ${['Completed','Blocked'].includes(taskStatus(task)) ? 'text-slate-500 hover:bg-slate-100' : 'cursor-not-allowed text-slate-200'}`}><Icon name="archive" className="h-3.5 w-3.5" /></button></div></div><p class="mt-2 line-clamp-2 text-[11px] leading-5 text-slate-500">{task["Task description"] || 'No description provided.'}</p><div class="mt-3 flex flex-wrap gap-1">{splitPeople(task.Assignees).map(owner => <span key={owner} class="rounded-full bg-brand-50 px-2 py-1 text-[9px] font-bold text-brand-700">{owner}</span>)}</div><div class="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3"><select value={task.Status || 'Pending'} onChange={event => persistTaskUpdate(task, { status: event.target.value })} class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-600"><option>Backlog</option><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select><input type="number" min="0" max="10" step="0.5" value={task.Score || ''} onChange={event => persistTaskUpdate(task, { score: event.target.value })} placeholder="/10" class="w-16 rounded-lg border border-slate-200 bg-white px-2.5 py-2.5 text-xs font-bold text-slate-600" /></div></article>)}{!columnTasks.length && <div class="rounded-xl border border-dashed border-slate-300/70 p-5 text-center text-[10px] font-semibold text-slate-400">Drop tasks here</div>}</div></section>; })}</div> : <div class="azar-glass rounded-2xl border border-slate-200 bg-white p-5 shadow-saas"><div class="mb-4 flex items-center gap-2"><Icon name="archive" className="h-5 w-5 text-slate-500" /><h4 class="text-sm font-black text-slate-900">Archived work</h4><span class="text-xs font-semibold text-slate-400">Done and blocked tasks kept out of the active board</span></div>{archivedTasks.length ? <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{archivedTasks.map(task => <div key={task["Task Title"]} class="rounded-xl border border-slate-200 bg-slate-50 p-4"><div class="flex items-start justify-between gap-2"><h5 class="text-xs font-black text-slate-900">{task["Task Title"]}</h5><button onClick={() => restoreTask(task)} class="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-brand-600 shadow-sm">Restore</button></div><p class="mt-2 text-[11px] text-slate-500">{task["Task description"] || 'No description provided.'}</p><p class="mt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{task.Status} · Score {task.Score || '—'}</p></div>)}</div> : <div class="rounded-xl border border-dashed border-slate-200 p-10 text-center text-xs font-semibold text-slate-400">Nothing archived yet.</div>}</div>}</div>;
+            })()}
+
+            {activeTab === 'tasks-old' && (() => {
+              const visibleTasks = (teamData.tasks || []).filter(task => {
+                const matchesFilter = taskFilter === 'all' || String(task.Status || '').toLowerCase().replace(/[ _-]/g, '') === taskFilter;
+                const haystack = `${task["Task Title"] || ''} ${task["Task description"] || ''} ${task.Assignees || ''}`.toLowerCase();
+                return matchesFilter && haystack.includes(taskSearch.toLowerCase());
+              });
+              return <div class="space-y-6 azar-reveal"><div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[.2em] text-brand-500">Execution layer</p><h3 class="mt-1 text-2xl font-black text-slate-900">Task command center</h3><p class="mt-1 text-xs font-medium text-slate-400">Assign work, track delivery, and feed completion scores back into the skill matrix.</p></div><button onClick={() => setShowTaskModal(true)} class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white"><Icon name="plus" className="w-4 h-4" /> New task</button></div><div class="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-saas sm:flex-row"><div class="relative flex-1"><Icon name="search" className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-slate-400" /><input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks, descriptions, or owners" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs outline-none" /></div><div class="flex gap-2 overflow-auto">{[['all','All'],['pending','Pending'],['inprogress','In progress'],['completed','Completed']].map(([value,label]) => <button key={value} onClick={() => setTaskFilter(value)} class={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold ${taskFilter === value ? 'bg-brand-600 text-white' : 'bg-slate-50 text-slate-500'}`}>{label}</button>)}</div></div><div class="grid grid-cols-1 gap-4 lg:grid-cols-2">{visibleTasks.length ? visibleTasks.map((task, index) => { const done = isCompletedStatus(task.Status); return <article key={`${task["Task Title"]}-${index}`} class={`rounded-2xl border p-5 shadow-saas ${done ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100 bg-white'}`}><div class="flex items-start justify-between gap-3"><div><div class="mb-2 flex flex-wrap gap-1.5">{splitPeople(task.Assignees).map(owner => <span key={owner} class="rounded-full bg-brand-50 px-2 py-1 text-[9px] font-bold text-brand-700">{owner}</span>)}</div><h4 class="text-sm font-black text-slate-900">{task["Task Title"] || 'Untitled task'}</h4><p class="mt-1 text-xs leading-5 text-slate-500">{task["Task description"] || 'No description provided.'}</p></div><span class={`rounded-lg px-2 py-1 text-[9px] font-black uppercase ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{task.Status || 'Pending'}</span></div><div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><select value={task.Status || 'Pending'} onChange={e => persistTaskUpdate(task, { status: e.target.value })} class="rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-bold text-slate-600"><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select><input type="number" min="0" max="10" step="0.5" value={task.Score || ''} onChange={e => persistTaskUpdate(task, { score: e.target.value })} placeholder="Score /10" class="w-24 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px]" /><span class="ml-auto text-[10px] font-bold text-slate-400">ETA {task.ETA || '—'} {task.Scale || ''}</span></div></article>; }) : <div class="col-span-full rounded-2xl border border-dashed border-slate-200 p-12 text-center"><p class="text-sm font-bold text-slate-500">No tasks match this view.</p></div>}</div></div>;
+            })()}
+
+            {/* -------------------- Tab 3: LEARNING TRACKS PANEL -------------------- */}
             {activeTab === 'learning' && (
               <div class="space-y-6">
                 <div class="flex items-center justify-between">
@@ -2764,7 +2893,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
             {activeTab === 'team' && (() => {
               const activeMember = selectedTeamMember || (teamData.team && teamData.team.length > 0 ? { ...teamData.team[0], ...getMemberMetrics(teamData.team[0]) } : null);
               const filteredTeam = (teamData.team || []).filter(member => 
-                member.Name.toLowerCase().includes(teamSearchQuery.toLowerCase())
+                String(member.Name || '').toLowerCase().includes(teamSearchQuery.toLowerCase())
               );
               return (
                 <div class="space-y-6">
@@ -2855,6 +2984,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
 
                           {/* Top KPIs */}
                           <div class="flex items-center gap-4 self-stretch md:self-auto">
+                            <button onClick={() => exportMemberCVDocx(activeMember)} class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-[10px] font-bold text-white"><Icon name="download" className="w-3.5 h-3.5" /> CV</button>
                             <div class="flex-1 md:flex-initial bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]">
                               <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks Completed</span>
                               <span class="text-base font-black text-slate-700 block mt-1">{activeMember.tasksCompleted}/{activeMember.tasksAssigned}</span>
@@ -2863,6 +2993,7 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
                               <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning Index</span>
                               <span class="text-base font-black text-slate-700 block mt-1">{activeMember.learningProgress}%</span>
                             </div>
+                            <div class="hidden sm:block flex-1 md:flex-initial bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]"><span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Team score</span><span class="text-base font-black text-indigo-700 block mt-1">{activeMember.overallScore || 0}/100</span></div>
                           </div>
                         </div>
 
@@ -3168,6 +3299,8 @@ const renderLearningTracks = (containerElement, courses, logs, currentUser) => {
               </div>
             </form>
           </Modal>
+
+          <Modal isOpen={showTaskModal} onClose={() => { setShowTaskModal(false); setEditingTaskTitle(null); }} title={editingTaskTitle ? 'Edit task' : 'Create a task'}><form onSubmit={handleCreateTask} class="space-y-4"><input required value={taskDraft.title} onChange={e => setTaskDraft({ ...taskDraft, title: e.target.value })} placeholder="Task title" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold" /><textarea value={taskDraft.description} onChange={e => setTaskDraft({ ...taskDraft, description: e.target.value })} placeholder="What needs to be delivered?" rows="3" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold"></textarea><div><label class="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">Start in</label><select value={taskDraft.status} onChange={e => setTaskDraft({ ...taskDraft, status: e.target.value })} class="mb-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold"><option>Backlog</option><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select></div><div class="max-h-32 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{teamData.team.map(member => <label key={member.Name} class="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={taskDraft.assignees.includes(member.Name)} onChange={e => setTaskDraft({ ...taskDraft, assignees: e.target.checked ? [...taskDraft.assignees, member.Name] : taskDraft.assignees.filter(name => name !== member.Name) })} />{member.Name}</label>)}</div><button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white">{editingTaskTitle ? 'Save task changes' : 'Create task'}</button></form></Modal>
 
           {/* ==================== MODAL 4: SET EVENT ADMIN ==================== */}
           <Modal 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Azar Project Team Dashboard</title>
+  <title>ASAR Project Team Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- Premium Google Font -->
@@ -48,6 +48,9 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
+  <!-- DOCX export support -->
+  <script src="https://unpkg.com/docx@9.5.1/dist/index.iife.js"></script>
+
   <!-- ApexCharts CDN (Beautiful interactive charts) -->
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
@@ -59,6 +62,63 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
+    :root {
+      color-scheme: light;
+      --azar-bg: #f8fafc;
+      --azar-surface: rgba(255,255,255,.86);
+      --azar-ink: #172033;
+    }
+    html.dark {
+      color-scheme: dark;
+      --azar-bg: #090d18;
+      --azar-surface: rgba(16,23,42,.88);
+      --azar-ink: #e5e7eb;
+    }
+    html.dark body { background: var(--azar-bg) !important; color: var(--azar-ink) !important; }
+    html.dark .bg-white, html.dark .bg-white\/80 { background-color: var(--azar-surface) !important; }
+    html.dark .bg-slate-50, html.dark .bg-\[\#fcfcfd\] { background-color: #111827 !important; }
+    html.dark .bg-slate-50\/30, html.dark .bg-slate-50\/50, html.dark .bg-slate-50\/20 { background-color: rgba(30,41,59,.55) !important; }
+    html.dark .text-slate-900, html.dark .text-slate-800, html.dark .text-slate-700 { color: #f1f5f9 !important; }
+    html.dark .text-slate-600, html.dark .text-slate-500 { color: #cbd5e1 !important; }
+    html.dark .text-slate-400, html.dark .text-slate-300 { color: #94a3b8 !important; }
+    html.dark [class*="border-slate"] { border-color: rgba(100,116,139,.3) !important; }
+    html.dark input, html.dark select, html.dark textarea { color: #e5e7eb !important; background-color: #172033 !important; }
+    html.dark option { background: #172033; color: #e5e7eb; }
+    html.dark .shadow-saas, html.dark .shadow-saas-lg { box-shadow: 0 18px 50px rgba(0,0,0,.28) !important; }
+    html.dark .azar-glass { background: rgba(15,23,42,.7) !important; border-color: rgba(148,163,184,.2) !important; }
+    .azar-hero { background: radial-gradient(circle at 10% 10%, rgba(129,140,248,.34), transparent 34%), radial-gradient(circle at 90% 15%, rgba(45,212,191,.25), transparent 32%), linear-gradient(120deg,#111827 0%,#312e81 48%,#0f766e 100%); }
+    .asar-app { background: radial-gradient(circle at 0% 0%, rgba(129,140,248,.10), transparent 28%), radial-gradient(circle at 100% 40%, rgba(45,212,191,.08), transparent 25%), linear-gradient(180deg, #fbfdff 0%, #f6f7ff 52%, #f4fbfa 100%); }
+    html.dark .asar-app { background: radial-gradient(circle at 0% 0%, rgba(99,102,241,.18), transparent 28%), radial-gradient(circle at 100% 40%, rgba(20,184,166,.12), transparent 25%), linear-gradient(180deg, #090d18 0%, #10152a 52%, #071b1b 100%); }
+    .azar-orb { animation: azar-float 8s ease-in-out infinite; }
+    .azar-orb.delay { animation-delay: -3s; }
+    .azar-reveal { animation: azar-reveal .75s cubic-bezier(.2,.8,.2,1) both; }
+    .azar-scroll-reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); }
+    .azar-scroll-reveal.is-visible { opacity: 1; transform: translateY(0); }
+    .azar-grid { background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent); }
+    .azar-float-card { animation: azar-card-float 6s ease-in-out infinite; }
+    .azar-float-card.delay { animation-delay: -2s; }
+    .azar-orb, .azar-float-card { animation: none !important; }
+    .asar-app { background-attachment: fixed; }
+    .asar-brand-lockup, .asar-brand-title { flex-shrink: 0; white-space: nowrap; }
+    @media (max-width: 1023px) {
+      .asar-header-action { font-size: 0 !important; width: 2.5rem; justify-content: center; padding-left: .65rem !important; padding-right: .65rem !important; }
+      .asar-account-details { display: none; }
+    }
+    @media (max-width: 639px) {
+      .asar-brand-lockup { gap: .55rem; }
+      .asar-brand-lockup > div:last-child > span:last-child { display: none; }
+      .asar-brand-title { font-size: .9rem !important; }
+      .asar-account-card, .asar-app button[title="Synchronize sheet data"] { display: none !important; }
+      .theme-toggle { font-size: 0 !important; width: 2.5rem !important; padding-left: .65rem !important; padding-right: .65rem !important; }
+    }
+    @keyframes azar-card-float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-10px) rotate(1deg); } }
+    @keyframes azar-float { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-16px,0) scale(1.05); } }
+    @keyframes azar-reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @media print {
+      body * { visibility: hidden !important; }
+      .azar-cv-print, .azar-cv-print * { visibility: visible !important; }
+      .azar-cv-print { position: absolute; inset: 0; background: white !important; color: #111827 !important; padding: 32px; }
+    }
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
@@ -87,7 +147,7 @@
     }
   </style>
 </head>
-<body class="bg-[#fcfcfd] text-slate-800 antialiased min-h-screen">
+<body class="bg-[#fcfcfd] text-slate-800 antialiased min-h-screen overflow-x-hidden">
 
   <div id="root"></div>
 
@@ -100,22 +160,13 @@
       const ref = useRef(null);
       useEffect(() => {
         if (window.lucide && ref.current) {
-          ref.current.innerHTML = '';
-          const iconEl = window.lucide.createIcons({
-            attrs: {
-              class: className,
-              'stroke-width': strokeWidth
-            },
-            name: name
-          });
-          // Appends the created SVG to the element
-          if (iconEl && iconEl[name]) {
-            ref.current.appendChild(iconEl[name].cloneNode(true));
-          }
+          ref.current.setAttribute('data-lucide', name);
+          ref.current.setAttribute('aria-hidden', 'true');
+          window.lucide.createIcons({ nodes: [ref.current], attrs: { class: className, 'stroke-width': strokeWidth } });
         }
       }, [name, className, strokeWidth]);
 
-      return <span ref={ref} className="inline-flex items-center justify-center" />;
+      return <i ref={ref} className={`inline-flex items-center justify-center ${className}`} />;
     };
 
     // Card Container wrapper following the SaaS Minimalist style
@@ -683,11 +734,23 @@
       return <div ref={chartRef} />;
     };
 
+    const todayForInput = () => { const now = new Date(); return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-'); };
+
     // Main App Component
     function App() {
       const [loading, setLoading] = useState(true);
       const [syncing, setSyncing] = useState(false);
+      const [dataError, setDataError] = useState('');
       const [activeTab, setActiveTab] = useState('dashboard');
+      const [theme, setTheme] = useState(() => localStorage.getItem('azar_theme') || 'light');
+      const [taskFilter, setTaskFilter] = useState('all');
+      const [taskSearch, setTaskSearch] = useState('');
+      const [showTaskModal, setShowTaskModal] = useState(false);
+      const [taskDraft, setTaskDraft] = useState({ title: '', description: '', dod: '', assignees: [], status: 'Pending', eta: '', scale: 'day' });
+      const [editingTaskTitle, setEditingTaskTitle] = useState(null);
+      const [taskView, setTaskView] = useState('board');
+      const [draggedTaskTitle, setDraggedTaskTitle] = useState(null);
+      const [archivedTaskTitles, setArchivedTaskTitles] = useState([]);
       
       // Complete backend-derived data
       const [teamData, setTeamData] = useState({
@@ -713,7 +776,7 @@
       const [reopenDueDate, setReopenDueDate] = useState('');
 
       // Active User Session State and custom dropdown states
-      const [activeUserSession, setActiveUserSession] = useState({ name: 'Dr Bassant', email: 'bassant@azar.com' });
+      const [activeUserSession, setActiveUserSession] = useState({ name: '', email: '' });
       const [eventSearchQuery, setEventSearchQuery] = useState('');
       const [teamSearchQuery, setTeamSearchQuery] = useState('');
       const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false);
@@ -723,10 +786,21 @@
       const [setEventEntry, setSetEventEntry] = useState({
         type: 'Skill',
         name: '',
-        dueDate: '',
+        dueDate: todayForInput(),
         assignedMembers: []
       });
       const [toast, setToast] = useState(null);
+
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        localStorage.setItem('azar_theme', theme);
+      }, [theme]);
+
+      useEffect(() => {
+        const observer = new IntersectionObserver(entries => entries.forEach(entry => entry.isIntersecting && entry.target.classList.add('is-visible')), { threshold: 0.12 });
+        const timer = setTimeout(() => document.querySelectorAll('[data-reveal]').forEach(node => { node.classList.add('azar-scroll-reveal'); observer.observe(node); }), 40);
+        return () => { clearTimeout(timer); observer.disconnect(); };
+      }, [activeTab, loading]);
 
       const showToastNotification = (msg) => {
         setToast(msg);
@@ -771,21 +845,22 @@
       const fetchData = (isSync = false) => {
         if (isSync) setSyncing(true);
         else setLoading(true);
+        setDataError('');
 
         if (typeof google !== 'undefined' && google.script && google.script.run) {
           google.script.run
             .withSuccessHandler((data) => {
               setTeamData(data);
+              setDataError('');
               if (data.activeUserSession) {
                 setActiveUserSession(data.activeUserSession);
               }
               
-              // Restore previously selected member from localStorage, or default to first member
-              const savedName = localStorage.getItem('active_member_name');
+              // The authenticated Google account is the active user; there is no client-side member switcher.
               let defaultUser = null;
-              if (savedName && data.team) {
-                defaultUser = data.team.find(t => normalizeName(t.Name) === normalizeName(savedName));
-              }
+              const session = data.activeUserSession || {};
+              if (data.team && session.name) defaultUser = data.team.find(t => normalizeName(t.Name) === normalizeName(session.name));
+              if (!defaultUser && data.team && session.email) defaultUser = data.team.find(t => String(t.Mail || t.Email || '').toLowerCase() === String(session.email).toLowerCase());
               if (!defaultUser && data.team && data.team.length > 0) {
                 defaultUser = data.team[0];
               }
@@ -795,54 +870,15 @@
             })
             .withFailureHandler((err) => {
               console.error("Failed to load spreadsheet data: ", err);
-              alert("Error loading data from Google Sheet. Please check spreadsheet connection.");
+              setDataError('The Apps Script backend could not load the spreadsheet. Check deployment access and sheet permissions.');
               setLoading(false);
               setSyncing(false);
             })
             .getTeamData();
         } else {
-          // Fallback simulation for local development testing
-          setTimeout(() => {
-            const mockData = {
-              supervisor: [{ Name: "Dr Bassant", phone: "17352734" }],
-              team: [
-                { Name: "Abdallah-Allam", ID: 2520550, Rule: "Team Lead" },
-                { Name: "Abdelrahman M. Abdel-Fattah", ID: 2520780, Rule: "Software Engineer" },
-                { Name: "Youssef Hammam Masoud", ID: 2540300, Rule: "AI Specialist" },
-                { Name: "Assem Walid Khamis", ID: 2540213, Rule: "Mechanical Engineer" }
-              ],
-              skills: [
-                { "Skill Name": "Python", "Skill Category": "Software", "Skill Rank": 5 },
-                { "Skill Name": "C", "Skill Category": "Software", "Skill Rank": 8 },
-                { "Skill Name": "Solidworks", "Skill Category": "Mechanical", "Skill Rank": 10 }
-              ],
-              learning: [
-                { "Topic name": "AI for Everyone", "Track ID": 1, "Track Name": "AI for Everyone", "Obligability": "Mandatory", "Platform": "DeepLearning" },
-                { "Topic name": "Generative AI for Everyone", "Track ID": 1, "Track Name": "AI for Everyone", "Obligability": "Mandatory", "Platform": "DeepLearning" },
-                { "Topic name": "AI Prompting for Everyone", "Track ID": 2, "Track Name": "Foundations & Prompting", "Obligability": "Mandatory", "Platform": "DeepLearning" },
-                { "Topic name": "Large Multimodal Model Prompting with Gemini", "Track ID": 2, "Track Name": "Foundations & Prompting", "Obligability": "Optional", "Platform": "DeepLearning" }
-              ],
-              meet: [
-                { "Meeting title": "Project overview", "Meeting Type": "online", "Date": "2026-07-30", "Description": "overview about the project" },
-                { "Meeting title": "Roobt", "Meeting Type": "offline", "Date": "2026-08-30", "Description": "Robotics build discussion" }
-              ],
-              exam: [
-                { "Exam name": "C exam", "Date": "2026-07-30", "Category ": "Software" }
-              ],
-              tasks: [
-                { "Task Title": "AAA", "Task description": "RAG Implementation", "Break down (DOD)": "1-hi\n2-bye", "Assignees": "Abdallah-Allam", "Status": "Completed", "Score": 3, "ETA": "2026-07-30" },
-                { "Task Title": "bbb", "Task description": "Design Rover Chassis", "Break down (DOD)": "1-hi\n2-bye", "Assignees": "Abdallah-Allam", "Status": "inProgress", "Score": 3, "ETA": 6 }
-              ],
-              logs: [
-                { "Event Type": "Skill", "Event ID": 1, "Event Name": "Python", "Invited/Assigned": "Abdallah-Allam\nAbdelrahman M. Abdel-Fattah", "Attendees/Completed": "Abdelrahman M. Abdel-Fattah", "Due to Date": "2026-07-30" },
-                { "Event Type": "Meet", "Event ID": 2, "Event Name": "bbb", "Invited/Assigned": "Abdallah-Allam", "Attendees/Completed": "Abdallah-Allam", "Due to Date": "2026-08-15" }
-              ]
-            };
-            setTeamData(mockData);
-            setCurrentUser(mockData.team[0]);
-            setLoading(false);
-            setSyncing(false);
-          }, 800);
+          setDataError('Spreadsheet connection is unavailable. Open this page from the deployed Apps Script web app.');
+          setLoading(false);
+          setSyncing(false);
         }
       };
 
@@ -854,6 +890,25 @@
       const normalizeName = (name) => {
         if (typeof name !== 'string') return '';
         return name.toLowerCase().replace(/-/g, ' ').trim();
+      };
+
+      const splitPeople = (value) => String(value || '').split(/[\n,]/).map(item => item.trim()).filter(Boolean);
+      const parseScore = (value, fallback = 0) => {
+        const score = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        return Number.isFinite(score) ? score : fallback;
+      };
+      const isCompletedStatus = (value) => ['completed', 'complete', 'done', 'closed'].includes(String(value || '').toLowerCase().replace(/[ _-]/g, ''));
+      const parseRatingColumn = (value) => {
+        const ratings = [];
+        const raw = String(value || '');
+        const matches = raw.match(/\{([^}]+)\}/g) || [];
+        matches.forEach(item => {
+          const parts = item.slice(1, -1).split(',');
+          const score = parseScore(parts.pop(), NaN);
+          const label = parts.join(',').trim();
+          if (label && Number.isFinite(score)) ratings.push({ label, score: Math.max(0, Math.min(10, score)) });
+        });
+        return ratings;
       };
 
       // Groups course database flat entries into structured tracks and calculates dynamic metrics
@@ -888,7 +943,7 @@
               (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
               normalizeName(log["Event Name"]) === normalizeName(courseName) &&
               log["Attendees/Completed"] && 
-              log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === nameNorm)
+              splitPeople(log["Attendees/Completed"]).some(c => normalizeName(c) === nameNorm)
             );
 
             const isMandatory = (course["Mandatory/Optional"] || course["Obligability"] || '').trim().toLowerCase() === 'mandatory';
@@ -1075,15 +1130,6 @@
         containerElement.innerHTML = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">${htmlContent}</div>`;
       };
 
-      // Handler to switch simulated log in profile
-      const handleUserChange = (userName) => {
-        const found = teamData.team.find(t => normalizeName(t.Name) === normalizeName(userName));
-        if (found) {
-          setCurrentUser(found);
-          localStorage.setItem('active_member_name', found.Name);
-        }
-      };
-
       // Handle submitting a custom set event by admin
       const handleSetSubmit = (e) => {
         e.preventDefault();
@@ -1098,6 +1144,7 @@
         // Package data into a JSON object
         const payload = {
           action: "createEvent",
+          email: activeUserSession.email,
           type: setEventEntry.type,
           name: setEventEntry.name,
           dueDate: setEventEntry.dueDate,
@@ -1118,7 +1165,7 @@
           .then(() => {
             showToastNotification(`Successfully created new ${setEventEntry.type} event: "${setEventEntry.name}"`);
             setShowSetModal(false);
-            setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+            setSetEventEntry({ type: 'Skill', name: '', dueDate: todayForInput(), assignedMembers: [] });
             fetchData(true); // Dynamic refresh
           })
           .catch((err) => {
@@ -1136,7 +1183,7 @@
             .withSuccessHandler((res) => {
               showToastNotification(`Successfully created new ${payload.type} event: "${payload.name}"`);
               setShowSetModal(false);
-              setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+              setSetEventEntry({ type: 'Skill', name: '', dueDate: todayForInput(), assignedMembers: [] });
               fetchData(true); // Dynamic refresh
             })
             .withFailureHandler((err) => {
@@ -1144,7 +1191,7 @@
               alert("Error setting event in backend");
               setSyncing(false);
             })
-            .logEvent(payload.type, payload.name, payload.invitedList, payload.dueDate);
+            .logEvent(payload.type, payload.name, payload.invitedList, payload.dueDate, payload.email);
         } else {
           // Simulation for local development
           const newEvent = {
@@ -1161,7 +1208,7 @@
           }));
           showToastNotification(`[LOCAL SIM] Successfully created ${payload.type} event: "${payload.name}"`);
           setShowSetModal(false);
-          setSetEventEntry({ type: 'Skill', name: '', dueDate: '', assignedMembers: [] });
+          setSetEventEntry({ type: 'Skill', name: '', dueDate: todayForInput(), assignedMembers: [] });
           setSyncing(false);
         }
       };
@@ -1224,7 +1271,7 @@
               alert("Error adding event to sheet");
               setSyncing(false);
             })
-            .logEvent(payload.type, payload.name, invitees, payload.dueDate);
+            .logEvent(payload.type, payload.name, invitees, payload.dueDate, payload.email);
         } else {
           // Simulation for local development
           const newEvent = {
@@ -1261,13 +1308,13 @@
               alert("Error registering attendance");
               setSyncing(false);
             })
-            .attendEvent(eventId, currentUser.Name);
+            .attendEvent(eventId, currentUser.Name, activeUserSession.email);
         } else {
           // Simulation
           setTeamData(prev => {
             const updatedLogs = prev.logs.map(log => {
               if (parseFloat(log["Event ID"]) === parseFloat(eventId)) {
-                let list = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+                let list = splitPeople(log["Attendees/Completed"]);
                 if (!list.includes(currentUser.Name)) {
                   list.push(currentUser.Name);
                 }
@@ -1335,12 +1382,11 @@
         // 2. Learning Track Statistics
         const userLearningEvents = teamData.logs.filter(log => {
           if (log["Event Type"] !== 'Learning' && log["Event Type"] !== 'Skill') return false;
-          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          const invited = splitPeople(log["Invited/Assigned"]);
           return invited.some(inv => normalizeName(inv) === nameNorm);
         });
         const completedLearningCount = userLearningEvents.filter(log => {
-          const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('
-') : [];
+          const completed = splitPeople(log["Attendees/Completed"]);
           return completed.some(comp => normalizeName(comp) === nameNorm);
         }).length;
         const invitedLearningCount = userLearningEvents.length;
@@ -1354,8 +1400,7 @@
             (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
             normalizeName(log["Event Name"]) === normalizeName(cName) &&
             log["Attendees/Completed"] && 
-            log["Attendees/Completed"].split('
-').some(c => normalizeName(c) === nameNorm)
+            splitPeople(log["Attendees/Completed"]).some(c => normalizeName(c) === nameNorm)
           );
         }).length;
         const learningProgress = totalCoursesInDb > 0 ? Math.round((completedCoursesInDb / totalCoursesInDb) * 100) : 0;
@@ -1377,10 +1422,10 @@
           );
 
           if (matchingSkillLog) {
-            const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
-            const invitedList = matchingSkillLog["Invited/Assigned"] ? matchingSkillLog["Invited/Assigned"].split('\n') : [];
+            const completedList = splitPeople(matchingSkillLog["Attendees/Completed"]);
+            const invitedList = splitPeople(matchingSkillLog["Invited/Assigned"]);
             
-            if (completedList.some(c => normalizeName(compName => compName === nameNorm))) {
+            if (completedList.some(c => normalizeName(c) === nameNorm)) {
               score = 95;
             } else if (invitedList.some(i => normalizeName(i) === nameNorm)) {
               const overdue = new Date(matchingSkillLog["Due to Date"]) < new Date();
@@ -1405,11 +1450,11 @@
         // 4. Meeting attendance
         const userMeets = teamData.logs.filter(log => log["Event Type"] === 'Meet');
         const attendedMeets = userMeets.filter(log => {
-          const attendees = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n') : [];
+          const attendees = splitPeople(log["Attendees/Completed"]);
           return attendees.some(att => normalizeName(att) === nameNorm);
         }).length;
         const invitedMeets = userMeets.filter(log => {
-          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
+          const invited = splitPeople(log["Invited/Assigned"]);
           return invited.some(inv => normalizeName(inv) === nameNorm);
         }).length;
 
@@ -1482,7 +1527,7 @@
                 (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
                 normalizeName(log["Event Name"]) === normalizeName(courseName) &&
                 log["Attendees/Completed"] && 
-                log["Attendees/Completed"].split('\n').some(c => normalizeName(c) === memberNameNorm)
+                splitPeople(log["Attendees/Completed"]).some(c => normalizeName(c) === memberNameNorm)
               );
               if (isCompleted) {
                 const estimatedHours = parseFloat(course["Estimated Hours"]) || 5;
@@ -1504,8 +1549,8 @@
         if (teamData.logs) {
           teamData.logs.forEach(log => {
             if (log["Event Type"] === 'Meet' || log["Event Type"] === 'Skill') {
-              const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').filter(n => n.trim().length > 0) : [];
-              const attended = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').filter(n => n.trim().length > 0) : [];
+              const invited = splitPeople(log["Invited/Assigned"]);
+              const attended = splitPeople(log["Attendees/Completed"]);
               totalInvited += invited.length;
               totalAttended += attended.length;
             }
@@ -1539,8 +1584,8 @@
             ) : null;
 
             if (matchingSkillLog) {
-              const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
-              const invitedList = matchingSkillLog["Invited/Assigned"] ? matchingSkillLog["Invited/Assigned"].split('\n') : [];
+              const completedList = splitPeople(matchingSkillLog["Attendees/Completed"]);
+              const invitedList = splitPeople(matchingSkillLog["Invited/Assigned"]);
               
               if (completedList.some(c => normalizeName(c) === nameNorm)) {
                 score = 95;
@@ -1625,8 +1670,8 @@
             if (teamData.logs) {
               teamData.logs.forEach(log => {
                 if ((log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && normalizeName(log["Event Name"]) === normalizeName(courseName)) {
-                  const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').filter(n => n.trim().length > 0) : [];
-                  const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').filter(n => n.trim().length > 0) : [];
+                  const invited = splitPeople(log["Invited/Assigned"]);
+                  const completed = splitPeople(log["Attendees/Completed"]);
                   trackStats[trackName].enrolled += invited.length;
                   trackStats[trackName].completed += completed.length;
                 }
@@ -1650,12 +1695,12 @@
           today.setHours(0,0,0,0);
 
           teamData.logs.forEach(log => {
-            const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').filter(n => n.trim().length > 0) : [];
+            const invited = splitPeople(log["Invited/Assigned"]);
             const isGlobal = invited.length >= teamData.team.length * 0.8 || log["Invited/Assigned"] === "All" || log["Invited/Assigned"] === "All Team";
             const due = log["Due to Date"] ? new Date(log["Due to Date"]) : null;
 
             if (isGlobal && due && due >= today) {
-              const completedCount = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').filter(n => n.trim().length > 0).length : 0;
+              const completedCount = splitPeople(log["Attendees/Completed"]).length;
               const attendancePercentage = invited.length > 0 ? Math.round((completedCount / invited.length) * 100) : 0;
 
               globalMilestones.push({
@@ -1765,8 +1810,8 @@
         today.setHours(0,0,0,0);
 
         return teamData.logs.map(log => {
-          const invitedList = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n').map(x => x.trim()) : [];
-          const completedList = log["Attendees/Completed"] ? log["Attendees/Completed"].split('\n').map(x => x.trim()) : [];
+          const invitedList = splitPeople(log["Invited/Assigned"]);
+          const completedList = splitPeople(log["Attendees/Completed"]);
           
           const isInvited = invitedList.some(i => normalizeName(i) === nameNorm);
           const isCompleted = completedList.some(c => normalizeName(c) === nameNorm);
@@ -1827,6 +1872,8 @@
 
         const tasksFactor = metrics.tasksAssigned > 0 ? Math.min(2, Math.floor(metrics.tasksCompleted / 2)) : 0;
         const learningFactor = Math.floor(metrics.learningProgress / 40);
+        const examFactor = Math.floor((metrics.examProgress || 0) / 50);
+        const commitmentFactor = Math.floor((metrics.commitment || 0) / 50);
 
         // Parse serialized ratings from columns
         const parseSerializedRatings = (serializedStr) => {
@@ -1889,7 +1936,7 @@
 
         const hardSkills = hardCategories.map((cat, idx) => {
           const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed1, seed2, seed3, seed4, seed5][idx];
-          const factor = (idx === 0) ? tasksFactor : (idx === 1) ? learningFactor : 0;
+          const factor = (idx === 0) ? tasksFactor : (idx === 1) ? learningFactor : (idx === 8) ? examFactor : 0;
           const val = getMatchedRating(parsedHard, cat, defaultSeed);
           return Math.min(10, val + factor);
         });
@@ -1905,7 +1952,7 @@
 
         const softSkills = softCategories.map((cat, idx) => {
           const defaultSeed = [seed3, seed1, seed2, seed5, seed6][idx];
-          const factor = (idx === 0 || idx === 3) ? tasksFactor : (idx === 2) ? learningFactor : 0;
+          const factor = (idx === 0 || idx === 3) ? tasksFactor : (idx === 2) ? learningFactor : (idx === 4) ? commitmentFactor : 0;
           let val = getMatchedRating(parsedSoft, cat, defaultSeed);
           if (idx === 1 && member.Rule && member.Rule.toLowerCase().includes('lead')) {
             val = 9;
@@ -1928,7 +1975,7 @@
 
         const techSkills = techCategories.map((cat, idx) => {
           const defaultSeed = [seed1, seed2, seed3, seed4, seed5, seed6, seed2, seed3, seed4][idx];
-          const factor = (idx === 4) ? tasksFactor : (idx === 6) ? learningFactor : 0;
+          const factor = (idx === 4) ? tasksFactor : (idx === 6) ? learningFactor : (idx === 7) ? examFactor : 0;
           const val = getMatchedRating(parsedTech, cat, defaultSeed);
           return Math.min(10, val + factor);
         });
@@ -1940,7 +1987,7 @@
           Math.min(10, Math.max(1, (seed4 + learningFactor))), // Conceptual Ret.
           Math.min(10, Math.max(1, (seed5 + tasksFactor))), // Practical Apps
           Math.min(10, Math.max(1, (seed1 + learningFactor))), // Self-Study Pace
-          Math.min(10, Math.max(1, (seed2 + 1))) // Alignment Meetings
+          Math.min(10, Math.max(1, Math.round((metrics.commitment || 0) / 10))) // Alignment Meetings / commitment
         ];
 
         return {
@@ -2146,79 +2193,224 @@
         }
       };
 
-      // Calculate member performance dynamic matrix for Team tab
+      // One scoring model powers the dashboard, member cards and CV export.
       const getMemberMetrics = (member) => {
         const nameNorm = normalizeName(member.Name);
-        
-        const mTasks = teamData.tasks.filter(t => {
-          if (!t.Assignees) return false;
-          return t.Assignees.split(',').some(assignee => normalizeName(assignee) === nameNorm);
-        });
-        const completedCount = mTasks.filter(t => t.Status && t.Status.toLowerCase() === 'completed').length;
-        
-        const mLearningEvents = teamData.logs.filter(log => {
-          if (log["Event Type"] !== 'Learning' && log["Event Type"] !== 'Skill') return false;
-          const invited = log["Invited/Assigned"] ? log["Invited/Assigned"].split('\n') : [];
-          return invited.some(inv => normalizeName(inv) === nameNorm);
-        });
-        const completedLearning = mLearningEvents.filter(log => {
-          const completed = log["Attendees/Completed"] ? log["Attendees/Completed"].split('
-') : [];
-          return completed.some(comp => normalizeName(comp) === nameNorm);
-        }).length;
-        
-        // Dynamic DB-aligned learning progress
-        const totalCoursesInDb = teamData.learning.filter(track => track["Course Name"] || track["Topic name"]).length;
-        const completedCoursesInDb = teamData.learning.filter(track => {
-          const cName = track["Course Name"] || track["Topic name"];
-          if (!cName) return false;
-          return teamData.logs.some(log => 
-            (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') && 
-            normalizeName(log["Event Name"]) === normalizeName(cName) &&
-            log["Attendees/Completed"] && 
-            log["Attendees/Completed"].split('
-').some(c => normalizeName(c) === nameNorm)
-          );
-        }).length;
-        const learningProgress = totalCoursesInDb > 0 ? Math.round((completedCoursesInDb / totalCoursesInDb) * 100) : 0;
+        const mTasks = (teamData.tasks || []).filter(t => splitPeople(t.Assignees).some(person => normalizeName(person) === nameNorm));
+        const completedTasks = mTasks.filter(t => isCompletedStatus(t.Status));
+        const taskScoreValues = completedTasks.map(t => parseScore(t.Score, 0)).filter(score => score > 0);
+        const taskScore = taskScoreValues.length ? (taskScoreValues.reduce((a, b) => a + b, 0) / taskScoreValues.length) * 10 : 0;
 
-        // Generate skill scores
-        const baseSkills = [...new Set([
-          ...(teamData.skills || []).map(s => s["Skill Name"] || s["SkillName"] || s["skill name"]).filter(Boolean),
-          'Leadership',
-          'Communication',
-          'Problem Solving'
-        ])];
+        const courseRows = (teamData.learning || []).filter(course => course["Course Name"] || course["Topic name"]);
+        const completedCourseRows = courseRows.filter(course => {
+          const title = course["Course Name"] || course["Topic name"];
+          return (teamData.logs || []).some(log =>
+            (log["Event Type"] === 'Learning' || log["Event Type"] === 'Skill') &&
+            normalizeName(log["Event Name"]) === normalizeName(title) &&
+            splitPeople(log["Attendees/Completed"]).some(person => normalizeName(person) === nameNorm)
+          );
+        });
+        const learningProgress = courseRows.length ? Math.round((completedCourseRows.length / courseRows.length) * 100) : 0;
+
+        const memberExamLogs = (teamData.logs || []).filter(log => log["Event Type"] === 'Exam' && splitPeople(log["Invited/Assigned"]).some(person => normalizeName(person) === nameNorm));
+        const completedExams = memberExamLogs.filter(log => splitPeople(log["Attendees/Completed"]).some(person => normalizeName(person) === nameNorm));
+        const examScoreRows = completedExams.map(log => parseScore(log.Score || log["Exam Score"], 0)).filter(score => score > 0);
+        const examProgress = memberExamLogs.length ? Math.round((completedExams.length / memberExamLogs.length) * 100) : 0;
+        const examScore = examScoreRows.length ? (examScoreRows.reduce((a, b) => a + b, 0) / examScoreRows.length) * 10 : examProgress;
+
+        const eventRows = (teamData.logs || []).filter(log => ['Meet', 'Skill', 'Learning', 'Exam'].includes(log["Event Type"]));
+        const invited = eventRows.filter(log => splitPeople(log["Invited/Assigned"]).some(person => normalizeName(person) === nameNorm));
+        const attended = invited.filter(log => splitPeople(log["Attendees/Completed"]).some(person => normalizeName(person) === nameNorm));
+        const commitment = invited.length ? Math.round((attended.length / invited.length) * 100) : 0;
+
+        const rawRatings = [member["Hard Skill"], member["Soft Skill"], member.Technology, member.Personality, member.Abilities, member.Education].flatMap(parseRatingColumn);
+        const profileScore = rawRatings.length ? (rawRatings.reduce((sum, item) => sum + item.score, 0) / rawRatings.length) * 10 : 45;
+        const overallScore = Math.round(Math.min(100, Math.max(0, profileScore * .35 + learningProgress * .2 + taskScore * .2 + examScore * .15 + commitment * .1)));
+        const baseSkills = [...new Set([...(teamData.skills || []).map(s => s["Skill Name"] || s.SkillName || s["skill name"]).filter(Boolean), 'Learning', 'Delivery', 'Commitment', 'Exams'])];
         const skills = baseSkills.map(subject => {
-          let score = 40;
-          const matchingSkillLog = teamData.logs.find(log => 
-            log["Event Type"] === 'Skill' && 
-            normalizeName(log["Event Name"]) === normalizeName(subject)
-          );
-
-          if (matchingSkillLog) {
-            const completedList = matchingSkillLog["Attendees/Completed"] ? matchingSkillLog["Attendees/Completed"].split('\n') : [];
-            if (completedList.some(c => normalizeName(c) === nameNorm)) {
-              score = 95;
-            }
-          }
-
-          if (subject === 'Leadership' && (member.Rule && member.Rule.toLowerCase().includes('lead') || member.Rule && member.Rule.toLowerCase().includes('supervisor'))) {
-            score = 95;
-          }
-          if (subject === 'Communication' && completedCount > 0) {
-            score += Math.min(30, completedCount * 10);
-          }
-          return { subject, score: Math.min(100, score) };
+          const matched = rawRatings.find(item => normalizeName(item.label).includes(normalizeName(subject)) || normalizeName(subject).includes(normalizeName(item.label)));
+          let score = matched ? matched.score * 10 : overallScore;
+          if (normalizeName(subject) === 'learning') score = learningProgress;
+          if (normalizeName(subject) === 'delivery') score = mTasks.length ? Math.round((completedTasks.length / mTasks.length) * 100) : 0;
+          if (normalizeName(subject) === 'commitment') score = commitment;
+          if (normalizeName(subject) === 'exams') score = examScore;
+          return { subject, score: Math.round(Math.min(100, Math.max(0, score))) };
         });
-
-        return {
-          tasksCompleted: completedCount,
-          tasksAssigned: mTasks.length,
-          learningProgress,
-          skills
-        };
+        return { tasksCompleted: completedTasks.length, tasksAssigned: mTasks.length, learningProgress, completedLearning: completedCourseRows.length, totalLearning: courseRows.length, examProgress, commitment, overallScore, skills };
       };
+
+      const applyTaskLocally = (title, changes) => {
+        setTeamData(previous => ({
+          ...previous,
+          tasks: previous.tasks.map(task => task["Task Title"] === title ? { ...task, ...changes } : task)
+        }));
+      };
+
+      const persistTaskUpdate = (task, changes) => {
+        const payload = { action: 'updateTask', title: task["Task Title"], email: activeUserSession.email, ...changes };
+        const localChanges = {};
+        if (changes.status !== undefined) localChanges.Status = changes.status;
+        if (changes.score !== undefined) localChanges.Score = changes.score;
+        if (changes.feedback !== undefined) localChanges.Feedback = changes.feedback;
+        if (changes.ata !== undefined) localChanges.ATA = changes.ata;
+        if (changes.archived !== undefined) localChanges.Archived = changes.archived ? 'TRUE' : '';
+        applyTaskLocally(task["Task Title"], localChanges);
+        setSyncing(true);
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run.withSuccessHandler(() => { setSyncing(false); showToastNotification('Task updated and synchronized'); })
+            .withFailureHandler(error => { console.error(error); setSyncing(false); showToastNotification('Task saved locally; sheet update failed'); })
+            .updateTaskStatus(payload);
+          return;
+        }
+        const backendUrl = teamData.webAppUrl || '';
+        if (backendUrl) {
+          fetch(backendUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), mode: 'no-cors' })
+            .then(() => { setSyncing(false); showToastNotification('Task updated'); })
+            .catch(() => { setSyncing(false); showToastNotification('Task saved locally; sync will retry'); });
+        } else {
+          setSyncing(false);
+          showToastNotification('Task updated in local workspace');
+        }
+      };
+
+      const handleTaskDrop = (status) => {
+        if (!draggedTaskTitle) return;
+        const task = (teamData.tasks || []).find(item => item["Task Title"] === draggedTaskTitle);
+        if (task) persistTaskUpdate(task, { status });
+        setDraggedTaskTitle(null);
+      };
+      const openTaskEditor = (task) => {
+        setEditingTaskTitle(task['Task Title']);
+        setTaskDraft({ title: task['Task Title'] || '', description: task['Task description'] || '', dod: task['Break down (DOD)'] || '', assignees: splitPeople(task.Assignees), status: task.Status || 'Pending', eta: task.ETA || '', scale: task.Scale || 'day' });
+        setShowTaskModal(true);
+      };
+
+      const archiveTask = (task) => {
+        setArchivedTaskTitles(previous => previous.includes(task["Task Title"]) ? previous : [...previous, task["Task Title"]]);
+        persistTaskUpdate(task, { archived: true });
+      };
+
+      const restoreTask = (task) => {
+        setArchivedTaskTitles(previous => previous.filter(title => title !== task["Task Title"]));
+        persistTaskUpdate(task, { archived: false });
+      };
+
+      const handleCreateTask = (event) => {
+        event.preventDefault();
+        if (!taskDraft.title.trim() || !taskDraft.assignees.length) return;
+        if (editingTaskTitle) {
+          const originalTitle = editingTaskTitle;
+          const changes = { newTitle: taskDraft.title.trim(), description: taskDraft.description, dod: taskDraft.dod, assignees: taskDraft.assignees, eta: taskDraft.eta, scale: taskDraft.scale };
+          setTeamData(previous => ({ ...previous, tasks: previous.tasks.map(item => item['Task Title'] === originalTitle ? { ...item, 'Task Title': changes.newTitle, 'Task description': changes.description, 'Break down (DOD)': changes.dod, Assignees: changes.assignees.join(','), ETA: changes.eta, Scale: changes.scale } : item) }));
+          setEditingTaskTitle(null); setShowTaskModal(false); setTaskDraft({ title: '', description: '', dod: '', assignees: [], status: 'Pending', eta: '', scale: 'day' });
+          const payload = { action: 'updateTask', title: originalTitle, email: activeUserSession.email, ...changes };
+          if (typeof google !== 'undefined' && google.script && google.script.run) google.script.run.withSuccessHandler(() => showToastNotification('Task details updated and synchronized')).withFailureHandler(() => showToastNotification('Task details saved locally; sheet update failed')).updateTaskStatus(payload);
+          return;
+        }
+        const task = { "Task Title": taskDraft.title.trim(), "Task description": taskDraft.description, "Break down (DOD)": taskDraft.dod, Assignees: taskDraft.assignees.join(','), Status: taskDraft.status || 'Pending', Score: '', ETA: taskDraft.eta, Scale: taskDraft.scale };
+        setTeamData(previous => ({ ...previous, tasks: [task, ...previous.tasks] }));
+        setShowTaskModal(false);
+        setTaskDraft({ title: '', description: '', dod: '', assignees: [], status: 'Pending', eta: '', scale: 'day' });
+        const payload = { action: 'createTask', email: activeUserSession.email, title: task["Task Title"], description: task["Task description"], dod: task["Break down (DOD)"], assignees: taskDraft.assignees, status: task.Status, eta: task.ETA, scale: task.Scale };
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run.withSuccessHandler(() => showToastNotification('Task created and synchronized')).withFailureHandler(() => showToastNotification('Task created locally; sheet update failed')).createTask(payload);
+        } else {
+          showToastNotification('Task created in local workspace');
+        }
+      };
+
+      const exportMemberCVLegacy = (member) => {
+        if (!member) return;
+        const metrics = getMemberMetrics(member);
+        const education = getMemberEducation(member);
+        const profile = getMemberProfileData(member);
+        const skills = metrics.skills.map(skill => `<li><span>${skill.subject}</span><strong>${skill.score}/100</strong></li>`).join('');
+        const educationHtml = education.map(item => `<p><b>${item.degree}</b><br><span>${item.detail || ''}</span></p>`).join('');
+        const popup = window.open('', '_blank', 'width=900,height=900');
+        if (!popup) return;
+        popup.document.write(`<html><head><title>${member.Name} — Azar CV</title><style>body{font:15px Arial;color:#182033;max-width:820px;margin:0 auto;padding:44px;line-height:1.55}h1{font-size:34px;margin:0;color:#312e81}h2{font-size:14px;text-transform:uppercase;letter-spacing:.14em;border-bottom:2px solid #e0e7ff;padding-bottom:8px;margin-top:28px;color:#4338ca}ul{list-style:none;padding:0}li{display:flex;justify-content:space-between;border-bottom:1px solid #eef2ff;padding:7px 0}span{color:#64748b}.meta{color:#64748b}p{margin:10px 0}</style></head><body><h1>${member.Name}</h1><div class="meta">${member.Rule || 'Azar Project Team Member'} · ID ${member.ID || 'N/A'} · ${member.Mail || ''}</div><h2>Performance snapshot</h2><p>Overall score: <b>${metrics.overallScore}/100</b> · Delivery: <b>${metrics.tasksCompleted}/${metrics.tasksAssigned}</b> · Learning: <b>${metrics.learningProgress}%</b> · Commitment: <b>${metrics.commitment}%</b></p><h2>Skill matrix</h2><ul>${skills}</ul><h2>Education</h2>${educationHtml}<h2>Professional profile</h2><p>${(profile.skills || []).flatMap(group => group.items || []).join(' · ')}</p></body></html>`);
+        popup.document.close();
+        popup.focus();
+        popup.print();
+      };
+
+      const exportMemberCV = async (member) => {
+        if (!member) return;
+        const metrics = getMemberMetrics(member);
+        const education = getMemberEducation(member);
+        const profile = getMemberProfileData(member);
+        const docxApi = window.docx;
+        if (!docxApi) {
+          showToastNotification('DOCX export is unavailable; please reload and try again');
+          return;
+        }
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle } = docxApi;
+        const ink = '172033';
+        const purple = '5B21B6';
+        const violet = '7C3AED';
+        const muted = '64748B';
+        const line = 'E2E8F0';
+        const clean = value => String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+        const metricCell = (value, label) => new TableCell({
+          width: { size: 25, type: WidthType.PERCENTAGE },
+          shading: { fill: 'F5F3FF', type: ShadingType.CLEAR },
+          margins: { top: 120, bottom: 120, left: 140, right: 140 },
+          children: [
+            new Paragraph({ children: [new TextRun({ text: String(value), bold: true, size: 22, color: purple })], spacing: { after: 30 } }),
+            new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), bold: true, size: 13, color: muted })] })
+          ]
+        });
+        const sectionHeading = label => new Paragraph({
+          children: [new TextRun({ text: label.toUpperCase(), bold: true, size: 17, color: violet, characterSpacing: 24 })],
+          spacing: { before: 260, after: 100 },
+          border: { bottom: { color: line, style: BorderStyle.SINGLE, size: 6, space: 5 } }
+        });
+        const skillRows = (metrics.skills || []).slice(0, 12).map(skill => new TableRow({ children: [
+          new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: clean(skill.subject), size: 16, color: ink })] })] }),
+          new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `${skill.score}/100`, bold: true, size: 16, color: purple })] })] })
+        ]}));
+        const assignedTasks = (teamData.tasks || []).filter(task => splitPeople(task.Assignees).some(owner => owner.toLowerCase() === clean(member.Name).toLowerCase())).slice(0, 5);
+        const profileItems = (profile.skills || []).flatMap(group => group.items || []).map(clean).filter(Boolean).slice(0, 10);
+        const cvChildren = [
+          new Paragraph({ children: [new TextRun({ text: clean(member.Name), bold: true, size: 36, color: purple })], spacing: { after: 40 } }),
+          new Paragraph({ children: [new TextRun({ text: clean(member.Rule || 'Team Member'), bold: true, size: 20, color: ink })], spacing: { after: 40 } }),
+          new Paragraph({ children: [new TextRun({ text: [member.Mail, member.ID ? `ID ${member.ID}` : ''].filter(Boolean).map(clean).join('  ·  '), size: 16, color: muted })], spacing: { after: 220 } }),
+          new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } }, rows: [new TableRow({ children: [metricCell(metrics.overallScore + '/100', 'Overall score'), metricCell(`${metrics.tasksCompleted}/${metrics.tasksAssigned}`, 'Tasks delivered'), metricCell(`${metrics.learningProgress}%`, 'Learning'), metricCell(`${metrics.commitment}%`, 'Commitment')] })] }),
+          sectionHeading('Professional profile'),
+          new Paragraph({ children: [new TextRun({ text: `Performance-focused ${clean(member.Rule || 'team member')} contributing to ASAR Project Team delivery, learning, and continuous improvement.`, size: 17, color: ink })], spacing: { after: 100, line: 276 } }),
+          sectionHeading('Technical skills'),
+          new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { insideHorizontal: { color: line, style: BorderStyle.SINGLE, size: 3 }, bottom: { color: line, style: BorderStyle.SINGLE, size: 3 } }, rows: skillRows }),
+          profileItems.length ? sectionHeading('Strengths & working style') : null,
+          ...profileItems.map(item => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 50 } })),
+          education.length ? sectionHeading('Education & credentials') : null,
+          ...education.map(item => new Paragraph({ children: [new TextRun({ text: clean(item.degree), bold: true, size: 17, color: ink }), new TextRun({ text: item.detail ? `  ·  ${clean(item.detail)}` : '', size: 16, color: muted })], spacing: { after: 70 } })),
+          assignedTasks.length ? sectionHeading('Selected delivery') : null,
+          ...assignedTasks.map(task => new Paragraph({ children: [new TextRun({ text: `${clean(task['Task Title'])}  `, bold: true, size: 16, color: ink }), new TextRun({ text: `${clean(task.Status || 'Pending')} · Score ${clean(task.Score || '—')}`, size: 15, color: muted })], bullet: { level: 0 }, spacing: { after: 50 } })),
+          new Paragraph({ children: [new TextRun({ text: `Prepared from ASAR Project Team workspace data · ${todayForInput()}`, italic: true, size: 13, color: muted })], spacing: { before: 280 } })
+        ].filter(Boolean);
+        const cvDocument = new Document({ sections: [{ properties: { page: { margin: { top: 620, right: 700, bottom: 620, left: 700 } } }, children: cvChildren }] });
+        const blob = await Packer.toBlob(cvDocument);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${clean(member.Name).replace(/[^a-z0-9]+/gi, '-')}-ASAR-CV.docx`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToastNotification('Modern DOCX CV downloaded');
+      };
+
+      if (dataError) {
+        return (
+          <div class="asar-app min-h-screen flex items-center justify-center p-6">
+            <div class="w-full max-w-md rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-saas-lg">
+              <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600"><Icon name="database-zap" className="h-7 w-7" /></div>
+              <h1 class="text-xl font-black text-slate-900">Spreadsheet connection required</h1>
+              <p class="mt-3 text-sm leading-6 text-slate-500">{dataError}</p>
+              <button onClick={() => fetchData()} class="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white"><Icon name="refresh-cw" className="h-4 w-4" /> Try again</button>
+            </div>
+          </div>
+        );
+      }
 
       if (loading) {
         return (
@@ -2227,27 +2419,27 @@
               <div class="absolute inset-0 rounded-full border-4 border-violet-100"></div>
               <div class="absolute inset-0 rounded-full border-4 border-violet-500 border-t-transparent animate-spin"></div>
             </div>
-            <p class="text-slate-600 font-semibold tracking-wide">Synthesizing Azar Workspace...</p>
+            <p class="text-slate-600 font-semibold tracking-wide">Synthesizing ASAR Workspace...</p>
             <p class="text-slate-400 text-xs mt-2">Reading database records from Google Sheet</p>
           </div>
         );
       }
 
       return (
-        <div class="min-h-screen pb-16">
+        <div class="asar-app min-h-screen pb-16">
           
           {/* TOP HEADER */}
-          <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100">
+          <header class="asar-shell-header bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div class="flex items-center justify-between h-16">
                 
                 {/* Brand Logo */}
-                <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md shadow-brand-200">
-                    A
+                <div class="asar-brand-lockup flex items-center gap-3">
+                  <div class="asar-brand-mark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white font-extrabold shadow-md shadow-brand-200">
+                    <Icon name="layers-3" className="h-5 w-5" />
                   </div>
-                  <div>
-                    <span class="font-extrabold text-lg text-slate-900 tracking-tight block">Azar Project Team</span>
+                  <div class="whitespace-nowrap">
+                    <span class="asar-brand-title font-extrabold text-lg text-slate-900 tracking-tight block">ASAR Project Team</span>
                     <span class="text-[10px] text-slate-400 font-medium block -mt-1 uppercase tracking-wider">Workspace Dashboard</span>
                   </div>
                 </div>
@@ -2256,6 +2448,7 @@
                 <div class="hidden md:flex bg-slate-50 p-1 rounded-xl border border-slate-100 gap-1">
                   {[
                     { id: 'dashboard', name: 'Dashboard', icon: 'layout-dashboard' },
+                    { id: 'tasks', name: 'Tasks', icon: 'check-square-2' },
                     { id: 'learning', name: 'Learning Tracks', icon: 'graduation-cap' },
                     { id: 'team', name: 'Team Intelligence', icon: 'users' }
                   ].map((tab) => (
@@ -2276,11 +2469,16 @@
 
                 {/* Member Selector & Controls */}
                 <div class="flex items-center gap-3">
+
+                  <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} class="theme-toggle inline-flex w-[4.5rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-100 px-2.5 py-2 text-[10px] font-extrabold text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition-colors" title="Toggle light or dark theme" aria-label="Toggle light or dark theme">
+                    <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="w-4 h-4" />
+                    <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                  </button>
                   
                   {/* Set Event Trigger */}
                   <button 
                     onClick={() => setShowSetModal(true)}
-                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm shadow-indigo-100"
+                    class="asar-header-action flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm shadow-indigo-100"
                   >
                     <Icon name="calendar-plus" className="w-3.5 h-3.5" />
                     Set Event
@@ -2289,28 +2487,20 @@
                   {/* Log Event Trigger */}
                   <button 
                     onClick={() => setShowLogModal(true)}
-                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
+                    class="asar-header-action flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-500 text-white font-semibold text-xs transition-all shadow-sm hover:bg-brand-600 shadow-brand-100"
                   >
                     <Icon name="plus" className="w-3.5 h-3.5" />
                     Log Event
                   </button>
 
-                  {/* Simulated Profile Dropdown */}
-                  <div class="relative flex items-center bg-slate-50 rounded-xl border border-slate-100 pl-3 pr-2 py-1 gap-2">
+                  {/* Authenticated account context */}
+                  <div class="asar-account-card relative flex items-center bg-slate-50 rounded-xl border border-slate-100 pl-3 pr-3 py-1 gap-2">
                     <div class="w-7 h-7 rounded-full bg-brand-50 text-brand-600 font-bold text-xs flex items-center justify-center border border-brand-200 uppercase">
-                      {currentUser ? currentUser.Name.charAt(0) : '?'}
+                      {(activeUserSession.name || activeUserSession.email || '?').charAt(0)}
                     </div>
-                    <div class="text-left select-none mr-1">
-                      <select
-                        value={currentUser ? currentUser.Name : ''}
-                        onChange={(e) => handleUserChange(e.target.value)}
-                        class="bg-transparent text-slate-700 font-bold text-xs outline-none cursor-pointer pr-1"
-                      >
-                        {teamData.team.map((m, idx) => (
-                          <option key={idx} value={m.Name}>{m.Name}</option>
-                        ))}
-                      </select>
-                      <p class="text-[9px] text-slate-400 font-medium -mt-0.5">{currentUser ? (currentUser.Rule || 'Team Member') : ''}</p>
+                    <div class="asar-account-details text-left select-none mr-1">
+                      <p class="text-xs font-bold text-slate-700 leading-tight">{activeUserSession.name || 'Signed-in member'}</p>
+                      <p class="max-w-[170px] truncate text-[9px] text-slate-400 font-medium -mt-0.5">{activeUserSession.email}</p>
                     </div>
                   </div>
 
@@ -2372,8 +2562,25 @@
             {activeTab === 'dashboard' && (
               <div class="space-y-6">
                 
-                {/* 1. Landing Page Hero Section: Aggregate KPIs */}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* 1. Animated landing hero */}
+                <section data-reveal class="azar-hero relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-12 text-white shadow-2xl azar-reveal">
+                  <div class="azar-orb absolute -right-8 -top-12 h-48 w-48 rounded-full bg-fuchsia-400/20 blur-2xl"></div>
+                  <div class="azar-orb delay absolute bottom-[-4rem] left-1/3 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl"></div>
+                  <div class="azar-grid pointer-events-none absolute inset-0 opacity-60"></div>
+                  <div class="relative max-w-3xl">
+                    <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.2em] text-cyan-100"><span class="h-2 w-2 animate-pulse rounded-full bg-emerald-300"></span> Live team intelligence</div>
+                    <h1 class="text-3xl font-black tracking-tight sm:text-5xl">Move the whole team forward, beautifully.</h1>
+                    <p class="mt-4 max-w-2xl text-sm leading-7 text-indigo-100 sm:text-base">ASAR turns tasks, learning, exams, skills, and commitment into one clear pulse for your project—so every win compounds into a stronger team.</p>
+                    <div class="mt-7 flex flex-wrap gap-3"><button onClick={() => setActiveTab('tasks')} class="rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-indigo-700 shadow-lg transition hover:-translate-y-0.5">Open task command center</button><button onClick={() => setActiveTab('learning')} class="rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/20">Explore learning paths</button></div>
+                  </div>
+                  <div class="pointer-events-none absolute bottom-8 right-8 hidden w-64 lg:block">
+                    <div class="azar-float-card rounded-2xl border border-white/20 bg-slate-950/30 p-4 shadow-2xl backdrop-blur-md"><div class="flex items-center justify-between text-[10px] font-bold text-indigo-100"><span>Team pulse</span><span class="flex items-center gap-1 text-emerald-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span> Live</span></div><div class="mt-4 flex items-end gap-1"><span class="text-4xl font-black text-white">{teamDashboardStats.completionRate}%</span><span class="mb-1 text-[10px] text-indigo-100">delivery</span></div><div class="mt-3 h-2 overflow-hidden rounded-full bg-white/15"><div class="h-full rounded-full bg-gradient-to-r from-cyan-300 to-fuchsia-300" style={{ width: `${Math.max(8, teamDashboardStats.completionRate)}%` }}></div></div></div>
+                    <div class="azar-float-card delay mt-3 ml-8 rounded-2xl border border-white/20 bg-white/10 p-3 shadow-xl backdrop-blur-md"><div class="flex items-center gap-2 text-xs font-bold text-white"><Icon name="sparkles" className="h-4 w-4 text-cyan-200" /> Momentum is compounding</div><p class="mt-1 text-[10px] text-indigo-100">Tasks, learning, and commitment reinforce the matrix.</p></div>
+                  </div>
+                </section>
+
+                {/* 2. Aggregate KPIs */}
+                <div data-reveal class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   
                   {/* KPI 1: Workspace Completion Rate */}
                   <Card>
@@ -2445,7 +2652,7 @@
                 </div>
 
                 {/* 2. Team-Wide Analytics (Interactive Graphs) */}
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div data-reveal class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Graph 1: Team Skill Blueprint (Radar Chart) (Col Span 2) */}
                   <Card class="lg:col-span-2 flex flex-col justify-between">
@@ -2497,7 +2704,7 @@
                   </Card>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div data-reveal class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Graph 3: Global Workspace Velocity (Area Chart) (Col Span 2) */}
                   <Card class="lg:col-span-2">
@@ -2614,7 +2821,53 @@
               </div>
             )}
 
-            {/* -------------------- Tab 2: LEARNING TRACKS PANEL -------------------- */}
+            {/* -------------------- Tab 2: TASK COMMAND CENTER -------------------- */}
+            {activeTab === 'tasks' && (() => {
+              const kanbanColumns = [
+                { id: 'Backlog', label: 'Backlog', icon: 'inbox', tint: 'border-slate-200 bg-slate-50/70' },
+                { id: 'Pending', label: 'To do', icon: 'circle-dashed', tint: 'border-amber-200 bg-amber-50/50' },
+                { id: 'InProgress', label: 'In progress', icon: 'loader-circle', tint: 'border-blue-200 bg-blue-50/50' },
+                { id: 'Completed', label: 'Done', icon: 'check-circle-2', tint: 'border-emerald-200 bg-emerald-50/50' },
+                { id: 'Blocked', label: 'Blocked', icon: 'octagon-alert', tint: 'border-rose-200 bg-rose-50/50' }
+              ];
+              const taskStatus = task => { const value = String(task.Status || 'Pending').toLowerCase().replace(/[ _-]/g, ''); return value === 'inprogress' ? 'InProgress' : value === 'completed' ? 'Completed' : value === 'blocked' ? 'Blocked' : value === 'backlog' ? 'Backlog' : 'Pending'; };
+              const isArchived = task => archivedTaskTitles.includes(task["Task Title"]) || String(task.Archived || '').toUpperCase() === 'TRUE';
+              const taskMatchesSearch = task => `${task["Task Title"] || ''} ${task["Task description"] || ''} ${task.Assignees || ''}`.toLowerCase().includes(taskSearch.toLowerCase());
+              const boardTasks = (teamData.tasks || []).filter(task => !isArchived(task) && taskMatchesSearch(task));
+              const archivedTasks = (teamData.tasks || []).filter(task => isArchived(task) && taskMatchesSearch(task));
+              return <div class="space-y-6 azar-reveal"><div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[.2em] text-brand-500">Execution layer</p><h3 class="mt-1 text-2xl font-black text-slate-900">Task command center</h3><p class="mt-1 text-xs font-medium text-slate-500">Drag work between stages. Completed and blocked work can be archived when you are ready to clear the active board.</p></div><div class="flex flex-wrap gap-2"><div class="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks or owners" class="w-56 rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-brand-500" /></div><button onClick={() => setTaskView('board')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'board' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="kanban" className="h-4 w-4" /> Board</button><button onClick={() => setTaskView('archive')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'archive' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="archive" className="h-4 w-4" /> Archive <span class="rounded-full bg-white/20 px-1.5">{archivedTasks.length}</span></button><button onClick={() => setShowTaskModal(true)} class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-200"><Icon name="plus" className="h-4 w-4" /> New task</button></div></div>{taskView === 'board' ? <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">{kanbanColumns.map(column => { const columnTasks = boardTasks.filter(task => taskStatus(task) === column.id); return <section key={column.id} onDragOver={event => event.preventDefault()} onDrop={() => handleTaskDrop(column.id)} class={`min-h-[24rem] rounded-2xl border p-3 ${column.tint}`}><div class="mb-3 flex items-center justify-between"><div class="flex items-center gap-2"><Icon name={column.icon} className="h-4 w-4 text-slate-500" /><h4 class="text-xs font-black uppercase tracking-wider text-slate-700">{column.label}</h4></div><span class="rounded-full bg-white/80 px-2 py-1 text-[10px] font-black text-slate-500">{columnTasks.length}</span></div><div class="space-y-3">{columnTasks.map((task, index) => <article key={`${task["Task Title"]}-${index}`} draggable onDragStart={() => setDraggedTaskTitle(task["Task Title"])} class="azar-glass cursor-grab rounded-2xl border border-white/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-1 hover:shadow-saas-lg active:cursor-grabbing"><div class="flex items-start justify-between gap-2"><h5 class="text-sm font-black leading-tight text-slate-900">{task["Task Title"] || 'Untitled task'}</h5><div class="flex items-center gap-1"><button onClick={() => openTaskEditor(task)} title="Edit task" class="rounded-lg p-1.5 text-brand-500 hover:bg-brand-50"><Icon name="pencil" className="h-4 w-4" /></button><button onClick={() => (taskStatus(task) === 'Completed' || taskStatus(task) === 'Blocked') && archiveTask(task)} disabled={!['Completed','Blocked'].includes(taskStatus(task))} title={['Completed','Blocked'].includes(taskStatus(task)) ? 'Archive task' : 'Only done or blocked tasks can be archived'} class={`rounded-lg p-1.5 ${['Completed','Blocked'].includes(taskStatus(task)) ? 'text-slate-500 hover:bg-slate-100' : 'cursor-not-allowed text-slate-200'}`}><Icon name="archive" className="h-3.5 w-3.5" /></button></div></div><p class="mt-2 line-clamp-2 text-[11px] leading-5 text-slate-500">{task["Task description"] || 'No description provided.'}</p><div class="mt-3 flex flex-wrap gap-1">{splitPeople(task.Assignees).map(owner => <span key={owner} class="rounded-full bg-brand-50 px-2 py-1 text-[9px] font-bold text-brand-700">{owner}</span>)}</div><div class="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3"><select value={task.Status || 'Pending'} onChange={event => persistTaskUpdate(task, { status: event.target.value })} class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-600"><option>Backlog</option><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select><input type="number" min="0" max="10" step="0.5" value={task.Score || ''} onChange={event => persistTaskUpdate(task, { score: event.target.value })} placeholder="/10" class="w-16 rounded-lg border border-slate-200 bg-white px-2.5 py-2.5 text-xs font-bold text-slate-600" /></div></article>)}{!columnTasks.length && <div class="rounded-xl border border-dashed border-slate-300/70 p-5 text-center text-[10px] font-semibold text-slate-400">Drop tasks here</div>}</div></section>; })}</div> : <div class="azar-glass rounded-2xl border border-slate-200 bg-white p-5 shadow-saas"><div class="mb-4 flex items-center gap-2"><Icon name="archive" className="h-5 w-5 text-slate-500" /><h4 class="text-sm font-black text-slate-900">Archived work</h4><span class="text-xs font-semibold text-slate-400">Done and blocked tasks kept out of the active board</span></div>{archivedTasks.length ? <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{archivedTasks.map(task => <div key={task["Task Title"]} class="rounded-xl border border-slate-200 bg-slate-50 p-4"><div class="flex items-start justify-between gap-2"><h5 class="text-xs font-black text-slate-900">{task["Task Title"]}</h5><button onClick={() => restoreTask(task)} class="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-brand-600 shadow-sm">Restore</button></div><p class="mt-2 text-[11px] text-slate-500">{task["Task description"] || 'No description provided.'}</p><p class="mt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{task.Status} · Score {task.Score || '—'}</p></div>)}</div> : <div class="rounded-xl border border-dashed border-slate-200 p-10 text-center text-xs font-semibold text-slate-400">Nothing archived yet.</div>}</div>}</div>;
+            })()}
+
+            {activeTab === 'tasks-old' && (() => {
+              const visibleTasks = (teamData.tasks || []).filter(task => {
+                const matchesFilter = taskFilter === 'all' || String(task.Status || '').toLowerCase().replace(/[ _-]/g, '') === taskFilter;
+                const haystack = `${task["Task Title"] || ''} ${task["Task description"] || ''} ${task.Assignees || ''}`.toLowerCase();
+                return matchesFilter && haystack.includes(taskSearch.toLowerCase());
+              });
+              return (
+                <div class="space-y-6 azar-reveal">
+                  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div><p class="text-[10px] font-black uppercase tracking-[.2em] text-brand-500">Execution layer</p><h3 class="mt-1 text-2xl font-black text-slate-900">Task command center</h3><p class="mt-1 text-xs font-medium text-slate-400">Assign work, track delivery, and feed completion scores back into the skill matrix.</p></div>
+                    <button onClick={() => setShowTaskModal(true)} class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-200 transition hover:-translate-y-0.5"><Icon name="plus" className="w-4 h-4" /> New task</button>
+                  </div>
+                  <div class="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-saas sm:flex-row">
+                    <div class="relative flex-1"><Icon name="search" className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-slate-400" /><input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks, descriptions, or owners" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs outline-none focus:border-brand-400" /></div>
+                    <div class="flex gap-2 overflow-auto">{[['all','All'],['pending','Pending'],['inprogress','In progress'],['completed','Completed']].map(([value,label]) => <button key={value} onClick={() => setTaskFilter(value)} class={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition ${taskFilter === value ? 'bg-brand-600 text-white' : 'bg-slate-50 text-slate-500 hover:bg-brand-50 hover:text-brand-600'}`}>{label}</button>)}</div>
+                  </div>
+                  <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">{visibleTasks.length ? visibleTasks.map((task, index) => {
+                    const done = isCompletedStatus(task.Status);
+                    const assignees = splitPeople(task.Assignees);
+                    return <article key={`${task["Task Title"]}-${index}`} class={`rounded-2xl border p-5 shadow-saas transition hover:-translate-y-0.5 hover:shadow-saas-lg ${done ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100 bg-white'}`}>
+                      <div class="flex items-start justify-between gap-3"><div><div class="mb-2 flex flex-wrap gap-1.5">{assignees.map(owner => <span key={owner} class="rounded-full bg-brand-50 px-2 py-1 text-[9px] font-bold text-brand-700">{owner}</span>)}</div><h4 class="text-sm font-black text-slate-900">{task["Task Title"] || 'Untitled task'}</h4><p class="mt-1 text-xs leading-5 text-slate-500">{task["Task description"] || 'No description provided.'}</p></div><span class={`rounded-lg px-2 py-1 text-[9px] font-black uppercase ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{task.Status || 'Pending'}</span></div>
+                      {task["Break down (DOD)"] && <div class="mt-4 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-[11px] font-medium leading-5 text-slate-500"><b class="text-slate-700">Definition of done</b><br />{task["Break down (DOD)"]}</div>}
+                      <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><select value={task.Status || 'Pending'} onChange={e => persistTaskUpdate(task, { status: e.target.value })} class="rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-bold text-slate-600"><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select><input type="number" min="0" max="10" step="0.5" value={task.Score || ''} onChange={e => persistTaskUpdate(task, { score: e.target.value })} placeholder="Score /10" class="w-24 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-bold text-slate-600" /><span class="ml-auto text-[10px] font-bold text-slate-400">ETA {task.ETA || '—'} {task.Scale || ''}</span></div>
+                    </article>;
+                  }) : <div class="col-span-full rounded-2xl border border-dashed border-slate-200 p-12 text-center"><Icon name="inbox" className="mx-auto h-10 w-10 text-slate-300" /><p class="mt-3 text-sm font-bold text-slate-500">No tasks match this view.</p></div>}</div>
+                </div>
+              );
+            })()}
+
+            {/* -------------------- Tab 3: LEARNING TRACKS PANEL -------------------- */}
             {activeTab === 'learning' && (
               <div class="space-y-6">
                 <div class="flex items-center justify-between">
@@ -2639,7 +2892,7 @@
             {activeTab === 'team' && (() => {
               const activeMember = selectedTeamMember || (teamData.team && teamData.team.length > 0 ? { ...teamData.team[0], ...getMemberMetrics(teamData.team[0]) } : null);
               const filteredTeam = (teamData.team || []).filter(member => 
-                member.Name.toLowerCase().includes(teamSearchQuery.toLowerCase())
+                String(member.Name || '').toLowerCase().includes(teamSearchQuery.toLowerCase())
               );
               return (
                 <div class="space-y-6">
@@ -2730,6 +2983,7 @@
 
                           {/* Top KPIs */}
                           <div class="flex items-center gap-4 self-stretch md:self-auto">
+                            <button onClick={() => exportMemberCV(activeMember)} class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-[10px] font-bold text-white shadow-sm transition hover:bg-brand-700"><Icon name="download" className="w-3.5 h-3.5" /> CV</button>
                             <div class="flex-1 md:flex-initial bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]">
                               <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Tasks Completed</span>
                               <span class="text-base font-black text-slate-700 block mt-1">{activeMember.tasksCompleted}/{activeMember.tasksAssigned}</span>
@@ -2738,6 +2992,7 @@
                               <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Learning Index</span>
                               <span class="text-base font-black text-slate-700 block mt-1">{activeMember.learningProgress}%</span>
                             </div>
+                            <div class="hidden sm:block flex-1 md:flex-initial bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]"><span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Team score</span><span class="text-base font-black text-indigo-700 block mt-1">{activeMember.overallScore || 0}/100</span></div>
                           </div>
                         </div>
 
@@ -3060,6 +3315,19 @@
             </form>
           </Modal>
 
+          {/* ==================== MODAL: CREATE TASK ==================== */}
+          <Modal isOpen={showTaskModal} onClose={() => { setShowTaskModal(false); setEditingTaskTitle(null); }} title={editingTaskTitle ? 'Edit task' : 'Create a task'}>
+            <form onSubmit={handleCreateTask} class="space-y-4">
+              <input required value={taskDraft.title} onChange={e => setTaskDraft({ ...taskDraft, title: e.target.value })} placeholder="Task title" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500" />
+              <textarea value={taskDraft.description} onChange={e => setTaskDraft({ ...taskDraft, description: e.target.value })} placeholder="What needs to be delivered?" rows="3" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500"></textarea>
+              <textarea value={taskDraft.dod} onChange={e => setTaskDraft({ ...taskDraft, dod: e.target.value })} placeholder="Definition of done (one item per line)" rows="3" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500"></textarea>
+              <div><label class="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">Start in</label><select value={taskDraft.status} onChange={e => setTaskDraft({ ...taskDraft, status: e.target.value })} class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500"><option>Backlog</option><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select></div>
+              <div><p class="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Assign to</p><div class="max-h-32 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{teamData.team.map(member => <label key={member.Name} class="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={taskDraft.assignees.includes(member.Name)} onChange={e => setTaskDraft({ ...taskDraft, assignees: e.target.checked ? [...taskDraft.assignees, member.Name] : taskDraft.assignees.filter(name => name !== member.Name) })} class="rounded border-slate-300 text-brand-600" />{member.Name}</label>)}</div></div>
+              <div class="grid grid-cols-2 gap-3"><input type="number" min="1" value={taskDraft.eta} onChange={e => setTaskDraft({ ...taskDraft, eta: e.target.value })} placeholder="ETA" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none focus:border-brand-500" /><select value={taskDraft.scale} onChange={e => setTaskDraft({ ...taskDraft, scale: e.target.value })} class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none focus:border-brand-500"><option value="hour">hours</option><option value="day">days</option><option value="week">weeks</option></select></div>
+              <button type="submit" class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-100">{editingTaskTitle ? 'Save task changes' : 'Create task'}</button>
+            </form>
+          </Modal>
+
           {/* ==================== MODAL 4: SET EVENT ADMIN ==================== */}
           <Modal 
             isOpen={showSetModal} 
@@ -3284,6 +3552,7 @@
                 </div>
 
                 <div class="pt-2 flex justify-end">
+                  <button onClick={() => exportMemberCV(selectedMember)} class="mr-2 inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-700"><Icon name="download" className="w-3.5 h-3.5" /> Export CV</button>
                   <button 
                     onClick={() => setSelectedMember(null)}
                     class="px-4 py-2 bg-slate-50 border border-slate-150 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 transition-colors"

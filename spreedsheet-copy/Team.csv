@@ -1,24 +1,254 @@
 Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education
-mohamed allam,2510124.0,hhh@gmail.com,1017352734.0,,,"{Embedded Systems & Firmware (C/C++) , 1}
+Abdallah Refaat ,2520606.0,abdallahallam1550@gmail.com,1091157494.0,,skill,"{Embedded Systems & Firmware (C/C++) , 1}
 {High-Level Scripting & Middleware (Python) , 1}
-{Version Control & Collaboration (Git/GitHub) , 5}
+{Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
 {Circuit Design & EDA Routing , 1}
 {Power Electronics & Circuit Protection , 1}
-{Mechanical Engineering & CAD , 3}
-{Kinematics & Motion Control , 3}
-{Sensor Fusion & State Estimation , 2}
-{Computer Vision & Spatial AI , 1}
-{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Mechanical Engineering & CAD , 2}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 3}
+{Computer Vision & Spatial AI , 5}
+{SLM Fine tuning & Edge AI deployment , 5}","{Systematic Root-Cause Isolatio , 1}
 {Critical Thinking & Architecture Trade-Off Analysis , 2}
 {Safety-First Engineering Mindset (Fail-Safe Design) , 3}
 {Adaptive Problem Solving & Agile Iteration , 4}
-{Cross-Domain Systems Integration , 5}","{Autodesk Fusion 360 / SolidWorks , 1}
+{Cross-Domain Systems Integration , 4}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 2}
+{PlatformIO / VS Code / Arduino IDE 2.x , 3}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 5}
+{ROS 2 (Humble Hawksbill) , 5}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 2}
+{FastAPI (Python) / Express & WebSockets , 3}
+{Gazebo / RViz2 / WebSockets Injection , 4}",,,
+نور ياسر زكريا عزام,2521059.0,Nourazzam589@gmail.com,1277251600.0,,نعم,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
 {KiCad EDA (v7.0+) / Proetus , 1}
 {PlatformIO / VS Code / Arduino IDE 2.x , 1}
 {Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
-{ROS 2 (Humble Hawksbill) , 5}
-{slam_toolbox & ROS 2 Nav2 , 4}
-{OpenCV & ONNX Runtime / TFLite , 4}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Mohamed hamada shabaan,2520780.0,mojo52830@gmail.com,1025844001.0,,"A passion for embedded systems and learning, and contributing as much as I can ASAR Tim, I have a modest experience in programming languages and operating robotics, and I'm always trying to move forward, and I hope to introduce Tim's active.","{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 3}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 3}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 2}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 2}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 3}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 2}
+{slam_toolbox & ROS 2 Nav2 , 2}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Amany Bilal Abo zaid Deffalla,2520186.0,amanybilal36@gmail.com,1208185428.0,,,"{Embedded Systems & Firmware (C/C++) , 3}
+{High-Level Scripting & Middleware (Python) , 3}
+{Version Control & Collaboration (Git/GitHub) , 2}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 2}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 3}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Abdelrhman Mohamed Abdelfttah Soliman,2520594.0,abdelrhmanalnagar18@gmail.com,1025031789.0,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Ezzat Abdel Rafea Ahmed,2520622.0,ztbdalraf82@gmail.com,1226286900.0,,تخصص تكنولوجيا ومعلومات وشبكات لدي شغف عمل في انظمه كاميرات ip cctv  اسعي لتطوير والوصول العمل في شركه Cisco ,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+محمد فرحات نصر علي ,2540213.0,mohamedfarahat555566@gmail.com,1095844217.0,,"Intermediate level with hands-on experience in programming, embedded systems, and basic hardware integration.","{Embedded Systems & Firmware (C/C++) , 3}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 3}
+{Embedded Linux & SBC Administration , 2}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 2}
+{Kinematics & Motion Control , 2}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 2}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 2}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 2}","{Autodesk Fusion 360 / SolidWorks , 2}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 2}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}
+{ROS 2 (Humble Hawksbill) , 2}
+{slam_toolbox & ROS 2 Nav2 , 2}
+{OpenCV & ONNX Runtime / TFLite , 2}
 {FastAPI (Python) / Express & WebSockets , 2}
 {Gazebo / RViz2 / WebSockets Injection , 2}",,,
+Amal Mohamed Youssef Mahmoud ,2520189.0,amlmhmdywsf7@gmail.com,1277166793.0,,,"{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 2}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Ziyadmohamed abd elrady ,2520448.0,ziyadmohamed7689@gmail.com,1026484558.0,,..,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 3}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 3}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 2}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Fatma Magdy Issa Abdel Baqi ,2560172.0,fm3192820@gmail.com,1067110418.0,,"A 2nd-year Information Technology student at Borg El-Arab Technological University with hands-on experience in AI development. In my 1st year, I served as the AI Specialist for a Smart University Assistant project, where I developed an intelligent conversational AI integrated with a Telegram bot, web platform, and dedicated hardware device. The system automated student-faculty communication, real-time schedule updates, and instant query answering. I am eager to join a dedicated team for our 2nd-year graduation project to apply my AI skills, collaborate on innovative solutions, and build impactful technology together.","{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 2}
+{Circuit Design & EDA Routing , 3}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 2}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 2}
+{Adaptive Problem Solving & Agile Iteration , 3}
+{Cross-Domain Systems Integration , 3}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 2}
+{PlatformIO / VS Code / Arduino IDE 2.x , 2}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 2}
+{FastAPI (Python) / Express & WebSockets , 3}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+Ahmed Mohamed Abu El-Fadl Ramadan ,2540004.0,ahmedcor90@gmail.com,1283920280.0,,"Electrical Installation graduate from technical secondary school with 95.3%, moved to IT with Excellent grade and got Very Good in my second IT semester. Built and improved a university guide chatbot using Groq API on my own, made a simple backend under time pressure, and picked the best local AI model via Ollama that fits Raspberry Pi as an offline backup. Currently learning C, Git/GitHub and Linux basics. Ready to contribute and grow through hands on work.","{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 2}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 2}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,

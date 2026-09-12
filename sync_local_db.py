@@ -16,7 +16,10 @@ def sync_database():
 
     for sheetname in wb.sheetnames:
         sh = wb[sheetname]
-        csv_path = os.path.join(dest_dir, f"{sheetname}.csv")
+        # The workbook currently labels the skill sheet as "SKILLs", while
+        # the Apps Script contract and frontend use the canonical "Skill" name.
+        output_name = 'Skill' if sheetname.strip().lower() in ('skill', 'skills') else sheetname
+        csv_path = os.path.join(dest_dir, f"{output_name}.csv")
         
         # Extract headers (first non-empty column set)
         headers = []

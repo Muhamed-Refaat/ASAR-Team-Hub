@@ -1,7 +1,7 @@
 Topic name,Track ID,Track Name,Obligability,Skill,Platform,Link
 Complete Git & GitHub Course from Zero to Professional,1.0,Git & DevOps Mastery,Mandatory,"Branching, Commits, Pull Requests, Conflict Resolution, Rollback",YouTube (Elzero Web School),https://www.youtube.com/watch?v=ACOiGZoqC8w
-Learn Git & GitHub Version Control System for Software,1.0,Git & DevOps Mastery,Mandatory,"Local Repositories, Staging, Revert, Commit History",YouTube (Ghareeb Elshaikh),https://www.youtube.com/watch?v=fDkR0TDR9dI
-Team Workflow and Software Life Cycle: Git Flow Workflows,1.0,Git & DevOps Mastery,Optional,"Remote Repos, Merge Requests, Team Code Reviews",YouTube (CloudKode),https://www.youtube.com/watch?v=AkIpdnup6G4
+Learn Git & GitHub Version Control System for Software,1.0,Git & DevOps Mastery,Mandatory,"Local Repositories, Staging, Revert, Commit History",YouTube (CloudKode),https://www.youtube.com/watch?v=fDkR0TDR9dI
+Team Workflow and Software Life Cycle: Git Flow Workflows,1.0,Git & DevOps Mastery,Optional,"Remote Repos, Merge Requests, Team Code Reviews",,https://www.youtube.com/watch?v=AkIpdnup6G4
 Basics of C Programming for Microcontrollers,2.0,C & Embedded Systems,Mandatory,"Pointers, Memory Allocation, Non-blocking millis() Loops",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247
 Device Driver Development and C Code Generation for Microcontrollers (Embedded C Drivers),2.0,C & Embedded Systems,Mandatory,"Hardware Registers, ISR Interrupts, Quadrature Encoders, PWM Loop Tuning",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system
 Software Interfacing for Microcontrollers via Protocols (I2C / SPI / UART),2.0,C & Embedded Systems,Mandatory,"Serial Peripheral Drivers, Timer Hardware Interfacing",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg

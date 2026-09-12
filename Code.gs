@@ -19,7 +19,7 @@ function doGet(e) {
   
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
-    .setTitle('Azar Project Team')
+    .setTitle('ASAR Project Team')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -54,7 +54,7 @@ function getTeamData() {
   return {
     supervisor: getSheetData(ss, 'Supervisor'),
     team: getSheetData(ss, 'Team'),
-    skills: getSheetData(ss, 'Skill'),
+    skills: getSkillsData(ss),
     learning: getSheetData(ss, 'Learning'),
     meet: getSheetData(ss, 'Meet'),
     exam: getSheetData(ss, 'Exam'),
@@ -118,6 +118,18 @@ function doPost(e) {
   try {
     const postData = JSON.parse(e.postData.contents);
     const action = postData.action || "logEvent";
+
+    if (action === "updateTask") {
+      const result = updateTaskStatus(postData);
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "createTask") {
+      const result = createTask(postData);
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     
     if (action === "createEvent") {
       const type = postData.type;
@@ -125,7 +137,7 @@ function doPost(e) {
       const invitedList = postData.invitedList || [];
       const dueDate = postData.dueDate || "";
       
-      const result = logEvent(type, name, invitedList, dueDate);
+      const result = logEvent(type, name, invitedList, dueDate, postData.email || postData.userName);
       
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
@@ -152,7 +164,7 @@ function doPost(e) {
         }
       }
       
-      const result = logEvent(type, name, invitedList, dueDate);
+      const result = logEvent(type, name, invitedList, dueDate, email || userName);
       
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
@@ -215,7 +227,7 @@ function getSheetData(ss, sheetName) {
  * Appends a row containing the type, generated Event ID, event name,
  * newline-separated list of invited members, and the open-window due date.
  */
-function logEvent(type, name, invitedList, dueDate) {
+function logEvent(type, name, invitedList, dueDate, actorEmail) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('Log');
   if (!sheet) throw new Error("Log sheet not found");
@@ -249,6 +261,7 @@ function logEvent(type, name, invitedList, dueDate) {
   }
   
   sheet.appendRow([type, newId, name, invitedStr, "", dateVal]);
+  recordActivity(actorEmail || getActiveUserSession().email, 'logEvent', name, { type: type, eventId: newId });
   
   return { success: true, newId: newId };
 }
@@ -257,7 +270,7 @@ function logEvent(type, name, invitedList, dueDate) {
  * Registers attendance/completion of an event.
  * Appends the member's name to the newline-separated list in Column E (Attendees/Completed).
  */
-function attendEvent(eventId, userName) {
+function attendEvent(eventId, userName, userEmail) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('Log');
   if (!sheet) throw new Error("Log sheet not found");
@@ -286,6 +299,7 @@ function attendEvent(eventId, userName) {
     attendees.push(normUserName);
     cell.setValue(attendees.join('\n'));
   }
+  recordActivity(userEmail || getActiveUserSession().email, 'attendEvent', eventId, { userName: normUserName });
   
   return { success: true };
 }
@@ -325,4 +339,106 @@ function reopenEvent(eventId, newDueDate) {
   sheet.getRange(rowIdx, 6).setValue(dateVal);
   
   return { success: true };
+}
+
+/** Supports both the legacy "SKILLs" tab and the canonical "Skill" tab. */
+function getSkillsData(ss) {
+  const canonical = getSheetData(ss, 'Skill');
+  return canonical.length ? canonical : getSheetData(ss, 'SKILLs');
+}
+
+/**
+ * Updates a task row without changing the spreadsheet's existing column order.
+ * The frontend sends the stable task title plus the fields the user edited.
+ */
+function updateTaskStatus(payload) {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName('Task');
+  if (!sheet) throw new Error("Task sheet not found");
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) throw new Error("No tasks found");
+  const headers = values[0].map(h => String(h || '').trim());
+  const titleCol = headers.indexOf('Task Title');
+  const descriptionCol = headers.indexOf('Task description');
+  const dodCol = headers.indexOf('Break down (DOD)');
+  const assigneesCol = headers.indexOf('Assignees');
+  const statusCol = headers.indexOf('Status');
+  const scoreCol = headers.indexOf('Score');
+  const feedbackCol = headers.indexOf('Feedback');
+  const ataCol = headers.indexOf('ATA');
+  const etaCol = headers.indexOf('ETA');
+  const scaleCol = headers.indexOf('Scale');
+  let archivedCol = headers.indexOf('Archived');
+  if (titleCol < 0 || statusCol < 0) throw new Error("Task Title or Status column not found");
+  if (archivedCol < 0) {
+    archivedCol = headers.length;
+    sheet.getRange(1, archivedCol + 1).setValue('Archived');
+  }
+
+  const wanted = String(payload.title || '').trim().toLowerCase();
+  let rowNumber = -1;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][titleCol] || '').trim().toLowerCase() === wanted) {
+      rowNumber = i + 1;
+      break;
+    }
+  }
+  if (rowNumber < 0) throw new Error("Task not found: " + payload.title);
+
+  if (payload.status !== undefined || payload.Status !== undefined) sheet.getRange(rowNumber, statusCol + 1).setValue(payload.status ?? payload.Status);
+  if (titleCol >= 0 && (payload.newTitle !== undefined || payload.taskTitle !== undefined)) sheet.getRange(rowNumber, titleCol + 1).setValue(payload.newTitle ?? payload.taskTitle);
+  if (descriptionCol >= 0 && payload.description !== undefined) sheet.getRange(rowNumber, descriptionCol + 1).setValue(payload.description);
+  if (dodCol >= 0 && payload.dod !== undefined) sheet.getRange(rowNumber, dodCol + 1).setValue(payload.dod);
+  if (assigneesCol >= 0 && payload.assignees !== undefined) sheet.getRange(rowNumber, assigneesCol + 1).setValue(Array.isArray(payload.assignees) ? payload.assignees.join(',') : payload.assignees);
+  if (scoreCol >= 0 && (payload.score !== undefined || payload.Score !== undefined) && (payload.score ?? payload.Score) !== '') sheet.getRange(rowNumber, scoreCol + 1).setValue(Number(payload.score ?? payload.Score));
+  if (feedbackCol >= 0 && (payload.feedback !== undefined || payload.Feedback !== undefined)) sheet.getRange(rowNumber, feedbackCol + 1).setValue(payload.feedback ?? payload.Feedback);
+  if (ataCol >= 0 && (payload.ata !== undefined || payload.ATA !== undefined) && (payload.ata ?? payload.ATA) !== '') sheet.getRange(rowNumber, ataCol + 1).setValue(payload.ata ?? payload.ATA);
+  if (etaCol >= 0 && payload.eta !== undefined) sheet.getRange(rowNumber, etaCol + 1).setValue(payload.eta);
+  if (scaleCol >= 0 && payload.scale !== undefined) sheet.getRange(rowNumber, scaleCol + 1).setValue(payload.scale);
+  if (payload.archived !== undefined) sheet.getRange(rowNumber, archivedCol + 1).setValue(payload.archived ? 'TRUE' : '');
+  recordActivity(payload.email || getActiveUserSession().email, 'updateTask', payload.title, { status: payload.status || payload.Status || 'Pending', score: payload.score || payload.Score || '' });
+  return { success: true, message: 'Task updated' };
+}
+
+/** Creates a task using the headers already present in the Task sheet. */
+function createTask(payload) {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName('Task');
+  if (!sheet) throw new Error("Task sheet not found");
+  const values = sheet.getDataRange().getValues();
+  if (!values.length) throw new Error("Task sheet has no header row");
+  const headers = values[0].map(h => String(h || '').trim());
+  const row = headers.map(header => {
+    const key = header.toLowerCase();
+    if (key === 'task title') return payload.title || '';
+    if (key === 'task description') return payload.description || '';
+    if (key === 'break down (dod)') return payload.dod || '';
+    if (key === 'assignees') return Array.isArray(payload.assignees) ? payload.assignees.join(',') : (payload.assignees || '');
+    if (key === 'status') return payload.status || 'Pending';
+    if (key === 'score') return payload.score || '';
+    if (key === 'feedback') return payload.feedback || '';
+    if (key === 'eta') return payload.eta || '';
+    if (key === 'scale') return payload.scale || 'day';
+    if (key === 'archived') return payload.archived ? 'TRUE' : '';
+    return '';
+  });
+  sheet.appendRow(row);
+  recordActivity(payload.email || getActiveUserSession().email, 'createTask', payload.title, { assignees: payload.assignees || [] });
+  return { success: true, message: 'Task created' };
+}
+
+/** Writes an immutable audit row so every progress change is attributable to an account email. */
+function recordActivity(email, action, target, details) {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName('Activity');
+    if (!sheet) {
+      sheet = ss.insertSheet('Activity');
+      sheet.appendRow(['Timestamp', 'Email', 'Action', 'Target', 'Details']);
+    }
+    sheet.appendRow([new Date(), email || '', action || '', String(target || ''), JSON.stringify(details || {})]);
+  } catch (err) {
+    console.error('Activity audit failed:', err);
+  }
 }
