@@ -523,14 +523,15 @@ Fail-Safe Engineering Design and Emergency Systems Management,10.0,Engineering P
     const Icon = ({ name, className = "w-5 h-5", strokeWidth = 2 }) => {
       const ref = useRef(null);
       useEffect(() => {
-        if (window.lucide && ref.current) {
-          ref.current.setAttribute('data-lucide', name);
-          ref.current.setAttribute('aria-hidden', 'true');
-          window.lucide.createIcons({ nodes: [ref.current], attrs: { class: className, 'stroke-width': strokeWidth } });
-        }
-      }, [name, className, strokeWidth]);
+        const iconKey = String(name).split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+        const iconNode = window.lucide && window.lucide.icons && (window.lucide.icons[iconKey] || window.lucide.icons[name]);
+        if (!ref.current || !iconNode || !window.lucide || !window.lucide.createElement) return;
+        const svg = window.lucide.createElement(iconNode, { 'stroke-width': strokeWidth, 'aria-hidden': 'true' });
+        svg.setAttribute('class', 'h-full w-full');
+        ref.current.replaceChildren(svg);
+      }, [name, strokeWidth]);
 
-      return <i ref={ref} className={`inline-flex items-center justify-center ${className}`} />;
+      return <span ref={ref} aria-hidden="true" className={`inline-flex items-center justify-center ${className}`} />;
     };
 
     // Card component
