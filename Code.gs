@@ -136,8 +136,9 @@ function doPost(e) {
       const name = postData.name;
       const invitedList = postData.invitedList || [];
       const dueDate = postData.dueDate || "";
+      const evidence = postData.evidence || "";
       
-      const result = logEvent(type, name, invitedList, dueDate, postData.email || postData.userName);
+      const result = logEvent(type, name, invitedList, dueDate, postData.email || postData.userName, evidence);
       
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
@@ -152,6 +153,7 @@ function doPost(e) {
       const email = postData.email;
       const userName = postData.userName;
       const dueDate = postData.dueDate || "";
+      const evidence = postData.evidence || "";
       
       const ss = getSpreadsheet();
       const teamSheet = ss.getSheetByName('Team');
@@ -164,7 +166,7 @@ function doPost(e) {
         }
       }
       
-      const result = logEvent(type, name, invitedList, dueDate, email || userName);
+      const result = logEvent(type, name, invitedList, dueDate, email || userName, evidence);
       
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
@@ -225,9 +227,9 @@ function getSheetData(ss, sheetName) {
 /**
  * Logs a new event to the 'Log' sheet.
  * Appends a row containing the type, generated Event ID, event name,
- * newline-separated list of invited members, and the open-window due date.
+ * newline-separated list of invited members, the open-window due date, and optional evidence.
  */
-function logEvent(type, name, invitedList, dueDate, actorEmail) {
+function logEvent(type, name, invitedList, dueDate, actorEmail, evidence) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('Log');
   if (!sheet) throw new Error("Log sheet not found");
@@ -248,6 +250,15 @@ function logEvent(type, name, invitedList, dueDate, actorEmail) {
   
   // Format invited list to a newline-separated string
   const invitedStr = Array.isArray(invitedList) ? invitedList.join('\n') : String(invitedList);
+
+  // Add the optional Evidence field without assuming the Log sheet already has
+  // the new column. Existing deployments are upgraded automatically.
+  const headerValues = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  let evidenceColumn = headerValues.findIndex(header => String(header).trim().toLowerCase() === 'evidence') + 1;
+  if (!evidenceColumn) {
+    evidenceColumn = sheet.getLastColumn() + 1;
+    sheet.getRange(1, evidenceColumn).setValue('Evidence');
+  }
   
   // Convert due date string to Date object
   let dateVal = "";
@@ -260,7 +271,15 @@ function logEvent(type, name, invitedList, dueDate, actorEmail) {
     }
   }
   
-  sheet.appendRow([type, newId, name, invitedStr, "", dateVal]);
+  const rowValues = Array(Math.max(6, evidenceColumn)).fill('');
+  rowValues[0] = type;
+  rowValues[1] = newId;
+  rowValues[2] = name;
+  rowValues[3] = invitedStr;
+  rowValues[4] = "";
+  rowValues[5] = dateVal;
+  rowValues[evidenceColumn - 1] = evidence || '';
+  sheet.appendRow(rowValues);
   recordActivity(actorEmail || getActiveUserSession().email, 'logEvent', name, { type: type, eventId: newId });
   
   return { success: true, newId: newId };

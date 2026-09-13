@@ -89,6 +89,63 @@
     .azar-hero { background: radial-gradient(circle at 10% 10%, rgba(129,140,248,.34), transparent 34%), radial-gradient(circle at 90% 15%, rgba(45,212,191,.25), transparent 32%), linear-gradient(120deg,#111827 0%,#312e81 48%,#0f766e 100%); }
     .asar-app { background: radial-gradient(circle at 0% 0%, rgba(129,140,248,.10), transparent 28%), radial-gradient(circle at 100% 40%, rgba(45,212,191,.08), transparent 25%), linear-gradient(180deg, #fbfdff 0%, #f6f7ff 52%, #f4fbfa 100%); }
     html.dark .asar-app { background: radial-gradient(circle at 0% 0%, rgba(99,102,241,.18), transparent 28%), radial-gradient(circle at 100% 40%, rgba(20,184,166,.12), transparent 25%), linear-gradient(180deg, #090d18 0%, #10152a 52%, #071b1b 100%); }
+    .azar-live-stage { position: relative; isolation: isolate; overflow: clip; }
+    .azar-live-stage::before, .azar-live-stage::after { content: ''; position: absolute; z-index: 0; pointer-events: none; border-radius: 62% 38% 45% 55% / 42% 58% 42% 58%; filter: blur(1px); opacity: .55; animation: azar-live-drift 16s ease-in-out infinite; }
+    .azar-live-stage::before { width: 28rem; height: 22rem; left: -13rem; top: 12rem; background: radial-gradient(circle at 42% 38%, rgba(167,139,250,.28), rgba(129,140,248,.08) 58%, transparent 74%); }
+    .azar-live-stage::after { width: 26rem; height: 23rem; right: -12rem; bottom: 10rem; border-radius: 42% 58% 62% 38% / 58% 38% 62% 42%; background: radial-gradient(circle at 58% 44%, rgba(45,212,191,.24), rgba(20,184,166,.06) 60%, transparent 75%); animation-delay: -7s; }
+    .azar-live-stage > * { position: relative; z-index: 1; }
+    .azar-live-card { position: relative; isolation: isolate; overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,.97), rgba(245,243,255,.9) 54%, rgba(236,253,245,.82)); border-color: rgba(99,102,241,.16); transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease, background .35s ease; }
+    .azar-live-card > * { position: relative; z-index: 1; }
+    .azar-live-card::after { content: ''; position: absolute; z-index: 0; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 18%, rgba(255,255,255,.38) 48%, transparent 72%); transform: translateX(-115%); transition: transform .75s cubic-bezier(.2,.8,.2,1); }
+    .azar-live-card:hover { transform: translateY(-4px); border-color: rgba(124,58,237,.58); box-shadow: 0 20px 44px -18px rgba(124,58,237,.32), 0 8px 24px -14px rgba(20,184,166,.28); }
+    .azar-live-card:hover::after { transform: translateX(115%); }
+    .azar-live-column { position: relative; isolation: isolate; transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease, background .35s ease; }
+    .azar-live-column:hover { transform: translateY(-3px); border-color: rgba(124,58,237,.42); box-shadow: 0 18px 36px -20px rgba(79,70,229,.3); }
+    html.dark .azar-live-stage::before { background: radial-gradient(circle at 42% 38%, rgba(129,140,248,.27), rgba(99,102,241,.08) 58%, transparent 74%); }
+    html.dark .azar-live-stage::after { background: radial-gradient(circle at 58% 44%, rgba(45,212,191,.21), rgba(20,184,166,.06) 60%, transparent 75%); }
+    html.dark .azar-live-card { background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,27,75,.93) 54%, rgba(4,47,46,.88)) !important; border-color: rgba(129,140,248,.3) !important; }
+    html.dark .azar-live-card::after { background: linear-gradient(115deg, transparent 18%, rgba(165,180,252,.13) 48%, transparent 72%); }
+    html.dark .azar-live-card:hover { border-color: rgba(45,212,191,.74) !important; box-shadow: 0 20px 48px -18px rgba(20,184,166,.34), 0 8px 26px -14px rgba(129,140,248,.3); }
+    html.dark .azar-live-column { background: linear-gradient(145deg, rgba(15,23,42,.76), rgba(30,27,75,.52)) !important; border-color: rgba(129,140,248,.28) !important; }
+    html.dark .azar-live-column:hover { border-color: rgba(45,212,191,.72) !important; }
+    @keyframes azar-live-drift { 0%,100% { transform: translate3d(0,0,0) rotate(-5deg) scale(1); } 50% { transform: translate3d(28px,-18px,0) rotate(8deg) scale(1.08); } }
+    @media (prefers-reduced-motion: reduce) { .azar-live-stage::before, .azar-live-stage::after { animation: none; } .azar-live-card, .azar-live-card::after, .azar-live-column { transition: none; } .azar-live-card:hover, .azar-live-column:hover { transform: none; } }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab) { position: relative; isolation: isolate; overflow: clip; }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::before, .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::after { content: ''; position: absolute; z-index: 0; pointer-events: none; border-radius: 62% 38% 45% 55% / 42% 58% 42% 58%; opacity: .45; animation: azar-live-drift 16s ease-in-out infinite; }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::before { width: 24rem; height: 18rem; left: -11rem; top: 10rem; background: radial-gradient(circle at 42% 38%, rgba(167,139,250,.24), transparent 72%); }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::after { width: 22rem; height: 19rem; right: -10rem; bottom: 8rem; background: radial-gradient(circle at 58% 44%, rgba(45,212,191,.2), transparent 74%); animation-delay: -7s; }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab) > * { position: relative; z-index: 1; }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab) section { transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease; }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab) section:hover { transform: translateY(-3px); border-color: rgba(124,58,237,.42); box-shadow: 0 18px 36px -20px rgba(79,70,229,.3); }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab) .azar-glass.cursor-grab { background: linear-gradient(135deg, rgba(255,255,255,.97), rgba(245,243,255,.9) 54%, rgba(236,253,245,.82)); border-color: rgba(99,102,241,.16); transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease; }
+    .azar-reveal:not(.azar-live-stage):has(.cursor-grab) .azar-glass.cursor-grab:hover { transform: translateY(-4px); border-color: rgba(124,58,237,.58); box-shadow: 0 20px 44px -18px rgba(124,58,237,.32), 0 8px 24px -14px rgba(20,184,166,.28); }
+    html.dark .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::before { background: radial-gradient(circle at 42% 38%, rgba(129,140,248,.24), transparent 72%); }
+    html.dark .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::after { background: radial-gradient(circle at 58% 44%, rgba(45,212,191,.2), transparent 74%); }
+    html.dark .azar-reveal:not(.azar-live-stage):has(.cursor-grab) .azar-glass.cursor-grab { background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,27,75,.93) 54%, rgba(4,47,46,.88)) !important; border-color: rgba(129,140,248,.3) !important; }
+    html.dark .azar-reveal:not(.azar-live-stage):has(.cursor-grab) .azar-glass.cursor-grab:hover { border-color: rgba(45,212,191,.74) !important; }
+    @media (prefers-reduced-motion: reduce) { .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::before, .azar-reveal:not(.azar-live-stage):has(.cursor-grab)::after { animation: none; } .azar-reveal:not(.azar-live-stage):has(.cursor-grab) section, .azar-reveal:not(.azar-live-stage):has(.cursor-grab) .azar-glass.cursor-grab { transition: none; } .azar-reveal:not(.azar-live-stage):has(.cursor-grab) section:hover, .azar-reveal:not(.azar-live-stage):has(.cursor-grab) .azar-glass.cursor-grab:hover { transform: none; } }
+    .asar-app button:not(:disabled) { position: relative; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .25s ease, filter .25s ease; }
+    .asar-app button:not(:disabled):hover { transform: translateY(-2px); border-color: rgba(124,58,237,.45); box-shadow: 0 10px 24px -14px rgba(79,70,229,.45); filter: brightness(1.035); }
+    .asar-app button:not(:disabled):active { transform: translateY(0); }
+    html.dark .asar-app button:not(:disabled):hover { border-color: rgba(45,212,191,.68); box-shadow: 0 10px 26px -14px rgba(20,184,166,.38); }
+    @media (prefers-reduced-motion: reduce) { .asar-app button:not(:disabled), .asar-app button:not(:disabled):hover { transition: none; transform: none; } }
+    .azar-intelligence-stage { position: relative; isolation: isolate; }
+    .azar-intelligence-stage::before, .azar-intelligence-stage::after { content: ''; position: absolute; z-index: 0; pointer-events: none; border-radius: 58% 42% 35% 65% / 48% 62% 38% 52%; filter: blur(1px); opacity: .5; animation: azar-slime-drift 14s ease-in-out infinite; }
+    .azar-intelligence-stage::before { width: 24rem; height: 18rem; left: -10rem; top: 14rem; background: radial-gradient(circle at 35% 35%, rgba(167,139,250,.28), rgba(129,140,248,.08) 58%, transparent 72%); }
+    .azar-intelligence-stage::after { width: 22rem; height: 20rem; right: -9rem; bottom: 8rem; border-radius: 38% 62% 60% 40% / 55% 34% 66% 45%; background: radial-gradient(circle at 60% 45%, rgba(45,212,191,.22), rgba(20,184,166,.06) 60%, transparent 74%); animation-delay: -6s; }
+    .azar-intelligence-stage > * { position: relative; z-index: 1; }
+    .azar-intelligence-card { position: relative; isolation: isolate; overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(245,243,255,.88) 54%, rgba(236,253,245,.78)); border-color: rgba(139,92,246,.14); transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease, background .35s ease; }
+    .azar-intelligence-card > * { position: relative; z-index: 1; }
+    .azar-intelligence-card::after { content: ''; position: absolute; z-index: 0; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,.34) 48%, transparent 70%); transform: translateX(-115%); transition: transform .7s cubic-bezier(.2,.8,.2,1); }
+    .azar-intelligence-card:hover { transform: translateY(-4px); border-color: rgba(124,58,237,.55); box-shadow: 0 18px 42px -16px rgba(124,58,237,.3), 0 8px 22px -14px rgba(20,184,166,.28); }
+    .azar-intelligence-card:hover::after { transform: translateX(115%); }
+    html.dark .azar-intelligence-stage::before { background: radial-gradient(circle at 35% 35%, rgba(129,140,248,.27), rgba(99,102,241,.08) 58%, transparent 72%); }
+    html.dark .azar-intelligence-stage::after { background: radial-gradient(circle at 60% 45%, rgba(45,212,191,.2), rgba(20,184,166,.06) 60%, transparent 74%); }
+    html.dark .azar-intelligence-card { background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(30,27,75,.92) 54%, rgba(4,47,46,.86)); border-color: rgba(129,140,248,.28) !important; }
+    html.dark .azar-intelligence-card::after { background: linear-gradient(115deg, transparent 20%, rgba(165,180,252,.12) 48%, transparent 70%); }
+    html.dark .azar-intelligence-card:hover { border-color: rgba(45,212,191,.72) !important; box-shadow: 0 18px 48px -16px rgba(20,184,166,.3), 0 8px 24px -14px rgba(129,140,248,.3); }
+    @keyframes azar-slime-drift { 0%,100% { transform: translate3d(0,0,0) rotate(-4deg) scale(1); } 50% { transform: translate3d(24px,-16px,0) rotate(7deg) scale(1.08); } }
+    @media (prefers-reduced-motion: reduce) { .azar-intelligence-stage::before, .azar-intelligence-stage::after { animation: none; } .azar-intelligence-card, .azar-intelligence-card::after { transition: none; } .azar-intelligence-card:hover { transform: none; } }
     .azar-orb { animation: azar-float 8s ease-in-out infinite; }
     .azar-orb.delay { animation-delay: -3s; }
     .azar-reveal { animation: azar-reveal .75s cubic-bezier(.2,.8,.2,1) both; }
@@ -172,7 +229,7 @@
 
     // Card Container wrapper following the SaaS Minimalist style
     const Card = ({ children, className = "" }) => (
-      <div class={`bg-white border border-slate-100 rounded-2xl shadow-saas p-6 transition-all duration-300 hover:shadow-saas-lg ${className}`}>
+      <div class={`azar-live-card bg-white border border-slate-100 rounded-2xl shadow-saas p-6 transition-all duration-300 hover:shadow-saas-lg ${className}`}>
         {children}
       </div>
     );
@@ -210,6 +267,7 @@
           chart: {
             type: 'radar',
             height: 340,
+            width: 400,
             toolbar: { show: false },
             dropShadow: {
               enabled: true,
@@ -219,6 +277,10 @@
               opacity: 0.03
             }
           },
+          responsive: [
+            { breakpoint: 900, options: { chart: { width: 300, height: 320 } } },
+            { breakpoint: 520, options: { chart: { width: 270, height: 300 } } }
+          ],
           series: [{
             name: memberName,
             data: data
@@ -270,7 +332,7 @@
         };
       }, [data, categories, memberName]);
 
-      return <div ref={chartRef} class="w-full flex justify-center" />;
+      return <div ref={chartRef} class="w-full min-w-0" />;
     };
 
     // 1b. Hexagonal Radar Chart Component for Hard & Soft Skills
@@ -285,6 +347,7 @@
           chart: {
             type: 'radar',
             height: 340,
+            width: 400,
             toolbar: { show: false },
             dropShadow: {
               enabled: true,
@@ -307,6 +370,10 @@
               }
             }
           },
+          responsive: [
+            { breakpoint: 900, options: { chart: { width: 300, height: 320 } } },
+            { breakpoint: 520, options: { chart: { width: 270, height: 300 } } }
+          ],
           series: [{
             name: memberName,
             data: data
@@ -377,7 +444,7 @@
         };
       }, [data, categories, color, memberName]);
 
-      return <div ref={chartRef} class="w-full flex justify-center" />;
+      return <div ref={chartRef} class="w-full min-w-0" />;
     };
 
     // 2. Task Status Donut Chart
@@ -839,7 +906,8 @@
       const [newLogEntry, setNewLogEntry] = useState({
         type: 'Skill',
         name: '',
-        dueDate: ''
+        dueDate: todayForInput(),
+        evidence: ''
       });
 
       // Fetch team data from Google Apps Script
@@ -894,6 +962,13 @@
       };
 
       const splitPeople = (value) => String(value || '').split(/[\n,]/).map(item => item.trim()).filter(Boolean);
+      const currentActor = useMemo(() => {
+        const memberEmail = currentUser ? String(currentUser.Mail || currentUser.Email || '').trim() : '';
+        const sessionEmail = String(activeUserSession.email || '').trim();
+        const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sessionEmail) ? sessionEmail : memberEmail;
+        const name = String(activeUserSession.name || (currentUser && currentUser.Name) || '').trim();
+        return { name, email };
+      }, [currentUser, activeUserSession]);
       const parseScore = (value, fallback = 0) => {
         const score = Number.parseFloat(String(value ?? '').replace(',', '.'));
         return Number.isFinite(score) ? score : fallback;
@@ -1010,7 +1085,7 @@
           const isMandatoryComplete = track.metrics.totalMandatory > 0 && track.metrics.completedMandatory === track.metrics.totalMandatory;
 
           const coursesHtml = hasCourses ? track.courses.map(course => `
-            <div class="border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 shadow-sm ${
+              <div class="azar-live-card azar-learning-course border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 shadow-sm ${
               course.isCompleted
                 ? 'border-emerald-200 bg-emerald-50/30'
                 : 'border-slate-100 bg-white hover:border-brand-200 hover:shadow-saas'
@@ -1062,7 +1137,7 @@
               </div>
             </div>
           `).join('') : `
-            <div class="col-span-full border border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-slate-50/50">
+            <div class="azar-live-card col-span-full border border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-slate-50/50">
               <span class="text-slate-300 text-3xl mb-2">📅</span>
               <h5 class="text-xs font-extrabold text-slate-700">Tracks Scheduled For Future Releases</h5>
               <p class="text-[10px] text-slate-400 font-bold max-w-xs mt-1 leading-relaxed">
@@ -1085,7 +1160,7 @@
           ` : '';
 
           return `
-            <div class="border rounded-2xl p-6 bg-white shadow-saas space-y-6 ${color.border}">
+            <div class="azar-live-card azar-learning-track border rounded-2xl p-6 bg-white shadow-saas space-y-6 ${color.border}">
               <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b border-slate-100">
                 <div class="space-y-1 md:max-w-[65%]">
                   <div class="flex items-center gap-2">
@@ -1128,7 +1203,7 @@
           `;
         }).join('');
 
-        containerElement.innerHTML = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">${htmlContent}</div>`;
+        containerElement.innerHTML = `<div class="azar-learning-list space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">${htmlContent}</div>`;
       };
 
       // Handle submitting a custom set event by admin
@@ -1145,7 +1220,8 @@
         // Package data into a JSON object
         const payload = {
           action: "createEvent",
-          email: activeUserSession.email,
+          userName: currentActor.name,
+          email: currentActor.email,
           type: setEventEntry.type,
           name: setEventEntry.name,
           dueDate: setEventEntry.dueDate,
@@ -1201,7 +1277,8 @@
             "Event Name": payload.name,
             "Invited/Assigned": payload.invitedList.join('\n'),
             "Attendees/Completed": "",
-            "Due to Date": payload.dueDate
+            "Due to Date": payload.dueDate,
+            "Evidence": payload.evidence || ''
           };
           setTeamData(prev => ({
             ...prev,
@@ -1217,6 +1294,10 @@
       // Handle submitting a new event to Google Apps Script Log sheet
       const handleLogSubmit = (e) => {
         e.preventDefault();
+        if (!currentActor.name || !currentActor.email) {
+          alert('The authenticated current user name and email are required before logging an event.');
+          return;
+        }
         setSyncing(true);
 
         const invitees = teamData.team.map(t => t.Name); // default invite everyone
@@ -1226,8 +1307,9 @@
           type: newLogEntry.type,
           name: newLogEntry.name,
           dueDate: newLogEntry.dueDate,
-          userName: activeUserSession.name,
-          email: activeUserSession.email,
+          userName: currentActor.name,
+          email: currentActor.email,
+          evidence: newLogEntry.evidence,
           invitees: invitees
         };
 
@@ -1245,7 +1327,7 @@
           .then(() => {
             setShowLogModal(false);
             setEventSearchQuery('');
-            setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+            setNewLogEntry({ type: 'Skill', name: '', dueDate: todayForInput(), evidence: '' });
             fetchData(true); // Sync reload
           })
           .catch((err) => {
@@ -1264,7 +1346,7 @@
             .withSuccessHandler((res) => {
               setShowLogModal(false);
               setEventSearchQuery('');
-              setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+              setNewLogEntry({ type: 'Skill', name: '', dueDate: todayForInput(), evidence: '' });
               fetchData(true); // Sync reload
             })
             .withFailureHandler((err) => {
@@ -1272,7 +1354,7 @@
               alert("Error adding event to sheet");
               setSyncing(false);
             })
-            .logEvent(payload.type, payload.name, invitees, payload.dueDate, payload.email);
+            .logEvent(payload.type, payload.name, invitees, payload.dueDate, payload.email, payload.evidence);
         } else {
           // Simulation for local development
           const newEvent = {
@@ -1281,7 +1363,8 @@
             "Event Name": payload.name,
             "Invited/Assigned": invitees.join('\n'),
             "Attendees/Completed": "",
-            "Due to Date": payload.dueDate
+            "Due to Date": payload.dueDate,
+            "Evidence": payload.evidence || ''
           };
           setTeamData(prev => ({
             ...prev,
@@ -1289,7 +1372,7 @@
           }));
           setShowLogModal(false);
           setEventSearchQuery('');
-          setNewLogEntry({ type: 'Skill', name: '', dueDate: '' });
+          setNewLogEntry({ type: 'Skill', name: '', dueDate: todayForInput(), evidence: '' });
           setSyncing(false);
         }
       };
@@ -1309,7 +1392,7 @@
               alert("Error registering attendance");
               setSyncing(false);
             })
-            .attendEvent(eventId, currentUser.Name, activeUserSession.email);
+            .attendEvent(eventId, currentActor.name, currentActor.email);
         } else {
           // Simulation
           setTeamData(prev => {
@@ -1779,7 +1862,28 @@
           });
         }
 
-        return events;
+        // Include custom events created in the Log sheet so they can be selected
+        // later from the Log Event form, even when they are not in a source sheet.
+        if (teamData.logs) {
+          teamData.logs.forEach(log => {
+            const name = String(log["Event Name"] || '').trim();
+            const type = String(log["Event Type"] || '').trim();
+            if (!name || !type) return;
+            events.push({
+              name,
+              type,
+              dueDate: log["Due to Date"] || todayForInput(),
+              evidence: log.Evidence || log.evidence || '',
+              source: 'log',
+              reopenWindow: false
+            });
+          });
+        }
+
+        // Prefer the newest Log row when a source-sheet item and a set event share a name.
+        return events.filter((event, index, all) => all.slice(index + 1).every(candidate =>
+          normalizeName(candidate.name) !== normalizeName(event.name) || candidate.type !== event.type
+        ));
       }, [teamData]);
 
       // Filter available events based on event type, due date (Crucial Rule) and search query
@@ -1792,7 +1896,7 @@
           if (!ev.dueDate) return true;
           const due = new Date(ev.dueDate);
           due.setHours(0,0,0,0);
-          return due >= today || ev.reopenWindow === true;
+          return due >= today || ev.reopenWindow === true || ev.source === 'log';
         });
 
         if (!eventSearchQuery.trim()) return activeEvents;
@@ -1851,6 +1955,23 @@
       const activeCount = useMemo(() => {
         return userEventsAndStatus.filter(e => e.status === 'Active').length;
       }, [userEventsAndStatus]);
+
+      // Log rows are appended by Apps Script, while the local preview prepends them.
+      // Use the highest Event ID so the webcast always reflects the newest event.
+      const latestEvent = useMemo(() => {
+        if (!teamData.logs || !teamData.logs.length) return null;
+        return teamData.logs.reduce((latest, log) => {
+          if (!latest) return log;
+          const latestId = parseFloat(latest["Event ID"]);
+          const currentId = parseFloat(log["Event ID"]);
+          if (Number.isFinite(currentId) && (!Number.isFinite(latestId) || currentId > latestId)) return log;
+          return latest;
+        }, null);
+      }, [teamData.logs]);
+
+      useEffect(() => {
+        if (teamData.logs && teamData.logs.length) setShowNotification(true);
+      }, [teamData.logs]);
 
       const isLeader = useMemo(() => {
         if (!currentUser) return false;
@@ -2194,6 +2315,29 @@
         }
       };
 
+      // Form-backed profile fields live on the Team sheet. Keep the lookup
+      // tolerant of capitalization and future form-question wording changes.
+      const getMemberOverview = (member) => {
+        if (!member) return '';
+        const values = Object.entries(member)
+          .filter(([key]) => /overview|objective|summary|about|bio/i.test(String(key)))
+          .map(([, value]) => {
+            if (value && typeof value === 'object') return Object.values(value).join(' ');
+            return String(value || '').replace(/[\r\n]+/g, ' ').trim();
+          })
+          .filter(Boolean);
+        return [...new Set(values)].join(' ');
+      };
+
+      // The Team sheet stores these as serialized {label, rating} form values.
+      // Exposing the groups in one place keeps the Intelligence page and CV
+      // export on the same source of truth.
+      const getMemberSkillGroups = (member) => [
+        { name: 'Hard skills', items: parseRatingColumn(member?.['Hard Skill'] || member?.HardSkill) },
+        { name: 'Soft skills', items: parseRatingColumn(member?.['Soft Skill'] || member?.SoftSkill) },
+        { name: 'Technology & tools', items: parseRatingColumn(member?.Technology) }
+      ].filter(group => group.items.length > 0);
+
       // One scoring model powers the dashboard, member cards and CV export.
       const getMemberMetrics = (member) => {
         const nameNorm = normalizeName(member.Name);
@@ -2339,6 +2483,8 @@
         if (!member) return;
         const metrics = getMemberMetrics(member);
         const education = getMemberEducation(member);
+        const overview = getMemberOverview(member);
+        const skillGroups = getMemberSkillGroups(member);
         const profile = getMemberProfileData(member);
         const docxApi = window.docx;
         if (!docxApi) {
@@ -2352,6 +2498,7 @@
         const muted = '64748B';
         const line = 'E2E8F0';
         const clean = value => String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+        const cleanContact = value => clean(value).replace(/\.0+$/, '');
         const metricCell = (value, label) => new TableCell({
           width: { size: 25, type: WidthType.PERCENTAGE },
           shading: { fill: 'F5F3FF', type: ShadingType.CLEAR },
@@ -2366,28 +2513,41 @@
           spacing: { before: 260, after: 100 },
           border: { bottom: { color: line, style: BorderStyle.SINGLE, size: 6, space: 5 } }
         });
-        const skillRows = (metrics.skills || []).slice(0, 12).map(skill => new TableRow({ children: [
-          new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: clean(skill.subject), size: 16, color: ink })] })] }),
-          new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `${skill.score}/100`, bold: true, size: 16, color: purple })] })] })
-        ]}));
-        const assignedTasks = (teamData.tasks || []).filter(task => splitPeople(task.Assignees).some(owner => owner.toLowerCase() === clean(member.Name).toLowerCase())).slice(0, 5);
-        const profileItems = (profile.skills || []).flatMap(group => group.items || []).map(clean).filter(Boolean).slice(0, 10);
+        const skillRows = skillGroups.flatMap(group => group.items.map(item => new TableRow({ children: [
+          new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [new Paragraph({ children: [new TextRun({ text: clean(group.name), bold: true, size: 14, color: muted })] })] }),
+          new TableCell({ width: { size: 63, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: clean(item.label), size: 16, color: ink })] })] }),
+          new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `${item.score}/10`, bold: true, size: 16, color: purple })] })] })
+        ]})));
+        const assignedTasks = (teamData.tasks || []).filter(task => splitPeople(task.Assignees).some(owner => normalizeName(owner) === normalizeName(member.Name))).slice(0, 8);
+        const profileSections = [
+          ['Knowledge', profile.knowledge],
+          ['Intelligence skills', profile.skills],
+          ['Abilities', profile.abilities],
+          ['Technology', profile.technology],
+          ['Personality', profile.personality]
+        ];
+        const profileChildren = profileSections.flatMap(([label, groups]) => {
+          const rows = (groups || []).flatMap(group => [
+            new Paragraph({ children: [new TextRun({ text: clean(group.category), bold: true, size: 16, color: ink })], spacing: { before: 80, after: 30 } }),
+            ...(group.items || []).filter(Boolean).map(item => new Paragraph({ text: clean(item), bullet: { level: 0 }, spacing: { after: 45 } }))
+          ]);
+          return rows.length ? [sectionHeading(label), ...rows] : [];
+        });
         const cvChildren = [
           new Paragraph({ children: [new TextRun({ text: clean(member.Name), bold: true, size: 36, color: purple })], spacing: { after: 40 } }),
           new Paragraph({ children: [new TextRun({ text: clean(member.Rule || 'Team Member'), bold: true, size: 20, color: ink })], spacing: { after: 40 } }),
-          new Paragraph({ children: [new TextRun({ text: [member.Mail, member.ID ? `ID ${member.ID}` : ''].filter(Boolean).map(clean).join('  ·  '), size: 16, color: muted })], spacing: { after: 220 } }),
+          new Paragraph({ children: [new TextRun({ text: [member.Mail, member['Phone number'] || member.Phone, member.ID ? `ID ${member.ID}` : ''].filter(Boolean).map(cleanContact).join('  |  '), size: 16, color: muted })], spacing: { after: 220 } }),
           new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } }, rows: [new TableRow({ children: [metricCell(metrics.overallScore + '/100', 'Overall score'), metricCell(`${metrics.tasksCompleted}/${metrics.tasksAssigned}`, 'Tasks delivered'), metricCell(`${metrics.learningProgress}%`, 'Learning'), metricCell(`${metrics.commitment}%`, 'Commitment')] })] }),
-          sectionHeading('Professional profile'),
-          new Paragraph({ children: [new TextRun({ text: `Performance-focused ${clean(member.Rule || 'team member')} contributing to ASAR Project Team delivery, learning, and continuous improvement.`, size: 17, color: ink })], spacing: { after: 100, line: 276 } }),
-          sectionHeading('Technical skills'),
-          new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { insideHorizontal: { color: line, style: BorderStyle.SINGLE, size: 3 }, bottom: { color: line, style: BorderStyle.SINGLE, size: 3 } }, rows: skillRows }),
-          profileItems.length ? sectionHeading('Strengths & working style') : null,
-          ...profileItems.map(item => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 50 } })),
+          sectionHeading('Overview & objective'),
+          new Paragraph({ children: [new TextRun({ text: overview || 'No overview or career objective has been submitted for this team member yet.', italic: !overview, size: 17, color: overview ? ink : muted })], spacing: { after: 100, line: 276 } }),
+          skillRows.length ? sectionHeading('Technical skills & competency ratings') : null,
+          skillRows.length ? new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { insideHorizontal: { color: line, style: BorderStyle.SINGLE, size: 3 }, bottom: { color: line, style: BorderStyle.SINGLE, size: 3 } }, rows: skillRows }) : null,
+          ...profileChildren,
           education.length ? sectionHeading('Education & credentials') : null,
-          ...education.map(item => new Paragraph({ children: [new TextRun({ text: clean(item.degree), bold: true, size: 17, color: ink }), new TextRun({ text: item.detail ? `  ·  ${clean(item.detail)}` : '', size: 16, color: muted })], spacing: { after: 70 } })),
-          assignedTasks.length ? sectionHeading('Selected delivery') : null,
-          ...assignedTasks.map(task => new Paragraph({ children: [new TextRun({ text: `${clean(task['Task Title'])}  `, bold: true, size: 16, color: ink }), new TextRun({ text: `${clean(task.Status || 'Pending')} · Score ${clean(task.Score || '—')}`, size: 15, color: muted })], bullet: { level: 0 }, spacing: { after: 50 } })),
-          new Paragraph({ children: [new TextRun({ text: `Prepared from ASAR Project Team workspace data · ${todayForInput()}`, italic: true, size: 13, color: muted })], spacing: { before: 280 } })
+          ...education.map(item => new Paragraph({ children: [new TextRun({ text: clean(item.degree), bold: true, size: 17, color: ink }), new TextRun({ text: item.detail ? `  |  ${clean(item.detail)}` : '', size: 16, color: muted })], spacing: { after: 70 } })),
+          assignedTasks.length ? sectionHeading('Selected team delivery') : null,
+          ...assignedTasks.map(task => new Paragraph({ children: [new TextRun({ text: `${clean(task['Task Title'])}  `, bold: true, size: 16, color: ink }), new TextRun({ text: `${clean(task.Status || 'Pending')} | Score ${clean(task.Score || '—')}`, size: 15, color: muted })], bullet: { level: 0 }, spacing: { after: 50 } })),
+          new Paragraph({ children: [new TextRun({ text: `Prepared from ASAR Project Team Intelligence and Team sheet data | ${todayForInput()}`, italic: true, size: 13, color: muted })], spacing: { before: 280 } })
         ].filter(Boolean);
         const cvDocument = new Document({ sections: [{ properties: { page: { margin: { top: 620, right: 700, bottom: 620, left: 700 } } }, children: cvChildren }] });
         const blob = await Packer.toBlob(cvDocument);
@@ -2396,8 +2556,8 @@
         link.href = url;
         link.download = `${clean(member.Name).replace(/[^a-z0-9]+/gi, '-')}-ASAR-CV.docx`;
         link.click();
-        URL.revokeObjectURL(url);
-        showToastNotification('Modern DOCX CV downloaded');
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToastNotification('Structured DOCX CV downloaded');
       };
 
       if (dataError) {
@@ -2523,7 +2683,7 @@
           <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
 
             {/* LIVE WEBCAST & WARNINGS NOTIFICATION */}
-            {showNotification && teamData.logs.length > 0 && (
+            {showNotification && latestEvent && (
               <div class="bg-gradient-to-r from-brand-50 to-indigo-50 border border-brand-100/50 p-4 sm:p-5 rounded-3xl relative flex items-start gap-4">
                 <div class="bg-brand-100 text-brand-600 p-2.5 rounded-full flex-shrink-0">
                   <Icon name="bell" className="w-5 h-5 animate-bounce" />
@@ -2531,7 +2691,7 @@
                 <div class="flex-1 space-y-1">
                   <h4 class="text-sm font-bold text-brand-900 leading-none">Live Workspace Webcast</h4>
                   <p class="text-xs text-brand-800 font-medium">
-                    <span class="font-bold">Latest Event Added:</span> "{teamData.logs[0]["Event Name"]}" ({teamData.logs[0]["Event Type"]}) due on <span class="font-bold">{teamData.logs[0]["Due to Date"] || 'No Limit'}</span>.
+                    <span class="font-bold">Latest Event Added:</span> "{latestEvent["Event Name"]}" ({latestEvent["Event Type"]}) due on <span class="font-bold">{latestEvent["Due to Date"] || 'No Limit'}</span>.
                   </p>
                   
                   {/* Reminders / Action Items */}
@@ -2561,7 +2721,7 @@
 
             {/* -------------------- Tab 1: DASHBOARD PANEL -------------------- */}
             {activeTab === 'dashboard' && (
-              <div class="space-y-6">
+              <div class="azar-live-stage space-y-6">
                 
                 {/* 1. Animated landing hero */}
                 <section data-reveal class="azar-hero relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-12 text-white shadow-2xl azar-reveal">
@@ -2771,7 +2931,7 @@
                         {teamDashboardStats.globalMilestones.map((milestone, idx) => (
                           <div 
                             key={idx}
-                            class="p-4 rounded-2xl border border-slate-100 bg-slate-50/30 hover:bg-white hover:shadow-saas transition-all duration-300 flex flex-col justify-between space-y-3"
+                            class="azar-live-card p-4 rounded-2xl border border-slate-100 bg-slate-50/30 hover:bg-white hover:shadow-saas transition-all duration-300 flex flex-col justify-between space-y-3"
                           >
                             <div class="space-y-1.5">
                               <div class="flex items-center justify-between gap-2">
@@ -2836,7 +2996,7 @@
               const taskMatchesSearch = task => `${task["Task Title"] || ''} ${task["Task description"] || ''} ${task.Assignees || ''}`.toLowerCase().includes(taskSearch.toLowerCase());
               const boardTasks = (teamData.tasks || []).filter(task => !isArchived(task) && taskMatchesSearch(task));
               const archivedTasks = (teamData.tasks || []).filter(task => isArchived(task) && taskMatchesSearch(task));
-              return <div class="space-y-6 azar-reveal"><div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[.2em] text-brand-500">Execution layer</p><h3 class="mt-1 text-2xl font-black text-slate-900">Task command center</h3><p class="mt-1 text-xs font-medium text-slate-500">Drag work between stages. Completed and blocked work can be archived when you are ready to clear the active board.</p></div><div class="flex flex-wrap gap-2"><div class="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks or owners" class="w-56 rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-brand-500" /></div><button onClick={() => setTaskView('board')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'board' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="kanban" className="h-4 w-4" /> Board</button><button onClick={() => setTaskView('archive')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'archive' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="archive" className="h-4 w-4" /> Archive <span class="rounded-full bg-white/20 px-1.5">{archivedTasks.length}</span></button><button onClick={() => setShowTaskModal(true)} class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-200"><Icon name="plus" className="h-4 w-4" /> New task</button></div></div>{taskView === 'board' ? <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">{kanbanColumns.map(column => { const columnTasks = boardTasks.filter(task => taskStatus(task) === column.id); return <section key={column.id} onDragOver={event => event.preventDefault()} onDrop={() => handleTaskDrop(column.id)} class={`min-h-[24rem] rounded-2xl border p-3 ${column.tint}`}><div class="mb-3 flex items-center justify-between"><div class="flex items-center gap-2"><Icon name={column.icon} className="h-4 w-4 text-slate-500" /><h4 class="text-xs font-black uppercase tracking-wider text-slate-700">{column.label}</h4></div><span class="rounded-full bg-white/80 px-2 py-1 text-[10px] font-black text-slate-500">{columnTasks.length}</span></div><div class="space-y-3">{columnTasks.map((task, index) => <article key={`${task["Task Title"]}-${index}`} draggable onDragStart={() => setDraggedTaskTitle(task["Task Title"])} class="azar-glass cursor-grab rounded-2xl border border-white/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-1 hover:shadow-saas-lg active:cursor-grabbing"><div class="flex items-start justify-between gap-2"><h5 class="text-sm font-black leading-tight text-slate-900">{task["Task Title"] || 'Untitled task'}</h5><div class="flex items-center gap-1"><button onClick={() => openTaskEditor(task)} title="Edit task" class="rounded-lg p-1.5 text-brand-500 hover:bg-brand-50"><Icon name="pencil" className="h-4 w-4" /></button><button onClick={() => (taskStatus(task) === 'Completed' || taskStatus(task) === 'Blocked') && archiveTask(task)} disabled={!['Completed','Blocked'].includes(taskStatus(task))} title={['Completed','Blocked'].includes(taskStatus(task)) ? 'Archive task' : 'Only done or blocked tasks can be archived'} class={`rounded-lg p-1.5 ${['Completed','Blocked'].includes(taskStatus(task)) ? 'text-slate-500 hover:bg-slate-100' : 'cursor-not-allowed text-slate-200'}`}><Icon name="archive" className="h-3.5 w-3.5" /></button></div></div><p class="mt-2 line-clamp-2 text-[11px] leading-5 text-slate-500">{task["Task description"] || 'No description provided.'}</p><div class="mt-3 flex flex-wrap gap-1">{splitPeople(task.Assignees).map(owner => <span key={owner} class="rounded-full bg-brand-50 px-2 py-1 text-[9px] font-bold text-brand-700">{owner}</span>)}</div><div class="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3"><select value={task.Status || 'Pending'} onChange={event => persistTaskUpdate(task, { status: event.target.value })} class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-600"><option>Backlog</option><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select><input type="number" min="0" max="10" step="0.5" value={task.Score || ''} onChange={event => persistTaskUpdate(task, { score: event.target.value })} placeholder="/10" class="w-16 rounded-lg border border-slate-200 bg-white px-2.5 py-2.5 text-xs font-bold text-slate-600" /></div></article>)}{!columnTasks.length && <div class="rounded-xl border border-dashed border-slate-300/70 p-5 text-center text-[10px] font-semibold text-slate-400">Drop tasks here</div>}</div></section>; })}</div> : <div class="azar-glass rounded-2xl border border-slate-200 bg-white p-5 shadow-saas"><div class="mb-4 flex items-center gap-2"><Icon name="archive" className="h-5 w-5 text-slate-500" /><h4 class="text-sm font-black text-slate-900">Archived work</h4><span class="text-xs font-semibold text-slate-400">Done and blocked tasks kept out of the active board</span></div>{archivedTasks.length ? <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{archivedTasks.map(task => <div key={task["Task Title"]} class="rounded-xl border border-slate-200 bg-slate-50 p-4"><div class="flex items-start justify-between gap-2"><h5 class="text-xs font-black text-slate-900">{task["Task Title"]}</h5><button onClick={() => restoreTask(task)} class="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-brand-600 shadow-sm">Restore</button></div><p class="mt-2 text-[11px] text-slate-500">{task["Task description"] || 'No description provided.'}</p><p class="mt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{task.Status} · Score {task.Score || '—'}</p></div>)}</div> : <div class="rounded-xl border border-dashed border-slate-200 p-10 text-center text-xs font-semibold text-slate-400">Nothing archived yet.</div>}</div>}</div>;
+              return <div class="azar-live-stage space-y-6 azar-reveal"><div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[.2em] text-brand-500">Execution layer</p><h3 class="mt-1 text-2xl font-black text-slate-900">Task command center</h3><p class="mt-1 text-xs font-medium text-slate-500">Drag work between stages. Completed and blocked work can be archived when you are ready to clear the active board.</p></div><div class="flex flex-wrap gap-2"><div class="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks or owners" class="w-56 rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-brand-500" /></div><button onClick={() => setTaskView('board')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'board' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="kanban" className="h-4 w-4" /> Board</button><button onClick={() => setTaskView('archive')} class={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${taskView === 'archive' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}><Icon name="archive" className="h-4 w-4" /> Archive <span class="rounded-full bg-white/20 px-1.5">{archivedTasks.length}</span></button><button onClick={() => setShowTaskModal(true)} class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-200"><Icon name="plus" className="h-4 w-4" /> New task</button></div></div>{taskView === 'board' ? <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">{kanbanColumns.map(column => { const columnTasks = boardTasks.filter(task => taskStatus(task) === column.id); return <section key={column.id} onDragOver={event => event.preventDefault()} onDrop={() => handleTaskDrop(column.id)} class={`azar-live-column min-h-[24rem] rounded-2xl border p-3 ${column.tint}`}><div class="mb-3 flex items-center justify-between"><div class="flex items-center gap-2"><Icon name={column.icon} className="h-4 w-4 text-slate-500" /><h4 class="text-xs font-black uppercase tracking-wider text-slate-700">{column.label}</h4></div><span class="rounded-full bg-white/80 px-2 py-1 text-[10px] font-black text-slate-500">{columnTasks.length}</span></div><div class="space-y-3">{columnTasks.map((task, index) => <article key={`${task["Task Title"]}-${index}`} draggable onDragStart={() => setDraggedTaskTitle(task["Task Title"])} class="azar-live-card azar-glass cursor-grab rounded-2xl border border-white/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-1 hover:shadow-saas-lg active:cursor-grabbing"><div class="flex items-start justify-between gap-2"><h5 class="text-sm font-black leading-tight text-slate-900">{task["Task Title"] || 'Untitled task'}</h5><div class="flex items-center gap-1"><button onClick={() => openTaskEditor(task)} title="Edit task" class="rounded-lg p-1.5 text-brand-500 hover:bg-brand-50"><Icon name="pencil" className="h-4 w-4" /></button><button onClick={() => (taskStatus(task) === 'Completed' || taskStatus(task) === 'Blocked') && archiveTask(task)} disabled={!['Completed','Blocked'].includes(taskStatus(task))} title={['Completed','Blocked'].includes(taskStatus(task)) ? 'Archive task' : 'Only done or blocked tasks can be archived'} class={`rounded-lg p-1.5 ${['Completed','Blocked'].includes(taskStatus(task)) ? 'text-slate-500 hover:bg-slate-100' : 'cursor-not-allowed text-slate-200'}`}><Icon name="archive" className="h-3.5 w-3.5" /></button></div></div><p class="mt-2 line-clamp-2 text-[11px] leading-5 text-slate-500">{task["Task description"] || 'No description provided.'}</p><div class="mt-3 flex flex-wrap gap-1">{splitPeople(task.Assignees).map(owner => <span key={owner} class="rounded-full bg-brand-50 px-2 py-1 text-[9px] font-bold text-brand-700">{owner}</span>)}</div><div class="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3"><select value={task.Status || 'Pending'} onChange={event => persistTaskUpdate(task, { status: event.target.value })} class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-600"><option>Backlog</option><option>Pending</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select><input type="number" min="0" max="10" step="0.5" value={task.Score || ''} onChange={event => persistTaskUpdate(task, { score: event.target.value })} placeholder="/10" class="w-16 rounded-lg border border-slate-200 bg-white px-2.5 py-2.5 text-xs font-bold text-slate-600" /></div></article>)}{!columnTasks.length && <div class="rounded-xl border border-dashed border-slate-300/70 p-5 text-center text-[10px] font-semibold text-slate-400">Drop tasks here</div>}</div></section>; })}</div> : <div class="azar-live-card azar-glass rounded-2xl border border-slate-200 bg-white p-5 shadow-saas"><div class="mb-4 flex items-center gap-2"><Icon name="archive" className="h-5 w-5 text-slate-500" /><h4 class="text-sm font-black text-slate-900">Archived work</h4><span class="text-xs font-semibold text-slate-400">Done and blocked tasks kept out of the active board</span></div>{archivedTasks.length ? <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{archivedTasks.map(task => <div key={task["Task Title"]} class="azar-live-card rounded-xl border border-slate-200 bg-slate-50 p-4"><div class="flex items-start justify-between gap-2"><h5 class="text-xs font-black text-slate-900">{task["Task Title"]}</h5><button onClick={() => restoreTask(task)} class="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-brand-600 shadow-sm">Restore</button></div><p class="mt-2 text-[11px] text-slate-500">{task["Task description"] || 'No description provided.'}</p><p class="mt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{task.Status} · Score {task.Score || '—'}</p></div>)}</div> : <div class="rounded-xl border border-dashed border-slate-200 p-10 text-center text-xs font-semibold text-slate-400">Nothing archived yet.</div>}</div>}</div>;
             })()}
 
             {activeTab === 'tasks-old' && (() => {
@@ -2870,7 +3030,7 @@
 
             {/* -------------------- Tab 3: LEARNING TRACKS PANEL -------------------- */}
             {activeTab === 'learning' && (
-              <div class="space-y-6">
+              <div class="azar-live-stage space-y-6">
                 <div class="flex items-center justify-between">
                   <div>
                     <h3 class="text-lg font-bold text-slate-900">Learning Tracks Intelligence</h3>
@@ -2891,7 +3051,8 @@
 
             {/* -------------------- Tab 3: TEAM INTELLIGENCE PANEL -------------------- */}
             {activeTab === 'team' && (() => {
-              const activeMember = selectedTeamMember || (teamData.team && teamData.team.length > 0 ? { ...teamData.team[0], ...getMemberMetrics(teamData.team[0]) } : null);
+              const activeMemberRecord = selectedTeamMember || (teamData.team && teamData.team.length > 0 ? teamData.team[0] : null);
+              const activeMember = activeMemberRecord ? { ...activeMemberRecord, ...getMemberMetrics(activeMemberRecord) } : null;
               const filteredTeam = (teamData.team || []).filter(member => 
                 String(member.Name || '').toLowerCase().includes(teamSearchQuery.toLowerCase())
               );
@@ -2905,7 +3066,7 @@
                   <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
                     
                     {/* Left Column: Smart Sidebar */}
-                    <div class="lg:col-span-1 flex flex-col bg-white border border-slate-100 rounded-3xl p-4 shadow-saas sticky top-24 max-h-[calc(100vh-10rem)] overflow-hidden">
+                     <div class="lg:col-span-1 flex flex-col bg-white border border-slate-100 rounded-3xl p-4 shadow-saas sticky top-24 max-h-[calc(100vh-10rem)] overflow-hidden azar-intelligence-card">
                       <div class="mb-4">
                         <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Team Directory</h4>
                         <div class="relative">
@@ -2961,10 +3122,10 @@
 
                     {/* Right Column: Main Content Area */}
                     {activeMember ? (
-                      <div class="lg:col-span-3 space-y-6">
+                       <div class="lg:col-span-3 space-y-6 azar-intelligence-stage">
                         
                         {/* Member Detail Header Card */}
-                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas flex flex-col md:flex-row md:items-center md:justify-between gap-6 flex-wrap">
+                         <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas flex flex-col md:flex-row md:items-center md:justify-between gap-6 flex-wrap azar-intelligence-card">
                           <div class="flex items-center gap-4">
                             <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-2xl border border-brand-100/30 uppercase">
                               {activeMember.Name.charAt(0)}
@@ -2995,13 +3156,13 @@
                             </div>
                             <div class="hidden sm:block flex-1 md:flex-initial bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3.5 text-center min-w-[100px]"><span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Team score</span><span class="text-base font-black text-indigo-700 block mt-1">{activeMember.overallScore || 0}/100</span></div>
                           </div>
-                        </div>
+                         </div>
 
-                        {/* Hexa Radar Graphs Row - 2x2 Grid Radar Charts! */}
-                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-2 gap-6">
+                         {/* Hexa Radar Graphs Row - 2x2 Grid Radar Charts! */}
+                         <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas grid grid-cols-1 md:grid-cols-2 gap-6 azar-intelligence-card">
                           
                           {/* Chart 1: Hard Skills */}
-                          <div class="flex flex-col items-center">
+                           <div class="flex w-full min-w-0 flex-col items-center">
                             <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest block mb-4 bg-blue-50 px-2.5 py-1 rounded-full">Hard Skills Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).hard}
@@ -3012,7 +3173,7 @@
                           </div>
                           
                           {/* Chart 2: Soft Skills */}
-                          <div class="flex flex-col items-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6">
+                           <div class="flex w-full min-w-0 flex-col items-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6">
                             <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-4 bg-emerald-50 px-2.5 py-1 rounded-full">Soft Skills Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).soft}
@@ -3023,7 +3184,7 @@
                           </div>
 
                           {/* Chart 3: Technologies & Tools */}
-                          <div class="flex flex-col items-center border-t border-slate-100 pt-6">
+                           <div class="flex w-full min-w-0 flex-col items-center border-t border-slate-100 pt-6">
                             <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest block mb-4 bg-cyan-50 px-2.5 py-1 rounded-full">Technologies & Tools</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).tech}
@@ -3034,7 +3195,7 @@
                           </div>
 
                           {/* Chart 4: Learning Matrix */}
-                          <div class="flex flex-col items-center border-t border-slate-100 pt-6 md:border-l md:pl-6">
+                           <div class="flex w-full min-w-0 flex-col items-center border-t border-slate-100 pt-6 md:border-l md:pl-6">
                             <span class="text-[10px] font-black text-purple-500 uppercase tracking-widest block mb-4 bg-purple-50 px-2.5 py-1 rounded-full">Learning Matrix</span>
                             <HexaRadarChart 
                               data={getHexaSkills(activeMember, activeMember).learning}
@@ -3044,13 +3205,27 @@
                             />
                           </div>
 
-                        </div>
+                         </div>
 
-                        {/* Categorized Profile Fieldsets Grid */}
+                         {/* Form-backed overview / career objective */}
+                         <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-saas azar-intelligence-card">
+                           <div class="flex items-center justify-between gap-4 mb-3">
+                             <div>
+                               <p class="text-[10px] font-black text-brand-500 uppercase tracking-[.2em]">Profile summary</p>
+                               <h4 class="text-sm font-bold text-slate-900 mt-1">Overview &amp; objective</h4>
+                             </div>
+                             <span class="shrink-0 rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-600">From Team sheet</span>
+                           </div>
+                           <p class="text-sm leading-7 text-slate-600">
+                             {getMemberOverview(activeMember) || 'No overview or career objective has been submitted for this team member yet.'}
+                           </p>
+                         </div>
+
+                         {/* Categorized Profile Fieldsets Grid */}
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           
                           {/* KNOWLEDGE */}
-                          <fieldset class="border border-purple-100 rounded-2xl p-5 bg-purple-50/5 flex flex-col hover:border-purple-200 hover:shadow-saas transition-all duration-300">
+                          <fieldset class="border border-purple-100 rounded-2xl p-5 bg-purple-50/5 flex flex-col hover:border-purple-200 hover:shadow-saas transition-all duration-300 azar-intelligence-card">
                             <legend class="px-3.5 py-1 bg-purple-50 border border-purple-100 rounded-full text-[10px] font-black text-purple-700 tracking-wider uppercase">
                               Knowledge
                             </legend>
@@ -3069,7 +3244,7 @@
                           </fieldset>
 
                           {/* SKILLS */}
-                          <fieldset class="border border-orange-100 rounded-2xl p-5 bg-orange-50/5 flex flex-col hover:border-orange-200 hover:shadow-saas transition-all duration-300">
+                          <fieldset class="border border-orange-100 rounded-2xl p-5 bg-orange-50/5 flex flex-col hover:border-orange-200 hover:shadow-saas transition-all duration-300 azar-intelligence-card">
                             <legend class="px-3.5 py-1 bg-orange-50 border border-orange-100 rounded-full text-[10px] font-black text-orange-700 tracking-wider uppercase">
                               Skills
                             </legend>
@@ -3088,7 +3263,7 @@
                           </fieldset>
 
                           {/* ABILITIES */}
-                          <fieldset class="border border-blue-100 rounded-2xl p-5 bg-blue-50/5 flex flex-col hover:border-blue-200 hover:shadow-saas transition-all duration-300">
+                          <fieldset class="border border-blue-100 rounded-2xl p-5 bg-blue-50/5 flex flex-col hover:border-blue-200 hover:shadow-saas transition-all duration-300 azar-intelligence-card">
                             <legend class="px-3.5 py-1 bg-blue-50 border border-blue-100 rounded-full text-[10px] font-black text-blue-700 tracking-wider uppercase">
                               Abilities
                             </legend>
@@ -3107,7 +3282,7 @@
                           </fieldset>
 
                           {/* PERSONALITY */}
-                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300">
+                          <fieldset class="border border-emerald-100 rounded-2xl p-5 bg-emerald-50/5 flex flex-col hover:border-emerald-200 hover:shadow-saas transition-all duration-300 azar-intelligence-card">
                             <legend class="px-3.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 tracking-wider uppercase">
                               Personality
                             </legend>
@@ -3126,7 +3301,7 @@
                           </fieldset>
 
                           {/* TECHNOLOGY */}
-                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300">
+                          <fieldset class="border border-indigo-100 rounded-2xl p-5 bg-indigo-50/5 flex flex-col hover:border-indigo-200 hover:shadow-saas transition-all duration-300 azar-intelligence-card">
                             <legend class="px-3.5 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-[10px] font-black text-indigo-700 tracking-wider uppercase">
                               Technology
                             </legend>
@@ -3145,7 +3320,7 @@
                           </fieldset>
 
                           {/* EDUCATION */}
-                          <fieldset class="border border-amber-100 rounded-2xl p-5 bg-amber-50/5 flex flex-col hover:border-amber-200 hover:shadow-saas transition-all duration-300">
+                          <fieldset class="border border-amber-100 rounded-2xl p-5 bg-amber-50/5 flex flex-col hover:border-amber-200 hover:shadow-saas transition-all duration-300 azar-intelligence-card">
                             <legend class="px-3.5 py-1 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-black text-amber-700 tracking-wider uppercase">
                               Education
                             </legend>
@@ -3194,7 +3369,7 @@
                   <input
                     type="text"
                     readonly
-                    value={activeUserSession.name}
+                    value={currentActor.name}
                     class="w-full bg-gray-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none text-gray-500 cursor-not-allowed"
                   />
                 </div>
@@ -3203,7 +3378,7 @@
                   <input
                     type="text"
                     readonly
-                    value={activeUserSession.email}
+                    value={currentActor.email}
                     class="w-full bg-gray-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none text-gray-500 cursor-not-allowed"
                   />
                 </div>
@@ -3214,7 +3389,7 @@
                 <select
                   value={newLogEntry.type}
                   onChange={(e) => {
-                    setNewLogEntry({ ...newLogEntry, type: e.target.value, name: '' });
+                    setNewLogEntry({ ...newLogEntry, type: e.target.value, name: '', dueDate: todayForInput(), evidence: '' });
                     setEventSearchQuery('');
                   }}
                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
@@ -3222,6 +3397,8 @@
                   <option value="Skill">Skill Workshop</option>
                   <option value="Meet">Meeting Alignment</option>
                   <option value="Learning">Training / Learning Track</option>
+                  <option value="Exam">Exam / Practical Test</option>
+                  <option value="Task">Task Assignment</option>
                 </select>
               </div>
 
@@ -3261,7 +3438,7 @@
                             key={idx}
                             onClick={() => {
                               setEventSearchQuery(ev.name);
-                              setNewLogEntry(prev => ({ ...prev, name: ev.name }));
+                              setNewLogEntry(prev => ({ ...prev, name: ev.name, dueDate: ev.dueDate || todayForInput(), evidence: ev.evidence || '' }));
                               setIsEventDropdownOpen(false);
                             }}
                             class="px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 cursor-pointer flex justify-between items-center transition-colors text-left"
@@ -3293,6 +3470,18 @@
                   onChange={(e) => setNewLogEntry({ ...newLogEntry, dueDate: e.target.value })}
                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
                 />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Evidence</label>
+                <input
+                  type="text"
+                  value={newLogEntry.evidence}
+                  onChange={(e) => setNewLogEntry({ ...newLogEntry, evidence: e.target.value })}
+                  placeholder="https://link-to-image-or-completion-proof"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition-all text-slate-700"
+                />
+                <p class="mt-1 text-[10px] font-medium text-slate-400">Optional link to an image, file, or other completion proof.</p>
               </div>
 
               <div class="pt-4 flex gap-3">
