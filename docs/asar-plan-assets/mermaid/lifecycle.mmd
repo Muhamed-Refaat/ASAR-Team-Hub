@@ -1,0 +1,13 @@
+flowchart TD
+    IDEA[Idea or defect] --> SPEC[Write acceptance statement]
+    SPEC --> TRACE[Link to source file, pin, frame or test ID]
+    TRACE --> BRANCH[Create focused branch / task]
+    BRANCH --> BUILD[Implement smallest reversible change]
+    BUILD --> CHECK[Static checks + local simulation]
+    CHECK --> BENCH[Bench test with wheels lifted]
+    BENCH --> FIELD[Controlled floor test]
+    FIELD --> EVIDENCE[Log result in Team Hub]
+    EVIDENCE --> LEARN[Capture lesson / ADR if decision changed]
+    LEARN --> DONE{Acceptance met?}
+    DONE -->|no| SPEC
+    DONE -->|yes| RELEASE[Tag revision and update plan]

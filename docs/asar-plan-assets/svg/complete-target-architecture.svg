@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">ASAR complete target architecture</title>
+  <desc id="desc">Raspberry Pi 5 runs ROS 2 nodes for gateway, localization, LiDAR SLAM, Nav2, camera vision, a guarded edge SLM and safety arbitration. Commands pass through the ESP32 to the Arduino Mega, which remains the real-time actuator and watchdog authority.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07111f"/><stop offset="1" stop-color="#172b45"/></linearGradient>
+    <linearGradient id="pi" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38245c"/><stop offset="1" stop-color="#563a86"/></linearGradient>
+    <linearGradient id="safety" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a3c2b"/><stop offset="1" stop-color="#a34d38"/></linearGradient>
+    <linearGradient id="control" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#123e4e"/><stop offset="1" stop-color="#176169"/></linearGradient>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#64e4d2"/></marker>
+    <marker id="violetArrow" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#d5b6ff"/></marker>
+    <marker id="orangeArrow" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#ffb58c"/></marker>
+    <style>
+      .title{font:700 27px Arial,sans-serif;fill:#edfffc;letter-spacing:1px}.subtitle{font:400 14px Arial,sans-serif;fill:#a7c8d0}.lane{font:700 17px Arial,sans-serif;fill:#edfffc;letter-spacing:.6px}.box{fill:url(#control);stroke:#64e4d2;stroke-width:2}.pibox{fill:url(#pi);stroke:#d5b6ff;stroke-width:2}.safe{fill:url(#safety);stroke:#ffb58c;stroke-width:2}.sensor{fill:#1d354b;stroke:#8bd9ee;stroke-width:2}.label{font:700 15px Arial,sans-serif;fill:#f4ffff}.small{font:400 12px Arial,sans-serif;fill:#c4e8eb}.tiny{font:400 11px Arial,sans-serif;fill:#b7d0d8}.line{stroke:#64e4d2;stroke-width:3;fill:none;marker-end:url(#arrow)}.vline{stroke:#d5b6ff;stroke-width:2.5;fill:none;marker-end:url(#violetArrow)}.oline{stroke:#ffb58c;stroke-width:2.5;fill:none;stroke-dasharray:8 6;marker-end:url(#orangeArrow)}
+    </style>
+  </defs>
+
+  <rect width="1400" height="900" rx="26" fill="url(#bg)"/>
+  <text x="48" y="48" class="title">ASAR COMPLETE TARGET ARCHITECTURE</text>
+  <text x="48" y="75" class="subtitle">Pi/ROS owns autonomy; ESP32/Mega retain the loss-safe command and actuation boundary.</text>
+
+  <rect x="35" y="110" width="200" height="130" rx="16" class="box"/>
+  <text x="135" y="145" text-anchor="middle" class="label">Operator layer</text>
+  <text x="135" y="170" text-anchor="middle" class="small">MobileAPP / relay</text>
+  <text x="135" y="191" text-anchor="middle" class="small">teleop + mission intent</text>
+  <text x="135" y="216" text-anchor="middle" class="tiny">STOP always available</text>
+
+  <rect x="35" y="330" width="200" height="115" rx="16" class="sensor"/>
+  <text x="135" y="364" text-anchor="middle" class="label">LiDAR</text>
+  <text x="135" y="388" text-anchor="middle" class="small">2D scan → /scan</text>
+  <text x="135" y="412" text-anchor="middle" class="tiny">rigid mount + TF calibration</text>
+
+  <rect x="35" y="525" width="200" height="115" rx="16" class="sensor"/>
+  <text x="135" y="559" text-anchor="middle" class="label">Camera</text>
+  <text x="135" y="583" text-anchor="middle" class="small">image + camera_info</text>
+  <text x="135" y="607" text-anchor="middle" class="tiny">calibration + detection/tracking</text>
+
+  <rect x="275" y="95" width="795" height="650" rx="22" fill="#141f38" stroke="#d5b6ff" stroke-width="2.5"/>
+  <text x="310" y="132" class="lane">Raspberry Pi 5 — 64-bit Ubuntu + ROS 2 workspace</text>
+  <text x="310" y="155" class="tiny">Dedicated 5 V rail, active cooling, timestamped topics, rosbag2 evidence</text>
+
+  <rect x="310" y="185" width="210" height="105" rx="14" class="pibox"/>
+  <text x="415" y="217" text-anchor="middle" class="label">asar_gateway</text>
+  <text x="415" y="241" text-anchor="middle" class="small">WebSocket/UART bridge</text>
+  <text x="415" y="263" text-anchor="middle" class="tiny">RPM / IMU / DIST / cmd_vel</text>
+
+  <rect x="560" y="185" width="210" height="105" rx="14" class="pibox"/>
+  <text x="665" y="217" text-anchor="middle" class="label">Localization</text>
+  <text x="665" y="241" text-anchor="middle" class="small">wheel + IMU EKF</text>
+  <text x="665" y="263" text-anchor="middle" class="tiny">odom → base_link</text>
+
+  <rect x="810" y="185" width="210" height="105" rx="14" class="pibox"/>
+  <text x="915" y="217" text-anchor="middle" class="label">LiDAR SLAM</text>
+  <text x="915" y="241" text-anchor="middle" class="small">slam_toolbox</text>
+  <text x="915" y="263" text-anchor="middle" class="tiny">map → odom + saved maps</text>
+
+  <rect x="310" y="345" width="210" height="105" rx="14" class="pibox"/>
+  <text x="415" y="377" text-anchor="middle" class="label">Camera vision</text>
+  <text x="415" y="401" text-anchor="middle" class="small">calibration / detector</text>
+  <text x="415" y="423" text-anchor="middle" class="tiny">tracks → vision_msgs</text>
+
+  <rect x="560" y="345" width="210" height="105" rx="14" class="pibox"/>
+  <text x="665" y="377" text-anchor="middle" class="label">Nav2</text>
+  <text x="665" y="401" text-anchor="middle" class="small">planner / controller</text>
+  <text x="665" y="423" text-anchor="middle" class="tiny">costmaps + recoveries</text>
+
+  <rect x="810" y="345" width="210" height="105" rx="14" class="pibox"/>
+  <text x="915" y="377" text-anchor="middle" class="label">Edge SLM</text>
+  <text x="915" y="401" text-anchor="middle" class="small">structured scene summary</text>
+  <text x="915" y="423" text-anchor="middle" class="tiny">allow-listed mission choice</text>
+
+  <rect x="435" y="515" width="420" height="120" rx="16" class="safe"/>
+  <text x="645" y="550" text-anchor="middle" class="label">asar_safety — command governor</text>
+  <text x="645" y="575" text-anchor="middle" class="small">teleop + Nav2 + SLM mux / speed caps / health checks</text>
+  <text x="645" y="599" text-anchor="middle" class="tiny">reject stale, invalid or unsafe output; issue STOP on timeout</text>
+
+  <rect x="900" y="515" width="135" height="120" rx="16" class="pibox"/>
+  <text x="968" y="550" text-anchor="middle" class="label">Evidence</text>
+  <text x="968" y="575" text-anchor="middle" class="small">rosbag2</text>
+  <text x="968" y="598" text-anchor="middle" class="small">diagnostics</text>
+  <text x="968" y="620" text-anchor="middle" class="tiny">model/hash logs</text>
+
+  <rect x="1105" y="110" width="260" height="165" rx="16" class="box"/>
+  <text x="1235" y="145" text-anchor="middle" class="label">ESP32 gateway</text>
+  <text x="1235" y="170" text-anchor="middle" class="small">WebSocket + UART2</text>
+  <text x="1235" y="193" text-anchor="middle" class="small">command lease / heartbeat</text>
+  <text x="1235" y="220" text-anchor="middle" class="tiny">Pi loss → STOP path</text>
+  <text x="1235" y="242" text-anchor="middle" class="tiny">current endpoint: port 81</text>
+
+  <rect x="1105" y="335" width="260" height="180" rx="16" class="box"/>
+  <text x="1235" y="370" text-anchor="middle" class="label">Arduino Mega 2560</text>
+  <text x="1235" y="395" text-anchor="middle" class="small">real-time actuation</text>
+  <text x="1235" y="420" text-anchor="middle" class="tiny">PWM / direction / encoders</text>
+  <text x="1235" y="442" text-anchor="middle" class="tiny">ultrasonic + IMU</text>
+  <text x="1235" y="464" text-anchor="middle" class="tiny">local reactive safety FSM</text>
+  <text x="1235" y="487" text-anchor="middle" class="tiny">watchdog remains final stop</text>
+
+  <rect x="1105" y="585" width="260" height="100" rx="16" class="sensor"/>
+  <text x="1235" y="620" text-anchor="middle" class="label">Physical platform</text>
+  <text x="1235" y="645" text-anchor="middle" class="small">motors / drivers / encoders</text>
+  <text x="1235" y="666" text-anchor="middle" class="tiny">power cutoff + measured rails</text>
+
+  <path d="M235 175 C260 175 265 235 310 235" class="line"/>
+  <path d="M235 387 C255 300 245 115 760 115 C790 115 805 160 810 235" class="vline"/>
+  <path d="M235 582 C260 582 270 405 310 405" class="vline"/>
+  <path d="M520 237 H560" class="vline"/>
+  <path d="M770 237 H810" class="vline"/>
+  <path d="M665 290 V345" class="vline"/>
+  <path d="M915 290 V345" class="vline"/>
+  <path d="M415 450 C415 500 470 505 500 515" class="vline"/>
+  <path d="M665 450 V515" class="vline"/>
+  <path d="M915 450 C915 500 830 505 790 515" class="vline"/>
+  <path d="M855 575 H900" class="vline"/>
+  <path d="M855 575 C1020 575 1020 205 1105 205" class="line"/>
+  <path d="M1070 575 C1085 575 1085 425 1105 425" class="oline"/>
+  <path d="M1235 275 V335" class="line"/>
+  <path d="M1235 515 V585" class="line"/>
+
+  <rect x="48" y="815" width="18" height="10" rx="5" fill="#64e4d2"/><text x="76" y="825" class="tiny">control / measured path</text>
+  <rect x="250" y="815" width="18" height="10" rx="5" fill="#d5b6ff"/><text x="278" y="825" class="tiny">ROS 2 target data path</text>
+  <rect x="480" y="815" width="18" height="10" rx="5" fill="#ffb58c"/><text x="508" y="825" class="tiny">safety-limited command path</text>
+  <text x="820" y="825" class="tiny">All target modules fall back to deterministic STOP/manual behavior.</text>
+</svg>

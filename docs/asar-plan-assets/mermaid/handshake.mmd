@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant UI as MobileAPP
+    participant E as ESP32
+    participant M as Mega
+    UI->>E: WebSocket connect
+    UI->>E: START\n
+    E->>M: START\n
+    M->>M: initialize pins / drivers / sensors
+    M-->>E: RDY\n + ACK:START\n
+    E-->>UI: RDY\n
+    loop while controlled
+        UI->>E: SPD / WSPD / STOP
+        E->>M: command\n
+        M-->>E: RPM / DIST / MPU / AUTO_*
+        E-->>UI: telemetry lines
+        E->>M: PING\n
+    end
+    Note over M: >5 s without a command → STOP + IDLE

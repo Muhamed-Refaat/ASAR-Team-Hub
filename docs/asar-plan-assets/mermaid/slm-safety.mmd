@@ -1,0 +1,12 @@
+flowchart TD
+    STATE[Structured world state<br/>no raw PWM / no tools] --> MODEL[Quantized edge SLM]
+    MODEL --> JSON[Grammar/schema constrained JSON]
+    JSON --> VALID[Policy validator<br/>allow-list + TTL + speed cap]
+    VALID -->|valid| ROUTE[Nav2 / safety governor]
+    VALID -->|invalid / stale / slow| FALLBACK[Deterministic fallback<br/>pause / recover / manual / STOP]
+    ROUTE --> CMD[Validated cmd_vel or goal]
+    CMD --> MCU[ESP32 -> Mega watchdog path]
+    FALLBACK --> CMD
+    EVID[model hash + input schema + output + latency] --> LOG[rosbag2 / diagnostics]
+    MODEL --> EVID
+    VALID --> EVID

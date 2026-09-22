@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant L as LiDAR
+    participant C as Camera
+    participant E as Wheel/IMU EKF
+    participant S as slam_toolbox
+    participant N as Nav2
+    participant V as Vision
+    participant D as Edge SLM
+    participant G as Safety governor
+    participant X as ESP32/Mega
+    L->>S: /scan + laser TF
+    E->>S: odom + covariance
+    S-->>N: map + pose + costmaps
+    C->>V: image + camera_info
+    V-->>D: detections / tracks / confidence
+    N->>G: bounded cmd_vel
+    D->>G: allow-listed high-level decision
+    G->>X: validated cmd_vel or STOP
+    X-->>G: watchdog / RPM / DIST / IMU health
+    Note over G,X: stale, invalid or lost path falls back to STOP/manual

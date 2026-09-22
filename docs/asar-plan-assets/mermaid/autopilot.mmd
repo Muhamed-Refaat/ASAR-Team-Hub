@@ -1,0 +1,14 @@
+stateDiagram-v2
+    [*] --> OFF
+    OFF --> CRUISE: AUTO_ON / GOAL set
+    CRUISE --> AVOID_REVERSE: front < minFrontCm
+    AVOID_REVERSE --> AVOID_TURN: reverse timer complete
+    AVOID_REVERSE --> AVOID_TURN: rear blocked
+    AVOID_TURN --> RECOVER: turn timer complete
+    RECOVER --> CRUISE: 500 ms recovery complete
+    CRUISE --> ALIGN_GOAL: heading error > hysteresis
+    ALIGN_GOAL --> CRUISE: heading error cleared
+    CRUISE --> OFF: goal reached / AUTO_OFF / STOP
+    AVOID_REVERSE --> OFF: STOP
+    AVOID_TURN --> OFF: STOP
+    RECOVER --> OFF: STOP

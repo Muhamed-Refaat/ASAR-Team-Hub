@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc">
+  <title id="title">ASAR exploratory test map</title>
+  <desc id="desc">A safe exploratory testing loop: define a question and boundary, perturb one variable, observe signals, stop safely, capture evidence and promote useful findings to repeatable tests or decisions.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#08111f"/><stop offset="1" stop-color="#18283a"/></linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b2e62"/><stop offset="1" stop-color="#214f60"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#70d9ff"/></marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#76e0a0"/></marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff7b80"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000" flood-opacity=".28"/></filter>
+    <style>
+      .title { font:700 31px Arial,sans-serif; fill:#f4fbff; }
+      .sub { font:16px Arial,sans-serif; fill:#a9c2d1; }
+      .section { font:700 15px Arial,sans-serif; letter-spacing:1.2px; fill:#8ee7ff; }
+      .head { font:700 16px Arial,sans-serif; fill:#f4fbff; }
+      .body { font:13px Arial,sans-serif; fill:#c8d9e5; }
+      .small { font:11px Arial,sans-serif; fill:#aac2d1; }
+      .tiny { font:10px Arial,sans-serif; fill:#a9c2d1; }
+      .branch { fill:#152f43; stroke:#47758a; stroke-width:2; rx:12; filter:url(#shadow); }
+      .core { fill:url(#core); stroke:#b180d3; stroke-width:2.5; rx:16; filter:url(#shadow); }
+      .safe { fill:#173e42; stroke:#65c69d; stroke-width:2; rx:12; }
+      .evidence { fill:#273754; stroke:#7195d2; stroke-width:2; rx:12; }
+      .stop { fill:#432631; stroke:#e37379; stroke-width:2; rx:12; }
+      .tag { font:700 11px Arial,sans-serif; fill:#75e2ff; letter-spacing:.7px; }
+      .green { font:700 11px Arial,sans-serif; fill:#98f0b9; }
+      .red { font:700 11px Arial,sans-serif; fill:#ff9b9f; }
+      .purple { font:700 11px Arial,sans-serif; fill:#e1b9ff; }
+    </style>
+  </defs>
+  <rect width="1500" height="900" fill="url(#bg)"/>
+  <text x="42" y="48" class="title">Exploratory test map</text>
+  <text x="42" y="77" class="sub">Explore one uncertainty at a time, inside a known safe boundary, and turn useful observations into repeatable evidence.</text>
+
+  <text x="42" y="116" class="section">SAFE EXPLORATION LOOP</text>
+  <line x1="42" y1="128" x2="1458" y2="128" stroke="#274961"/>
+
+  <rect x="42" y="160" width="250" height="124" class="branch"/>
+  <text x="62" y="190" class="tag">A / CHARTER</text>
+  <text x="62" y="218" class="head">Ask one question</text>
+  <text x="62" y="244" class="body">layer, hypothesis, expected signal</text>
+  <text x="62" y="267" class="body">safe boundary and stop condition</text>
+
+  <rect x="350" y="144" width="330" height="156" class="core"/>
+  <text x="374" y="178" class="purple">B / PREPARE</text>
+  <text x="374" y="208" class="head">Make the test observable</text>
+  <text x="374" y="234" class="body">record code / wiring / model revisions</text>
+  <text x="374" y="257" class="body">wheels lifted or low-risk floor zone</text>
+  <text x="374" y="280" class="body">logs, video, serial, rosbag, cutoff ready</text>
+
+  <rect x="738" y="160" width="250" height="124" class="safe"/>
+  <text x="758" y="190" class="green">C / PERTURB</text>
+  <text x="758" y="218" class="head">Change one variable</text>
+  <text x="758" y="244" class="body">baud, rail, speed, mount, light,</text>
+  <text x="758" y="267" class="body">threshold or model latency</text>
+
+  <rect x="1046" y="144" width="204" height="156" class="safe"/>
+  <text x="1066" y="178" class="green">D / OBSERVE</text>
+  <text x="1066" y="208" class="head">Compare signals</text>
+  <text x="1066" y="234" class="body">expected vs actual</text>
+  <text x="1066" y="257" class="body">find earliest layer</text>
+  <text x="1066" y="280" class="body">repeat or stop</text>
+
+  <rect x="1308" y="160" width="150" height="124" class="stop"/>
+  <text x="1328" y="190" class="red">E / STOP</text>
+  <text x="1328" y="218" class="head">Safe exit</text>
+  <text x="1328" y="244" class="body">STOP, cutoff,</text>
+  <text x="1328" y="267" class="body">isolate fault</text>
+
+  <path d="M292 222H350M680 222H738M988 222H1046M1250 222H1308" fill="none" stroke="#70d9ff" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M1400 284 C1400 352 1130 355 880 355 C600 355 390 340 190 284" fill="none" stroke="#ff7b80" stroke-width="2.5" stroke-dasharray="9 7" marker-end="url(#arrowRed)"/>
+  <text x="1030" y="342" class="red">unsafe signal returns to isolation, not improvisation</text>
+
+  <text x="42" y="404" class="section">CHOOSE A TEST CHARTER</text>
+  <line x1="42" y1="416" x2="1458" y2="416" stroke="#274961"/>
+
+  <rect x="42" y="444" width="222" height="154" class="branch"/>
+  <text x="62" y="475" class="tag">XT01 / CONNECTION</text>
+  <text x="62" y="503" class="head">Does the chain talk?</text>
+  <text x="62" y="529" class="body">START/RDY, baud, TX/RX,</text>
+  <text x="62" y="551" class="body">levels, GND, disconnect STOP</text>
+  <text x="62" y="578" class="small">Stop: hot pin or uncontrolled motion</text>
+
+  <rect x="286" y="444" width="222" height="154" class="branch"/>
+  <text x="306" y="475" class="tag">XT02 / POWER</text>
+  <text x="306" y="503" class="head">Does load disturb logic?</text>
+  <text x="306" y="529" class="body">rail sag, ripple, current, heat,</text>
+  <text x="306" y="551" class="body">brownout during motor start</text>
+  <text x="306" y="578" class="small">Stop: smoke, hot connector, reset</text>
+
+  <rect x="530" y="444" width="222" height="154" class="branch"/>
+  <text x="550" y="475" class="tag">XT03 / ACTUATION</text>
+  <text x="550" y="500" class="head">Does command match</text>
+  <text x="550" y="520" class="head">the motion?</text>
+  <text x="550" y="546" class="body">direction, inversion, encoder sign,</text>
+  <text x="550" y="568" class="body">ramp, stop and wheel geometry</text>
+  <text x="550" y="589" class="small">Stop: wrong direction or runaway</text>
+
+  <rect x="774" y="444" width="222" height="154" class="branch"/>
+  <text x="794" y="475" class="tag">XT04 / SENSING</text>
+  <text x="794" y="500" class="head">Are measurements</text>
+  <text x="794" y="520" class="head">believable?</text>
+  <text x="794" y="546" class="body">distance order, IMU axes, TF, scan,</text>
+  <text x="794" y="568" class="body">camera calibration and latency</text>
+  <text x="794" y="589" class="small">Stop: stale or unsafe sensor state</text>
+
+  <rect x="1018" y="444" width="222" height="154" class="branch"/>
+  <text x="1038" y="475" class="tag">XT05 / DEPLOYMENT</text>
+  <text x="1038" y="503" class="head">Did the release survive?</text>
+  <text x="1038" y="529" class="body">build, launch, health checks,</text>
+  <text x="1038" y="551" class="body">rollback and version manifest</text>
+  <text x="1038" y="578" class="small">Stop: missing required health signal</text>
+
+  <rect x="1262" y="444" width="196" height="154" class="branch"/>
+  <text x="1282" y="475" class="tag">XT06 / AUTONOMY</text>
+  <text x="1282" y="503" class="head">Can policy stay bounded?</text>
+  <text x="1282" y="529" class="body">Nav2, vision, SLM schema,</text>
+  <text x="1282" y="551" class="body">timeout and manual override</text>
+  <text x="1282" y="578" class="small">Stop: stale / invalid decision</text>
+
+  <rect x="42" y="650" width="760" height="172" class="evidence"/>
+  <text x="66" y="684" class="head">Evidence record for every exploratory run</text>
+  <text x="66" y="712" class="body">Test ID | date/time | operator | battery and rails | firmware/app/Pi/model revision</text>
+  <text x="66" y="738" class="body">question | variable changed | expected signal | observed signal | stop event</text>
+  <text x="66" y="764" class="body">serial/ROS logs | video/photo | hypothesis confirmed or rejected | next action</text>
+  <text x="66" y="797" class="small">Attach the record to the Team Hub task; preserve failed runs as learning evidence.</text>
+
+  <rect x="846" y="650" width="612" height="172" class="safe"/>
+  <text x="870" y="684" class="head">Promote learning</text>
+  <text x="870" y="712" class="body">Useful observation -> deterministic test case or acceptance threshold.</text>
+  <text x="870" y="738" class="body">Architecture change -> ADR + updated diagram + rollback note.</text>
+  <text x="870" y="764" class="body">Unresolved anomaly -> isolate earliest failing layer and create next charter.</text>
+  <text x="870" y="797" class="green">No green UI, single demo or SLM answer replaces physical safety evidence.</text>
+
+  <path d="M 802 736 H 846" fill="none" stroke="#76e0a0" stroke-width="3" marker-end="url(#arrowGreen)"/>
+</svg>

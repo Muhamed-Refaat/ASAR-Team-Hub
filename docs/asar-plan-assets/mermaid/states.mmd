@@ -1,0 +1,12 @@
+flowchart LR
+    EOFF[ESP OFF] --> EINIT[ESP INITIALIZATION]
+    EINIT --> EIDLE[ESP IDLE]
+    EIDLE -->|periodic START| ERUN[ESP RUNNING]
+    ERUN -->|Mega silence / NOT_READY| EIDLE
+
+    MOFF[Mega OFF] --> MIDLE[Mega IDLE]
+    MIDLE -->|START| MINIT[Mega INITIALIZATION]
+    MINIT -->|RDY| MRUN[Mega RUNNING]
+    MRUN -->|STOP| MIDLE
+    MRUN -->|watchdog >5s| MIDLE
+    MRUN -->|fatal sensor/protocol fault| MIDLE

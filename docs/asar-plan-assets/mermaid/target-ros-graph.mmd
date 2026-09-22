@@ -1,0 +1,37 @@
+flowchart LR
+    OP[MobileAPP / operator]
+    PI[Raspberry Pi 5<br/>Ubuntu 24.04 + ROS 2]
+    subgraph ROS[ROS 2 target workspace]
+        GW[asar_gateway]
+        ODOM[wheel + IMU EKF]
+        SLAM[slam_toolbox]
+        NAV[Nav2]
+        CAM[asar_vision]
+        SLM[edge SLM policy]
+        SAFE[asar_safety governor]
+        REC[rosbag2 / diagnostics]
+    end
+    LIDAR[2D LiDAR<br/>/scan]
+    CAMERA[CSI/USB camera<br/>image + camera_info]
+    ESP[ESP32 gateway]
+    MEGA[Mega 2560<br/>watchdog + actuation]
+    IO[motors / encoders / IMU / ultrasonic]
+
+    OP --> PI --> GW
+    LIDAR --> SLAM
+    CAMERA --> CAM
+    IO --> ESP --> GW
+    GW --> ODOM
+    ODOM --> SLAM
+    ODOM --> NAV
+    SLAM --> NAV
+    CAM --> SLM
+    NAV --> SAFE
+    SLM --> SAFE
+    OP --> SAFE
+    SAFE --> GW --> ESP --> MEGA --> IO
+    GW --> REC
+    ODOM --> REC
+    SLAM --> REC
+    CAM --> REC
+    SLM --> REC

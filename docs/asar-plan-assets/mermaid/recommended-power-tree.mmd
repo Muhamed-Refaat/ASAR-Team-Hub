@@ -1,0 +1,13 @@
+flowchart TD
+    BAT[Battery + BMS] --> FUSE[Main fuse]
+    FUSE --> KILL[Master cutoff / e-stop]
+    KILL --> PDB[Protected power distribution]
+    PDB --> VMOT[Motor driver rail]
+    PDB --> B5[Filtered 5 V MCU/sensor rail]
+    PDB --> BPI[Dedicated regulated Pi rail]
+    B5 --> MEGA[Mega + IMU + ultrasonic]
+    B5 --> ESP[ESP32 gateway]
+    BPI --> PI[Raspberry Pi + LiDAR + camera]
+    MEGA <-->|level-safe UART| ESP
+    ESP <-->|WebSocket / USB-UART| PI
+    PDB -.->|single intentional reference| GND[Star/common ground]

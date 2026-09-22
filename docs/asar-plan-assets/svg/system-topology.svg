@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">ASAR current and future system topology</title>
+  <desc id="desc">Mobile app connects directly or through a relay to the ESP32 gateway, which bridges newline-delimited UART to the Arduino Mega. The Mega owns motors and sensors. Raspberry Pi and LiDAR are future upgrade elements.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07111f"/><stop offset="1" stop-color="#102b3d"/></linearGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#12364a"/><stop offset="1" stop-color="#164c57"/></linearGradient>
+    <linearGradient id="future" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#33264f"/><stop offset="1" stop-color="#56337a"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#5eead4"/></marker>
+    <marker id="futureArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#d8b4fe"/></marker>
+    <style>
+      .head{font:700 24px Arial,sans-serif;fill:#e6fffb;letter-spacing:1px}.sub{font:400 13px Arial,sans-serif;fill:#a5c4c9}.box{fill:url(#base);stroke:#5eead4;stroke-width:2}.future{fill:url(#future);stroke:#d8b4fe;stroke-width:2;stroke-dasharray:8 6}.label{font:700 17px Arial,sans-serif;fill:#ecfeff}.small{font:400 12px Arial,sans-serif;fill:#c4e5e7}.tiny{font:400 11px Arial,sans-serif;fill:#b8d1d5}.line{stroke:#5eead4;stroke-width:3;fill:none;marker-end:url(#arrow)}.fline{stroke:#d8b4fe;stroke-width:2.5;fill:none;stroke-dasharray:9 7;marker-end:url(#futureArrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="650" rx="24" fill="url(#bg)"/>
+  <text x="50" y="52" class="head">ASAR SYSTEM TOPOLOGY</text>
+  <text x="50" y="78" class="sub">Buildable baseline is solid teal. Future autonomy expansion is dashed violet.</text>
+
+  <rect x="45" y="130" width="240" height="130" rx="16" class="box"/>
+  <text x="165" y="165" text-anchor="middle" class="label">MobileAPP</text>
+  <text x="165" y="190" text-anchor="middle" class="small">React + TypeScript + Vite</text>
+  <text x="165" y="211" text-anchor="middle" class="small">Joystick / diagnostics / data</text>
+  <text x="165" y="239" text-anchor="middle" class="tiny">Direct: ws://ESP32:81</text>
+
+  <rect x="45" y="350" width="240" height="110" rx="16" class="box"/>
+  <text x="165" y="385" text-anchor="middle" class="label">Relay backend</text>
+  <text x="165" y="410" text-anchor="middle" class="small">Node.js + Express + ws</text>
+  <text x="165" y="432" text-anchor="middle" class="small">leader / observer arbitration</text>
+  <text x="165" y="450" text-anchor="middle" class="tiny">Local or tunnelled /ws</text>
+
+  <rect x="405" y="190" width="300" height="180" rx="16" class="box"/>
+  <text x="555" y="232" text-anchor="middle" class="label">ESP32 DOIT DEVKIT V1</text>
+  <text x="555" y="260" text-anchor="middle" class="small">Wi-Fi + WebSocket gateway</text>
+  <text x="555" y="282" text-anchor="middle" class="small">UART2 master, port 81</text>
+  <text x="555" y="312" text-anchor="middle" class="tiny">GPIO16 RX2 ← Mega TX2</text>
+  <text x="555" y="332" text-anchor="middle" class="tiny">GPIO17 TX2 → Mega RX2</text>
+  <text x="555" y="352" text-anchor="middle" class="tiny">START / heartbeat / telemetry bridge</text>
+
+  <rect x="835" y="170" width="315" height="220" rx="16" class="box"/>
+  <text x="992" y="208" text-anchor="middle" class="label">Arduino Mega 2560</text>
+  <text x="992" y="236" text-anchor="middle" class="small">real-time hardware controller</text>
+  <text x="992" y="266" text-anchor="middle" class="tiny">PWM + direction + ramping</text>
+  <text x="992" y="287" text-anchor="middle" class="tiny">encoders → RPM + odometry</text>
+  <text x="992" y="308" text-anchor="middle" class="tiny">4 × HC-SR04 + warning shield</text>
+  <text x="992" y="329" text-anchor="middle" class="tiny">MPU-6050 filtered telemetry</text>
+  <text x="992" y="350" text-anchor="middle" class="tiny">reactive autopilot FSM</text>
+  <text x="992" y="372" text-anchor="middle" class="tiny">5 s master-loss watchdog</text>
+
+  <rect x="835" y="470" width="315" height="100" rx="16" class="box"/>
+  <text x="992" y="504" text-anchor="middle" class="label">Physical I/O</text>
+  <text x="992" y="529" text-anchor="middle" class="small">2 × L298N → four motors</text>
+  <text x="992" y="550" text-anchor="middle" class="small">ultrasonic / encoders / IMU / buzzer / LED</text>
+
+  <rect x="405" y="475" width="300" height="110" rx="16" class="future"/>
+  <text x="555" y="510" text-anchor="middle" class="label">Future SBC tier</text>
+  <text x="555" y="535" text-anchor="middle" class="small">Raspberry Pi + ROS 2 / Nav2</text>
+  <text x="555" y="557" text-anchor="middle" class="small">LiDAR / SLAM / EKF / vision</text>
+  <text x="555" y="577" text-anchor="middle" class="tiny">Only after baseline safety gates pass</text>
+
+  <path d="M285 195 C335 195 350 235 405 250" class="line"/>
+  <path d="M285 405 C345 405 350 315 405 300" class="line"/>
+  <path d="M705 280 H835" class="line"/>
+  <path d="M992 390 V470" class="line"/>
+  <path d="M555 475 V385" class="fline"/>
+  <path d="M705 530 C780 530 790 360 835 345" class="fline"/>
+
+  <rect x="50" y="600" width="20" height="10" rx="5" fill="#5eead4"/><text x="80" y="610" class="tiny">current verified path</text>
+  <rect x="280" y="600" width="20" height="10" rx="5" fill="#d8b4fe"/><text x="310" y="610" class="tiny">future / not implemented in current firmware</text>
+</svg>

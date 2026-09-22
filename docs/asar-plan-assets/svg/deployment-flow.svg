@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="860" viewBox="0 0 1500 860" role="img" aria-labelledby="title desc">
+  <title id="title">ASAR deployment flow</title>
+  <desc id="desc">A gated deployment flow from source revision through build, package, bench test, hardware installation, health checks, controlled test and release evidence, with rollback on failure.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#08111f"/><stop offset="1" stop-color="#17263c"/></linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a3850"/><stop offset="1" stop-color="#102436"/></linearGradient>
+    <linearGradient id="artifact" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2c3c66"/><stop offset="1" stop-color="#244e5b"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#70d9ff"/></marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff7b80"/></marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#76e0a0"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000" flood-opacity=".28"/></filter>
+    <style>
+      .title { font:700 31px Arial,sans-serif; fill:#f4fbff; }
+      .sub { font:16px Arial,sans-serif; fill:#a9c2d1; }
+      .section { font:700 15px Arial,sans-serif; letter-spacing:1.2px; fill:#8ee7ff; }
+      .head { font:700 17px Arial,sans-serif; fill:#f4fbff; }
+      .body { font:14px Arial,sans-serif; fill:#c8d9e5; }
+      .small { font:12px Arial,sans-serif; fill:#a9c2d1; }
+      .tiny { font:11px Arial,sans-serif; fill:#a9c2d1; }
+      .card { fill:url(#card); stroke:#3c6b82; stroke-width:2; rx:14; filter:url(#shadow); }
+      .artifact { fill:url(#artifact); stroke:#6689cf; stroke-width:2; rx:12; }
+      .gate { fill:#183c43; stroke:#61c89c; stroke-width:2; rx:12; }
+      .fail { fill:#422631; stroke:#e37379; stroke-width:2; rx:12; }
+      .tag { font:700 11px Arial,sans-serif; fill:#75e2ff; letter-spacing:.7px; }
+      .green { font:700 12px Arial,sans-serif; fill:#98f0b9; }
+      .red { font:700 12px Arial,sans-serif; fill:#ff9b9f; }
+    </style>
+  </defs>
+  <rect width="1500" height="860" fill="url(#bg)"/>
+  <text x="42" y="48" class="title">ASAR deployment flow</text>
+  <text x="42" y="77" class="sub">One versioned release moves through software checks, bench safety, hardware health and controlled evidence before it is called deployable.</text>
+
+  <text x="42" y="116" class="section">GATED RELEASE PATH</text>
+  <line x1="42" y1="128" x2="1458" y2="128" stroke="#274961"/>
+
+  <rect x="42" y="160" width="168" height="124" class="card"/>
+  <text x="62" y="190" class="tag">01 / FREEZE</text>
+  <text x="62" y="218" class="head">Commit + manifest</text>
+  <text x="62" y="244" class="body">code, wiring, model,</text>
+  <text x="62" y="264" class="body">calibration, operator</text>
+
+  <rect x="250" y="160" width="168" height="124" class="card"/>
+  <text x="270" y="190" class="tag">02 / CHECK</text>
+  <text x="270" y="218" class="head">Lint + build + scan</text>
+  <text x="270" y="244" class="body">app, relay, firmware,</text>
+  <text x="270" y="264" class="body">ROS workspace</text>
+
+  <rect x="458" y="160" width="168" height="124" class="card"/>
+  <text x="478" y="190" class="tag">03 / PACKAGE</text>
+  <text x="478" y="218" class="head">Versioned artifacts</text>
+  <text x="478" y="244" class="body">HEX / bin, APK,</text>
+  <text x="478" y="264" class="body">Pi image / bag config</text>
+
+  <rect x="666" y="160" width="168" height="124" class="gate"/>
+  <text x="686" y="190" class="tag">04 / GATE</text>
+  <text x="686" y="218" class="head">Simulation + bench</text>
+  <text x="686" y="244" class="body">wheels lifted, STOP,</text>
+  <text x="686" y="264" class="body">serial / launch smoke</text>
+
+  <rect x="874" y="160" width="168" height="124" class="gate"/>
+  <text x="894" y="190" class="tag">05 / INSTALL</text>
+  <text x="894" y="218" class="head">Deploy in order</text>
+  <text x="894" y="244" class="body">Mega -> ESP32 -> Pi,</text>
+  <text x="894" y="264" class="body">then app / relay</text>
+
+  <rect x="1082" y="160" width="168" height="124" class="gate"/>
+  <text x="1102" y="190" class="tag">06 / HEALTH</text>
+  <text x="1102" y="218" class="head">Health checks</text>
+  <text x="1102" y="244" class="body">START/RDY, TF, scan,</text>
+  <text x="1102" y="264" class="body">camera, watchdog</text>
+
+  <rect x="1290" y="160" width="168" height="124" class="gate"/>
+  <text x="1310" y="190" class="tag">07 / RELEASE</text>
+  <text x="1310" y="218" class="head">Controlled run</text>
+  <text x="1310" y="244" class="body">exploratory -> repeatable</text>
+  <text x="1310" y="264" class="body">evidence -> tag</text>
+
+  <path d="M210 222H250M418 222H458M626 222H666M834 222H874M1042 222H1082M1250 222H1290" fill="none" stroke="#70d9ff" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <text x="42" y="343" class="section">DEPLOYMENT LANES</text>
+  <line x1="42" y1="355" x2="1458" y2="355" stroke="#274961"/>
+
+  <rect x="42" y="384" width="430" height="178" class="artifact"/>
+  <text x="64" y="415" class="head">MCU lane: current actuation baseline</text>
+  <text x="64" y="443" class="body">1. Upload Mega firmware; open serial at 115200.</text>
+  <text x="64" y="468" class="body">2. Confirm peripherals and STOP with wheels lifted.</text>
+  <text x="64" y="493" class="body">3. Upload ESP32; confirm UART2 and START/RDY.</text>
+  <text x="64" y="518" class="body">4. Verify link watchdog before motor power.</text>
+  <text x="64" y="545" class="small">Rollback: flash last known-good pair and re-run G0-G2.</text>
+
+  <rect x="535" y="384" width="430" height="178" class="artifact"/>
+  <text x="557" y="415" class="head">Pi lane: target autonomy tier</text>
+  <text x="557" y="443" class="body">1. Install pinned 64-bit image and ROS packages.</text>
+  <text x="557" y="468" class="body">2. rosdep + colcon build; record commit and image.</text>
+  <text x="557" y="493" class="body">3. Launch asar_bringup; inspect /tf, /odom, /scan.</text>
+  <text x="557" y="518" class="body">4. Add camera, Nav2 and SLM only after health is green.</text>
+  <text x="557" y="545" class="small">Rollback: previous image/workspace; motor chain remains guarded.</text>
+
+  <rect x="1028" y="384" width="430" height="178" class="artifact"/>
+  <text x="1050" y="415" class="head">App + relay lane: operator surface</text>
+  <text x="1050" y="443" class="body">1. npm ci; lint; build; package APK if required.</text>
+  <text x="1050" y="468" class="body">2. Start relay in simulation and hardware modes.</text>
+  <text x="1050" y="493" class="body">3. Check control lease, reconnect and disconnect STOP.</text>
+  <text x="1050" y="518" class="body">4. Connect only after MCU and Pi health checks pass.</text>
+  <text x="1050" y="545" class="small">Rollback: prior APK/relay process; direct STOP remains available.</text>
+
+  <path d="M 750 284 V 384" fill="none" stroke="#70d9ff" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="770" y="335" class="green">artifact handoff</text>
+  <path d="M 1250 284 C 1240 326 1180 346 1120 384" fill="none" stroke="#70d9ff" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="42" y="624" width="890" height="156" class="gate"/>
+  <text x="64" y="657" class="head">Minimum release evidence</text>
+  <text x="64" y="684" class="body">Version manifest | build logs | wiring/power revision | START/RDY | STOP proof | health snapshot</text>
+  <text x="64" y="710" class="body">/tf and sensor checks | exploratory charter | video/log bundle | operator and battery state</text>
+  <text x="64" y="742" class="small">If any required signal is stale, missing or unsafe: do not continue to autonomy. Stop, isolate, diagnose, rollback.</text>
+
+  <rect x="998" y="624" width="460" height="156" class="fail"/>
+  <text x="1020" y="657" class="red">FAIL / ROLLBACK BRANCH</text>
+  <text x="1020" y="684" class="head">STOP -> power safe -> restore</text>
+  <text x="1020" y="710" class="body">record earliest failing layer and preserve logs</text>
+  <text x="1020" y="736" class="body">flash previous firmware / image / app</text>
+  <text x="1020" y="762" class="body">re-run the last passing gate</text>
+  <path d="M 998 702 C 900 590 890 290 874 222" fill="none" stroke="#ff7b80" stroke-width="3" stroke-dasharray="10 8" marker-end="url(#arrowRed)"/>
+  <text x="910" y="580" class="red">rollback loop</text>
+
+  <rect x="42" y="808" width="1416" height="26" rx="8" fill="#102333" stroke="#31546a"/>
+  <text x="62" y="826" class="tiny">Never deploy a new Pi/vision/SLM behavior at the same time as an unverified power, wiring or motor-control change.</text>
+</svg>

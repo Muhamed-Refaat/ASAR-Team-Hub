@@ -1,0 +1,199 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="940" viewBox="0 0 1500 940" role="img" aria-labelledby="title desc">
+  <title id="title">ASAR robot connection setup</title>
+  <desc id="desc">Power, signal, network, sensor and safety connections for the current Mega and ESP32 baseline and the target Raspberry Pi ROS 2 autonomy tier.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#08111f"/>
+      <stop offset="1" stop-color="#13263a"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#18334a"/>
+      <stop offset="1" stop-color="#102338"/>
+    </linearGradient>
+    <linearGradient id="target" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3f2b63"/>
+      <stop offset="1" stop-color="#284f66"/>
+    </linearGradient>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64d8ff"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d7a5ff"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff7b80"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#76e0a0"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <style>
+      .title { font: 700 31px Arial, sans-serif; fill: #f4fbff; }
+      .subtitle { font: 16px Arial, sans-serif; fill: #a7c1d2; }
+      .section { font: 700 15px Arial, sans-serif; letter-spacing: 1.2px; fill: #8ee7ff; }
+      .box-title { font: 700 18px Arial, sans-serif; fill: #f4fbff; }
+      .body { font: 14px Arial, sans-serif; fill: #c6d8e4; }
+      .small { font: 12px Arial, sans-serif; fill: #aac2d1; }
+      .tiny { font: 11px Arial, sans-serif; fill: #9ab4c5; }
+      .label-blue { font: 700 12px Arial, sans-serif; fill: #64d8ff; }
+      .label-purple { font: 700 12px Arial, sans-serif; fill: #e2bdff; }
+      .label-red { font: 700 12px Arial, sans-serif; fill: #ff9b9f; }
+      .label-green { font: 700 12px Arial, sans-serif; fill: #98f0b9; }
+      .box { fill: url(#panel); stroke: #386078; stroke-width: 2; rx: 14; filter: url(#shadow); }
+      .target-box { fill: url(#target); stroke: #ad78d6; stroke-width: 2; rx: 14; filter: url(#shadow); }
+      .sensor-box { fill: #152f3d; stroke: #4b859a; stroke-width: 2; rx: 12; }
+      .power-box { fill: #3a202b; stroke: #cb626d; stroke-width: 2; rx: 12; }
+      .rail-box { fill: #35282a; stroke: #a98a64; stroke-width: 2; rx: 12; }
+      .note { fill: #102333; stroke: #31546a; stroke-width: 1.5; rx: 10; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="940" fill="url(#bg)"/>
+  <text x="42" y="48" class="title">ASAR connection setup</text>
+  <text x="42" y="77" class="subtitle">Connect power first, then safe logic signals, then network/autonomy services. Solid = current baseline; dashed = target tier.</text>
+
+  <text x="42" y="116" class="section">CONTROL AND DATA PATHS</text>
+  <line x1="42" y1="128" x2="1458" y2="128" stroke="#274961" stroke-width="1"/>
+
+  <rect x="42" y="154" width="210" height="126" class="box"/>
+  <text x="60" y="183" class="box-title">MobileAPP / relay</text>
+  <text x="60" y="208" class="body">Operator intent</text>
+  <text x="60" y="229" class="body">Direct WS or relay WS</text>
+  <text x="60" y="250" class="small">Current: ws://ESP32:81</text>
+  <text x="60" y="268" class="small">Target: mission intent only</text>
+
+  <rect x="306" y="144" width="285" height="146" class="target-box"/>
+  <text x="326" y="174" class="box-title">Raspberry Pi 5 [TARGET]</text>
+  <text x="326" y="198" class="body">Ubuntu 24.04 + ROS 2</text>
+  <text x="326" y="220" class="body">gateway | TF | SLAM | Nav2</text>
+  <text x="326" y="242" class="body">vision | safety mux | edge SLM</text>
+  <text x="326" y="266" class="small">Never drives motor pins directly</text>
+
+  <rect x="646" y="154" width="215" height="126" class="box"/>
+  <text x="666" y="183" class="box-title">ESP32 gateway</text>
+  <text x="666" y="207" class="body">Wi-Fi / WebSocket :81</text>
+  <text x="666" y="229" class="body">UART2 GPIO16/17</text>
+  <text x="666" y="251" class="body">session + heartbeat</text>
+  <text x="666" y="269" class="small">Current network boundary</text>
+
+  <rect x="916" y="144" width="260" height="146" class="box"/>
+  <text x="936" y="174" class="box-title">Arduino Mega 2560</text>
+  <text x="936" y="198" class="body">UART2: TX16 / RX17</text>
+  <text x="936" y="220" class="body">watchdog + local safety</text>
+  <text x="936" y="242" class="body">PWM / direction / sensors</text>
+  <text x="936" y="266" class="small">Final actuation authority</text>
+
+  <rect x="1230" y="144" width="228" height="146" class="box"/>
+  <text x="1250" y="174" class="box-title">Drivers + motors</text>
+  <text x="1250" y="198" class="body">2 x L298N baseline</text>
+  <text x="1250" y="220" class="body">ENA/ENB PWM</text>
+  <text x="1250" y="242" class="body">4 wheel outputs</text>
+  <text x="1250" y="266" class="small">Measured current required</text>
+
+  <path d="M 252 205 C 280 205 280 316 330 316 L 610 316 C 632 316 646 282 646 216" fill="none" stroke="#64d8ff" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="402" y="304" class="label-blue">direct / relay control</text>
+  <path d="M 252 250 C 270 250 278 132 306 165" fill="none" stroke="#d7a5ff" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#arrowPurple)"/>
+  <text x="268" y="138" class="label-purple">target intent</text>
+  <path d="M 591 170 L 646 170" fill="none" stroke="#d7a5ff" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#arrowPurple)"/>
+  <text x="594" y="138" class="label-purple">USB / LAN / UART target</text>
+  <path d="M 861 216 L 916 216" fill="none" stroke="#64d8ff" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="866" y="311" class="label-blue">level-safe UART</text>
+  <path d="M 1176 216 L 1230 216" fill="none" stroke="#64d8ff" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="1182" y="205" class="label-blue">PWM / DIR</text>
+
+  <text x="42" y="337" class="section">SENSORS AND FEEDBACK</text>
+  <line x1="42" y1="349" x2="1458" y2="349" stroke="#274961" stroke-width="1"/>
+
+  <rect x="42" y="374" width="245" height="116" class="target-box"/>
+  <text x="62" y="403" class="box-title">2D LiDAR [TARGET]</text>
+  <text x="62" y="428" class="body">USB / UART driver</text>
+  <text x="62" y="450" class="body">LaserScan -> SLAM/Nav2</text>
+  <text x="62" y="474" class="small">Rigid, level, unobstructed mount</text>
+
+  <rect x="318" y="374" width="245" height="116" class="target-box"/>
+  <text x="338" y="403" class="box-title">Camera [TARGET]</text>
+  <text x="338" y="428" class="body">CSI or USB + calibration</text>
+  <text x="338" y="450" class="body">vision -> tracks / semantics</text>
+  <text x="338" y="474" class="small">Lighting and blur are test inputs</text>
+
+  <rect x="646" y="374" width="245" height="116" class="sensor-box"/>
+  <text x="666" y="403" class="box-title">Mega sensors</text>
+  <text x="666" y="428" class="body">encoders: 18/19, 2/3</text>
+  <text x="666" y="450" class="body">MPU-6050: SDA20/SCL21</text>
+  <text x="666" y="474" class="small">wheel RPM / IMU feedback</text>
+
+  <rect x="916" y="374" width="260" height="116" class="sensor-box"/>
+  <text x="936" y="403" class="box-title">Range + status</text>
+  <text x="936" y="428" class="body">HC-SR04 L/F/R/B: 28-29,</text>
+  <text x="936" y="450" class="body">22-23, 24-25, 26-27</text>
+  <text x="936" y="474" class="small">0 = no echo placeholder</text>
+
+  <path d="M 165 374 L 415 290" fill="none" stroke="#d7a5ff" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowPurple)"/>
+  <path d="M 440 374 L 476 290" fill="none" stroke="#d7a5ff" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrowPurple)"/>
+  <path d="M 768 374 L 1042 290" fill="none" stroke="#76e0a0" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M 1046 374 L 1050 290" fill="none" stroke="#76e0a0" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <text x="324" y="330" class="label-purple">target sensor data</text>
+  <text x="788" y="330" class="label-green">feedback / telemetry</text>
+
+  <text x="42" y="544" class="section">POWER, COMMON REFERENCE AND SAFETY</text>
+  <line x1="42" y1="556" x2="1458" y2="556" stroke="#274961" stroke-width="1"/>
+
+  <rect x="42" y="594" width="195" height="126" class="power-box"/>
+  <text x="62" y="623" class="box-title">Battery + BMS</text>
+  <text x="62" y="648" class="body">3S hypothesis</text>
+  <text x="62" y="670" class="body">measure full / low / stall</text>
+  <text x="62" y="696" class="small">Do not assume capacity</text>
+
+  <rect x="278" y="594" width="195" height="126" class="power-box"/>
+  <text x="298" y="623" class="box-title">Fuse + kill</text>
+  <text x="298" y="648" class="body">master cutoff</text>
+  <text x="298" y="670" class="body">reachable by operator</text>
+  <text x="298" y="696" class="small">Overrides software</text>
+
+  <rect x="514" y="594" width="245" height="126" class="rail-box"/>
+  <text x="534" y="623" class="box-title">Power distribution</text>
+  <text x="534" y="648" class="body">star ground + branch fuses</text>
+  <text x="534" y="670" class="body">motor rail separate</text>
+  <text x="534" y="696" class="small">Keep high-current paths short</text>
+
+  <rect x="800" y="594" width="220" height="126" class="rail-box"/>
+  <text x="820" y="623" class="box-title">Motor rail</text>
+  <text x="820" y="648" class="body">battery -> L298N VMOT</text>
+  <text x="820" y="670" class="body">bulk decoupling</text>
+  <text x="820" y="696" class="small">measure ripple + heat</text>
+
+  <rect x="1061" y="594" width="190" height="126" class="rail-box"/>
+  <text x="1081" y="623" class="box-title">Filtered 5 V</text>
+  <text x="1081" y="648" class="body">Mega + ESP32 logic</text>
+  <text x="1081" y="670" class="body">common GND</text>
+  <text x="1081" y="696" class="small">verify under load</text>
+
+  <rect x="1292" y="594" width="166" height="126" class="target-box"/>
+  <text x="1312" y="623" class="box-title">Pi 5 V [TARGET]</text>
+  <text x="1312" y="648" class="body">dedicated branch</text>
+  <text x="1312" y="670" class="body">cooling + headroom</text>
+  <text x="1312" y="696" class="small">USB load included</text>
+
+  <path d="M 237 657 L 278 657" fill="none" stroke="#ff7b80" stroke-width="4" marker-end="url(#arrowRed)"/>
+  <path d="M 473 657 L 514 657" fill="none" stroke="#ff7b80" stroke-width="4" marker-end="url(#arrowRed)"/>
+  <path d="M 759 640 L 800 640" fill="none" stroke="#ff7b80" stroke-width="4" marker-end="url(#arrowRed)"/>
+  <path d="M 759 615 C 850 570 980 570 1061 615" fill="none" stroke="#d9a86c" stroke-width="3" marker-end="url(#arrowRed)"/>
+  <path d="M 759 683 C 850 756 1180 756 1292 683" fill="none" stroke="#d7a5ff" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#arrowPurple)"/>
+  <text x="250" y="744" class="label-red">hard cutoff</text>
+  <text x="850" y="579" class="label-red">filtered logic 5 V</text>
+  <text x="850" y="758" class="label-purple">dedicated target Pi branch</text>
+
+  <path d="M 620 720 L 620 777 L 1330 777" fill="none" stroke="#ff7b80" stroke-width="3" marker-end="url(#arrowRed)"/>
+  <text x="630" y="799" class="label-red">physical cutoff / fuse / BMS can remove motor energy regardless of software state</text>
+
+  <rect x="42" y="827" width="1416" height="74" class="note"/>
+  <circle cx="72" cy="856" r="7" fill="#64d8ff"/>
+  <text x="90" y="861" class="small">solid blue/green = current data or feedback</text>
+  <circle cx="392" cy="856" r="7" fill="#d7a5ff"/>
+  <text x="410" y="861" class="small">dashed purple = target Raspberry Pi/ROS 2 path</text>
+  <circle cx="792" cy="856" r="7" fill="#ff7b80"/>
+  <text x="810" y="861" class="small">red = power or safety boundary</text>
+  <text x="90" y="883" class="tiny">Before energizing: continuity test, rail measurement, 5 V to 3.3 V UART level check, wheels lifted, hand on cutoff.</text>
+</svg>

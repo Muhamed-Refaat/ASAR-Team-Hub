@@ -1,0 +1,31 @@
+flowchart TD
+    CHARTER[Exploratory charter<br/>question + layer + hypothesis]
+    BOUNDARY[Safe boundary<br/>wheels lifted or controlled floor<br/>cutoff ready]
+    OBSERVE[Observe baseline<br/>logs + video + serial / rosbag]
+    CHANGE[Change one variable]
+    COMPARE[Compare expected vs actual]
+    SAFE{Unsafe signal<br/>or stale health?}
+    STOP[STOP / cutoff<br/>preserve evidence]
+    ISOLATE[Isolate earliest failing layer]
+    PROMOTE[Promote useful result<br/>to repeatable test / ADR]
+    NEXT[Create next hypothesis]
+
+    CHARTER --> BOUNDARY --> OBSERVE --> CHANGE --> COMPARE --> SAFE
+    SAFE -->|yes| STOP --> ISOLATE --> NEXT
+    SAFE -->|no| PROMOTE --> NEXT
+    NEXT --> CHARTER
+
+    subgraph CHARTERS[Example charters]
+        XT01[XT01 connection<br/>START / RDY / UART / levels]
+        XT02[XT02 power<br/>sag / ripple / heat / brownout]
+        XT03[XT03 actuation<br/>direction / encoder / stop]
+        XT04[XT04 sensing<br/>distance / IMU / TF / camera]
+        XT05[XT05 deployment<br/>build / launch / rollback]
+        XT06[XT06 autonomy<br/>Nav2 / vision / SLM bounds]
+    end
+    CHARTER -.-> XT01
+    CHARTER -.-> XT02
+    CHARTER -.-> XT03
+    CHARTER -.-> XT04
+    CHARTER -.-> XT05
+    CHARTER -.-> XT06

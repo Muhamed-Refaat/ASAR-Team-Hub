@@ -1,0 +1,25 @@
+flowchart LR
+    FREEZE[Freeze commit + version manifest]
+    CHECK[Lint + build + secret scan]
+    PACKAGE[Package firmware / app / relay / Pi workspace]
+    BENCH[Bench and simulation gate<br/>wheels lifted + STOP]
+    MCU[Mega -> ESP32<br/>START / RDY / watchdog]
+    PI[Pi target<br/>rosdep + colcon + asar_bringup]
+    APP[MobileAPP + relay<br/>lint / build / lease]
+    HEALTH[Health gate<br/>TF / odom / scan / camera / diagnostics]
+    EXPLORE[Controlled exploratory run]
+    EVIDENCE[Evidence bundle + release tag]
+    FAIL{Required signal<br/>missing or unsafe?}
+    STOP[STOP + power safe + isolate]
+    ROLLBACK[Restore previous artifact<br/>and rerun last passing gate]
+
+    FREEZE --> CHECK --> PACKAGE --> BENCH
+    BENCH --> MCU
+    BENCH --> PI
+    BENCH --> APP
+    MCU --> HEALTH
+    PI --> HEALTH
+    APP --> HEALTH
+    HEALTH --> FAIL
+    FAIL -->|no| EXPLORE --> EVIDENCE
+    FAIL -->|yes| STOP --> ROLLBACK --> BENCH

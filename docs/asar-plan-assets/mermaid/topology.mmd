@@ -1,0 +1,15 @@
+flowchart LR
+    APP[MobileAPP<br/>React + TypeScript + Capacitor]
+    RELAY[Optional relay<br/>Node.js + Express + ws]
+    ESP[ESP32 gateway<br/>WebSocket :81 + UART2 master]
+    MEGA[Arduino Mega 2560<br/>real-time controller]
+    IO[Motors + L298N<br/>encoders + HC-SR04 + MPU-6050]
+    SBC[Future SBC<br/>ROS 2 / SLAM / vision]
+
+    APP -->|direct ws or relay ws| ESP
+    APP --> RELAY --> ESP
+    ESP -->|START / SPD / STOP / config| MEGA
+    MEGA -->|RDY / RPM / DIST / MPU / AUTO_*| ESP
+    MEGA --> IO
+    SBC -.->|future high-level goals| ESP
+    SBC -.->|future LiDAR / EKF / Nav2| IO
