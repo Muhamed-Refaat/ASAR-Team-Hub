@@ -1,16 +1,23 @@
 # Connect the ASAR team Telegram group
 
-The hub prepares announcements for newly created tasks, meetings and courses. Saving an event never posts it automatically. Members can open **Preview Telegram**; only an enabled admin can confirm **Send to Telegram**. Setup does not send a test message.
+The hub prepares announcements for saved courses (including courses imported from the sheet), newly created tasks and meetings. Saving an event never posts it automatically. Members can open **Preview Telegram**; only an enabled admin can confirm **Send to Telegram**. Setup does not send a test message.
+
+Current destination: **test**, the private test group, with Bot API chat ID **`-5382073850`**. The bot is already a member. Keep notifications here while reviewing the new message styling; switch back to the ASAR production supergroup only when the user explicitly asks to go live.
+
+Messages use emoji headings, bold titles and labels, readable Cairo dates, concise assignments, an event-specific closing line and a **🚀 Open Team Hub** button. Telegram formatting entities preserve literal member/event text, so angle brackets and Markdown characters cannot become formatting commands. The in-app preview shows the same styles. Historical plain-text deliveries retain their original appearance.
+
+The production hub is [here](https://script.google.com/macros/s/AKfycby4nbyhOS4HKGrCE7ClLjXd6H3TO99Pey3qz4NSIPZutT_UDxxmolOk3bPF9ChycIrjxw/exec). Use `/exec` for the team; `/dev` runs the latest editor code and is intended for project editors.
+
 
 ## 1. Create your bot
 
 Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, and follow the prompts for its name and username. Copy the token privately. Keep the token out of chat, source files, spreadsheets and browser code. Telegram documents this process in its [bot tutorial](https://core.telegram.org/bots/tutorial#obtain-your-bot-token).
 
-## 2. Add it to the team group
+## 2. Add it to the destination group
 
 Open [your team group](https://web.telegram.org/k/#-4488318175) and add the bot by its username. Allow it to send messages. Ordinary group membership is enough if the group permits members to post; grant additional permission only if your group's restrictions require it. You do not need to disable the bot's privacy mode.
 
-The supplied Telegram Web URL suggests chat ID **`-4488318175`**. Setup verifies that ID using Telegram's API; the URL alone does not prove the bot can access it. If Telegram says the chat is unavailable, check the bot's membership and use the discovery step below. A group converted to a supergroup can have a different ID.
+The testing destination is a **basic group**, so its Bot API ID is `-5382073850` with no `-100` prefix. The ASAR production group is a **supergroup**. Its verified Bot API chat ID is **`-1004488318175`**. Telegram Web shows `#-4488318175`, which is its internal peer ID; do not copy that shorter number into Script Properties. The bot must also be a member with permission to post.
 
 ## 3. Configure Apps Script
 
@@ -21,18 +28,14 @@ In **Apps Script → Project Settings → Script properties**, add:
 | Property | Value |
 | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | The private token from BotFather |
-| `TELEGRAM_CHAT_ID` | `-4488318175`, verified during setup |
+| `TELEGRAM_CHAT_ID` | `-5382073850` for testing; `-1004488318175` only after production is authorized |
 | `TELEGRAM_HUB_URL` | Your deployed hub URL ending in `/exec`; optional if Apps Script already reports the correct deployment URL |
 
-Save the properties. In the script editor, select **`setupTelegramNotifications`** and click **Run**, signed in with an enabled admin account from the `Admins` sheet. Approve the requested Google authorization for external requests and managing the delivery trigger. Setup verifies the bot, group and posting permissions, then installs one trigger that checks the queue every minute. Use this same installer account for future setup runs; do not create a second trigger manually. [Google explains installable triggers and their account ownership](https://developers.google.com/apps-script/guides/triggers/installable).
+Use the **gear icon in the left sidebar**, scroll to **Script Properties**, click **Add script property**, enter each property name in the left field and its value in the right field, then click **Save script properties**. These are settings, so searching for the property names in `Code.gs` does not configure them. Keep the token out of source code.
 
-If the returned result is not displayed by the editor, run this temporary helper in the editor to display only the safe setup result, then remove it:
+In the script editor, select **`setupTelegramNotifications`** and click **Run**, signed in with an enabled admin account from the `Admins` sheet. Approve the requested Google authorization for external requests and managing the delivery trigger. Setup verifies the bot, group and posting permissions, then installs one trigger that checks the queue every minute. Use this same installer account for future setup runs; do not create a second trigger manually. [Google explains installable triggers and their account ownership](https://developers.google.com/apps-script/guides/triggers/installable).
 
-```javascript
-function showTelegramSetupResult() {
-  console.log(JSON.stringify(setupTelegramNotifications()));
-}
-```
+After setup finishes, **Execution log** prints `Telegram connected to test (-5382073850). Delivery trigger installed; no message sent during setup.` If you see an authorization prompt, review the permissions for your own ASAR script and complete authorization, then check for this success message. Setup itself sends no announcement.
 
 Create a new deployment version after updating the files. Keep **Execute as: User accessing the web app** and the existing signed-in access settings. Reauthorize the web app if Google requests the new permissions. Never change authentication to work around a missing active-user email.
 
@@ -50,14 +53,14 @@ It displays only group IDs/titles from recent bot updates, with no incoming mess
 
 ## 4. Preview and send the first announcement
 
-1. In the deployed hub, create a task, meeting or course and wait for **Saved**.
-2. Choose **Preview Telegram** from the save notice or event card. The preview shows the exact message and optional **Open Team Hub** button. Closing it sends nothing.
+1. In the deployed hub, select an existing learning course, or create a task, meeting or course and wait for the small sync indicator beside **Refresh** to clear.
+2. Choose **Preview Telegram** from the saved event card. The preview shows the exact message and optional **Open Team Hub** button. Closing it sends nothing.
 3. Check the destination and content, then choose **Send to Telegram** as an admin.
 4. The card first shows **Telegram: Queued**. The worker delivers it in the background, usually within a minute; larger queues take longer. Refresh the hub to see **Sent**, or open **Activity → Telegram announcements** for status and request details. Confirm the message appeared in the intended group.
 
-Announcements use the event title, date/deadline, assignees, description, creator and safe meeting/course link. A message preview expires after ten minutes. Editing the event or changing the destination invalidates an unsent preview, so reopen it before confirming. Queued and sent messages retain the exact approved text; repeated clicks or retries of the same queue request do not post duplicates. Edits, completions and imported history are not automatically announced. Announcements created before this integration was installed do not appear as new events.
+Announcements use the event title, date/deadline, assignees, description, recorded creator when available, and safe meeting/course link. A message preview expires after ten minutes. Editing the event or changing the destination invalidates an unsent preview, so reopen it before confirming. Queued and sent messages retain the exact approved text; repeated clicks or retries of the same queue request do not post duplicates. Edits, completions and imported history are not automatically announced. Imported learning courses are eligible for manual previews and announcements. Tasks and meetings still need their saved creation record.
 
-The existing **Activity** sheet holds the durable queue and delivery history; no new sheet or workbook import is needed. Keep Activity rows intact. Telegram errors cannot undo a saved event. The worker spaces messages, sends at most five per run, and honors Telegram's `retry_after` on rate limits. Telegram publishes its [messaging limits](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this).
+The existing **Activity** sheet holds the durable queue and delivery history; no new sheet or workbook import is needed. Keep Activity rows intact. Announcements are tracked per event and destination, so testing does not consume the later production announcement. Changing destination invalidates previews and prevents old queued messages from being rerouted. Deleting an event cancels its queued announcements; messages already dispatched may finish. Telegram errors cannot undo a saved event. The worker spaces messages, sends at most five per run, and honors Telegram's `retry_after` on rate limits. Telegram publishes its [messaging limits](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this).
 
 If an attempt is **Unconfirmed**, check the group before retrying: Telegram may have accepted the message before the connection failed. The hub does not automatically resend ambiguous deliveries. A retry requires opening the preview and confirming again. Failed attempts remain in Activity, and token-bearing request URLs and raw API errors are never returned to members.
 

@@ -109,7 +109,7 @@ const HubSync = (() => {
           job.error = error.message || String(error);
           if (job.owner === owner())
             onNotice?.(
-              `Couldn’t confirm “${job.payload.title}”. Your draft is kept in Event saves.`,
+              `Couldn’t confirm “${job.payload.title}”. Your draft is kept; open the sync indicator beside Refresh to retry.`,
               "error",
             );
           emit();

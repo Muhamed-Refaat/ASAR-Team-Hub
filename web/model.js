@@ -30,6 +30,7 @@ const HubModel = (() => {
       "Status",
       "Due to Date",
       "Archived",
+      "Deleted",
       "Event ID",
     ],
     Meet: [
@@ -41,6 +42,7 @@ const HubModel = (() => {
       "Logging Enabled",
       "Due to Date",
       "Archived",
+      "Deleted",
       "Event ID",
     ],
     Learning: [
@@ -51,6 +53,7 @@ const HubModel = (() => {
       "Invited/Assigned",
       "Due to Date",
       "Description",
+      "Deleted",
       "Event ID",
     ],
   };
@@ -268,7 +271,7 @@ const HubModel = (() => {
       });
     return [...items.values()];
   }
-  function events(db) {
+  function events(db, { includeDeleted = false } = {}) {
     const result = [];
     const matchedLogs = new Set();
     TYPES.forEach((type) =>
@@ -364,7 +367,7 @@ const HubModel = (() => {
           ),
         );
     });
-    return result;
+    return result.filter((event) => includeDeleted || !event.deleted);
   }
   function taskLinks(row) {
     try {
@@ -380,6 +383,11 @@ const HubModel = (() => {
     } catch (_) {
       return [];
     }
+  }
+  function references(db) {
+    return (db.references || []).filter(
+      (row) => !truth(row.Deleted) && clean(row.Title) && clean(row.URL),
+    );
   }
   function makeEvent(db, type, title, eventId, row, logs, log) {
     const assigned = clean(
@@ -472,6 +480,7 @@ const HubModel = (() => {
       description: clean(row.Description || row["Task description"]),
       archived:
         type !== "Learning" && truth(row.Archived || (log && log.Archived)),
+      deleted: truth(row.Deleted) || logs.some((item) => truth(item.Deleted)),
       requirement: truth(row.Requirement),
       meetingDate: type === "Meet" ? dateOnly(row.Date) : "",
       loggingEnabled: type !== "Meet" || truth(row["Logging Enabled"]),
@@ -849,11 +858,13 @@ const HubModel = (() => {
       "saveEvent",
       "saveTask",
       "archiveEvent",
+      "deleteEvent",
       "saveHierarchy",
       "moveTask",
       "saveSkillRequirements",
       "reviewSubmission",
       "removeMember",
+      "deleteReference",
     ];
     if (adminActions.includes(action))
       assert(
@@ -1024,8 +1035,8 @@ const HubModel = (() => {
         "This submission is no longer pending. Refresh before reviewing.",
       );
       assert(
-        ["Completed", "Uncompleted"].includes(payload.decision),
-        "Choose approve or return for changes.",
+        ["Completed", "Uncompleted", "Rejected"].includes(payload.decision),
+        "Choose approve, return for changes or reject.",
       );
       const note = safeText(payload.note);
       assert(
@@ -1033,7 +1044,8 @@ const HubModel = (() => {
         "Add feedback when returning a submission.",
       );
       Object.assign(submission, {
-        Status: payload.decision,
+        Status:
+          payload.decision === "Rejected" ? "Uncompleted" : payload.decision,
         "Reviewer Email": norm(member.Mail),
         "Reviewer Name": clean(member.Name),
         "Reviewed At": now,
@@ -1259,6 +1271,109 @@ const HubModel = (() => {
         created: !existing,
         event: type + ":" + row["Event ID"],
       };
+    } else if (action === "addReference") {
+      const title = safeText(payload.title);
+      const url = clean(payload.url);
+      const description = safeText(payload.description);
+      assert(
+        title && title.length <= 180,
+        "Enter a link title, up to 180 characters.",
+      );
+      assert(
+        url.length <= 2048 &&
+          /^https?:\/\/[^\s<>"'\\]+$/i.test(url) &&
+          /^https?:\/\/[^/?#]+/i.test(url),
+        "Enter a valid http or https URL.",
+      );
+      assert(
+        description.length <= 1000,
+        "Keep the description under 1,000 characters.",
+      );
+      db.references = db.references || [];
+      const referenceId = newId("reference");
+      const existing = db.references.find(
+        (row) => row["Reference ID"] === referenceId,
+      );
+      if (existing) {
+        assert(
+          norm(existing["Added By"]) === norm(member.Mail),
+          "This link ID is already in use.",
+        );
+      } else
+        db.references.push({
+          "Reference ID": referenceId,
+          Title: title,
+          URL: url,
+          Description: description,
+          "Added By": norm(member.Mail),
+          "Added By Name": clean(member.Name),
+          "Added At": now,
+          Deleted: "FALSE",
+        });
+      target = existing?.Title || title;
+      details = { referenceId };
+    } else if (action === "deleteReference") {
+      const row = (db.references || []).find(
+        (item) => item["Reference ID"] === clean(payload.referenceId),
+      );
+      assert(row, "Link not found. Refresh the page.");
+      row.Deleted = "TRUE";
+      target = row.Title;
+      details = { referenceId: row["Reference ID"] };
+    } else if (action === "deleteEvent") {
+      // Keep source rows, evidence and attempts in place, including after a partial write.
+      const e = events(db, { includeDeleted: true }).find(
+        (event) => event.key === payload.key,
+      );
+      assert(e, "Event not found. Refresh the page.");
+      assert(
+        ["Task", "Meet", "Learning"].includes(e.type),
+        "Only tasks, meetings and learning courses can be deleted.",
+      );
+      const source = (db[TABLES[e.type]] || []).includes(e.row);
+      if (source) {
+        e.row["Event ID"] = e.id;
+        e.row.Deleted = "TRUE";
+      }
+      db.logs
+        .filter(
+          (log) =>
+            log === e.log ||
+            (clean(log["Event Type"]) === e.type &&
+              (id(log["Source ID"]) === e.id ||
+                (source &&
+                  !clean(log["Source ID"]) &&
+                  norm(log["Event Name"]) === norm(e.title)))),
+        )
+        .forEach((log) => {
+          log.Deleted = "TRUE";
+        });
+      db.activity.forEach((row) => {
+        if (row.Action !== "telegramNotification") return;
+        let data;
+        try {
+          data = JSON.parse(row.Details || "{}");
+        } catch (_) {
+          return;
+        }
+        const item = data?.telegram;
+        if (
+          data?.event !== e.key ||
+          !["Queued", "Retrying"].includes(item?.status)
+        )
+          return;
+        const error = "This event was deleted before delivery.";
+        item.status = "Cancelled";
+        item.error = error;
+        item.history = [
+          ...(item.history || []),
+          { status: "Cancelled", at: now, error },
+        ].slice(-20);
+        data.outcome = "Cancelled";
+        row.Details = JSON.stringify(data);
+      });
+      target = e.title;
+      details = { event: e.key, type: e.type };
     } else if (action === "archiveEvent") {
       const e = find();
       assert(e.type !== "Learning", "Learning courses cannot be archived.");
@@ -1535,6 +1650,7 @@ const HubModel = (() => {
     events,
     pendingReviews,
     taskLinks,
+    references,
     failureActivity,
     eventState,
     progress,

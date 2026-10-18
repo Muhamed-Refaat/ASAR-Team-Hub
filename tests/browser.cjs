@@ -55,6 +55,14 @@ async function nav(page, label) {
     .getByRole("button", { name: label, exact: true })
     .click();
 }
+async function openSyncErrors(page) {
+  const indicator = page.getByRole("button", {
+    name: /^Sync status: \d+ pending, [1-9]\d* failed$/,
+  });
+  await indicator.waitFor();
+  if ((await indicator.getAttribute("aria-expanded")) !== "true")
+    await indicator.click();
+}
 async function wireProductionRpc(page, handler) {
   await page.exposeFunction("testActionRpc", handler);
   await page.addInitScript(() => {
@@ -243,6 +251,7 @@ function contrastAudit() {
           "Meetings",
           "Learning",
           "Skills",
+          "References",
           "Team Intelligence",
           "Completion logs",
           "Activity",
@@ -653,6 +662,225 @@ function contrastAudit() {
     },
   );
   await check(
+    "compact cards keep descriptions expandable, actions beside each other and all controls available across responsive themes",
+    async () => {
+      const e = backendEnvironment();
+      e.context.executeHubCommand("saveSkillRequirements", {
+        memberId: "1",
+        requirements: [
+          {
+            label: "Python",
+            category: "Hard Skill",
+            required: true,
+            target: 8,
+          },
+        ],
+      });
+      const description = Array.from(
+        { length: 8 },
+        (_, i) =>
+          `Step ${i + 1}: Review the team's recorded progress, share evidence and follow up on any blockers. All details remain available when this description is expanded.`,
+      ).join("\n");
+      for (const type of ["Task", "Meet", "Learning"])
+        e.context.executeHubCommand(
+          type === "Task" ? "saveTask" : "saveEvent",
+          {
+            type,
+            title: "Compact " + type,
+            description,
+            members: ["1"],
+            newId: "compact",
+            status: "InProgress",
+            date: "2099-02-12",
+            due: "2099-02-13",
+            link: "https://example.com/event",
+            loggingEnabled: true,
+          },
+        );
+      e.context.executeHubCommand("addTaskLink", {
+        key: "Task:task-compact",
+        url: "https://example.com/very/long/evidence/path/that/remains/fully/accessible",
+        newId: "compact-proof",
+      });
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      const measurements = [];
+      try {
+        await wireProductionRpc(ui, (name, args) =>
+          JSON.parse(JSON.stringify(e.context[name](...args))),
+        );
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        for (const theme of ["light", "dark"]) {
+          if (theme === "dark")
+            await ui
+              .getByRole("button", { name: "Switch to dark theme" })
+              .click();
+          await ui.waitForTimeout(250);
+          for (const width of [1440, 768, 390, 320]) {
+            await ui.setViewportSize({ width, height: 1000 });
+            for (const [type, tab] of [
+              ["Skill", "Skills"],
+              ["Task", "Tasks"],
+              ["Meet", "Meetings"],
+              ["Learning", "Learning"],
+            ]) {
+              await nav(ui, tab);
+              const title = type === "Skill" ? "Python" : "Compact " + type;
+              const card = ui
+                .locator(".event-card")
+                .filter({
+                  has: ui.getByRole("heading", { name: title, exact: true }),
+                });
+              await card.waitFor();
+              await layout(ui);
+              assert.deepEqual(await ui.evaluate(contrastAudit), []);
+              const size = await card.boundingBox();
+              measurements.push({
+                type,
+                theme,
+                width,
+                height: Math.round(size.height),
+              });
+              assert.ok(
+                await card.evaluate(
+                  (node) => node.scrollWidth <= node.clientWidth + 1,
+                ),
+                "Card contents must fit its width",
+              );
+              if (type !== "Skill") {
+                await card
+                  .getByRole("button", { name: "Edit " + title, exact: true })
+                  .waitFor();
+                await card
+                  .getByRole("button", { name: "Delete " + title, exact: true })
+                  .waitFor();
+                await card
+                  .getByRole("button", {
+                    name: "Preview Telegram for " + title,
+                    exact: true,
+                  })
+                  .waitFor();
+                const more = card.getByRole("button", {
+                  name: "Read more about " + title,
+                  exact: true,
+                });
+                await more.waitFor();
+                await more.click();
+                assert.ok(
+                  (await card.boundingBox()).height > size.height + 50,
+                  "Expanded descriptions reveal the full content",
+                );
+                assert.equal(
+                  await card.locator(".description").innerText(),
+                  description,
+                );
+                await card
+                  .getByRole("button", {
+                    name: "Show less about " + title,
+                    exact: true,
+                  })
+                  .click();
+              }
+              if (type === "Task") {
+                const move = await card
+                  .getByLabel("Move Compact Task", { exact: true })
+                  .boundingBox();
+                const add = await card
+                  .getByRole("button", {
+                    name: "Add evidence link",
+                    exact: true,
+                  })
+                  .boundingBox();
+                assert.ok(
+                  Math.abs(move.y - add.y) <= 2,
+                  `Task status and evidence shortcut share a row: ${theme}/${width}, move=${JSON.stringify(move)}, add=${JSON.stringify(add)}`,
+                );
+                const evidence = card.getByRole("link", {
+                  name: /very\/long\/evidence/,
+                });
+                const remove = card.getByRole("button", {
+                  name: /^Remove evidence link/,
+                });
+                assert.ok(
+                  Math.abs(
+                    (await evidence.boundingBox()).y -
+                      (await remove.boundingBox()).y,
+                  ) < 10,
+                  "Evidence removal stays beside the URL",
+                );
+              }
+              if (type === "Learning" && width >= 390) {
+                const completion = await card
+                  .getByRole("button", {
+                    name: "Request completion",
+                    exact: true,
+                  })
+                  .boundingBox();
+                const course = await card
+                  .getByRole("link", { name: "Open course", exact: true })
+                  .boundingBox();
+                assert.ok(
+                  Math.abs(completion.y - course.y) <= 2,
+                  "Course actions share a row where space allows",
+                );
+              }
+              if (type === "Skill")
+                await card
+                  .getByRole("button", { name: "Complete", exact: true })
+                  .waitFor();
+              if (width === 1440 || width === 390)
+                await card.screenshot({
+                  path: path.join(
+                    out,
+                    `compact-${type.toLowerCase()}-${theme}-${width}.png`,
+                  ),
+                });
+            }
+          }
+        }
+        await nav(ui, "Tasks");
+        await ui
+          .getByRole("button", { name: "Edit Compact Task", exact: true })
+          .click();
+        assert.equal(
+          await ui
+            .getByRole("dialog")
+            .getByLabel("Description", { exact: true })
+            .inputValue(),
+          description,
+        );
+        await ui
+          .getByRole("dialog")
+          .getByRole("button", { name: "Cancel", exact: true })
+          .click();
+        e.setEmail("member@example.com");
+        await ui.reload();
+        await ui.getByRole("heading", { name: "Welcome, Member" }).waitFor();
+        await nav(ui, "Tasks");
+        assert.equal(
+          await ui
+            .getByRole("button", { name: "Edit Compact Task", exact: true })
+            .count(),
+          0,
+        );
+        assert.equal(
+          await ui.getByLabel("Move Compact Task", { exact: true }).count(),
+          0,
+        );
+        fs.writeFileSync(
+          path.join(out, "compact-card-layouts.json"),
+          JSON.stringify(measurements, null, 2),
+        );
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
     "all dedicated tabs render at desktop, tablet and mobile in both themes, with no overflow and readable contrast",
     async () => {
       const contrast = [];
@@ -671,6 +899,7 @@ function contrastAudit() {
             "Meetings",
             "Learning",
             "Skills",
+            "References",
             "Completion logs",
             "Activity",
             "Team Intelligence",
@@ -1394,7 +1623,7 @@ function contrastAudit() {
     },
   );
   await check(
-    "course and attendance submissions support evidence, admin feedback, approval, withdrawal and undo",
+    "course and attendance submissions support evidence, admin feedback, rejection, approval, withdrawal and undo",
     async () => {
       const M = require("../web/model.js");
       const db = await page.evaluate(() => LocalHub.load());
@@ -1557,6 +1786,42 @@ function contrastAudit() {
         await card
           .getByText("Please provide a clearer record", { exact: false })
           .waitFor();
+        await open();
+        await submitReview(page, type);
+        await page.getByLabel("Local preview account").selectOption(admin.Mail);
+        await page
+          .getByRole("button", {
+            name: `Review ${title} for ${member.Name}`,
+            exact: true,
+          })
+          .click();
+        let rejection = page.getByRole("dialog");
+        if (type === "Meet") {
+          await page.setViewportSize({ width: 390, height: 844 });
+          await layout(page);
+          await rejection.screenshot({
+            path: path.join(out, "reject-attendance-mobile.png"),
+          });
+        }
+        await rejection
+          .getByRole("button", { name: "Reject submission", exact: true })
+          .click();
+        await rejection.waitFor({ state: "hidden", timeout: 1500 });
+        const rejected = await page.evaluate(() => LocalHub.load());
+        assert.equal(rejected.completions.at(-1).Status, "Uncompleted");
+        assert.equal(
+          JSON.parse(rejected.activity.at(-1).Details).decision,
+          "Rejected",
+        );
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await page
+          .getByLabel("Local preview account")
+          .selectOption(member.Mail);
+        await card
+          .locator('.completion-steps [aria-current="step"]')
+          .filter({ hasText: "Uncompleted" })
+          .waitFor();
+        assert.equal(M.progress(rejected, member).completed, baseline);
         await open();
         await submitReview(page, type);
         await page.getByLabel("Local preview account").selectOption(admin.Mail);
@@ -2077,9 +2342,10 @@ function contrastAudit() {
           () => pendingWrites[0].payload.newId,
         );
         await ui.evaluate(() => releaseWrite("fail"));
+        await openSyncErrors(ui);
         const courseNotice = ui
-          .getByRole("region", { name: "Event saves", exact: true })
-          .locator(".event-save-item")
+          .getByRole("region", { name: "Unsaved changes", exact: true })
+          .locator(".sync-error")
           .filter({ hasText: "Async course D" });
         await courseNotice
           .getByRole("button", { name: "Retry save", exact: true })
@@ -2090,6 +2356,7 @@ function contrastAudit() {
           .getByLabel("Activity entries")
           .getByText("Test server temporarily unavailable", { exact: true })
           .waitFor();
+        await openSyncErrors(ui);
         await courseNotice
           .getByRole("button", { name: "Retry save", exact: true })
           .click();
@@ -2099,9 +2366,11 @@ function contrastAudit() {
           stableId,
         );
         await ui.evaluate(() => releaseWrite("lost"));
+        await openSyncErrors(ui);
         await courseNotice
           .getByRole("button", { name: "Retry save", exact: true })
           .waitFor();
+        await openSyncErrors(ui);
         await courseNotice
           .getByRole("button", { name: "Retry save", exact: true })
           .click();
@@ -2121,9 +2390,10 @@ function contrastAudit() {
         await ui.waitForFunction(() => pendingWrites.length === 1);
         await ui.reload();
         await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        await openSyncErrors(ui);
         const restored = ui
-          .getByRole("region", { name: "Event saves", exact: true })
-          .locator(".event-save-item")
+          .getByRole("region", { name: "Unsaved changes", exact: true })
+          .locator(".sync-error")
           .filter({ hasText: "Restored async draft" });
         await restored
           .getByRole("button", { name: "Retry save", exact: true })
@@ -2427,14 +2697,12 @@ function contrastAudit() {
         await ui.goto(url + "/Index.html");
         await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
         await nav(ui, "Tasks");
-        const task = ui
-          .locator(".event-card")
-          .filter({
-            has: ui.getByRole("heading", {
-              name: "Realtime task",
-              exact: true,
-            }),
-          });
+        const task = ui.locator(".event-card").filter({
+          has: ui.getByRole("heading", {
+            name: "Realtime task",
+            exact: true,
+          }),
+        });
         await task
           .getByLabel("Move Realtime task", { exact: true })
           .selectOption("Completed");
@@ -2450,6 +2718,24 @@ function contrastAudit() {
           .locator('[data-task-status="InProgress"]')
           .getByRole("heading", { name: "Realtime task", exact: true })
           .waitFor({ timeout: 1500 });
+        for (const status of ["Blocked", "Backlog", "InProgress"])
+          await task
+            .getByLabel("Move Realtime task", { exact: true })
+            .selectOption(status);
+        const sync = ui.getByRole("button", {
+          name: /^Sync status: 2 pending, 0 failed$/,
+        });
+        await sync.waitFor();
+        const size = await sync.boundingBox();
+        assert.ok(
+          size.width <= 60 && size.height <= 40,
+          "Header sync status stays compact",
+        );
+        assert.equal(
+          await ui.getByRole("region", { name: "Unsaved changes" }).count(),
+          0,
+        );
+        assert.equal(await ui.locator(".event-saves").count(), 0);
         await task
           .getByRole("button", { name: "Edit Realtime task", exact: true })
           .click();
@@ -2509,6 +2795,7 @@ function contrastAudit() {
             exact: true,
           })
           .waitFor({ state: "hidden" });
+        await openSyncErrors(ui);
         await ui
           .getByRole("button", { name: "Retry update", exact: true })
           .click();
@@ -2521,14 +2808,12 @@ function contrastAudit() {
         await ui.waitForTimeout(100);
         release();
         await nav(ui, "Learning");
-        const course = ui
-          .locator(".event-card")
-          .filter({
-            has: ui.getByRole("heading", {
-              name: "Realtime course",
-              exact: true,
-            }),
-          });
+        const course = ui.locator(".event-card").filter({
+          has: ui.getByRole("heading", {
+            name: "Realtime course",
+            exact: true,
+          }),
+        });
         await course
           .getByRole("button", { name: "Request completion", exact: true })
           .click();
@@ -2540,7 +2825,10 @@ function contrastAudit() {
         await course
           .getByText("Pending review", { exact: true })
           .waitFor({ timeout: 1500 });
-        await course.getByText("Saving changes", { exact: true }).waitFor();
+        await ui
+          .getByRole("button", { name: /^Sync status: 1 pending, 0 failed$/ })
+          .waitFor();
+        assert.equal(await ui.locator(".event-saves").count(), 0);
         assert.equal(e.context.getTeamData().completions.length, 0);
         await nav(ui, "Tasks");
         await ui
@@ -2767,10 +3055,7 @@ function contrastAudit() {
             exact: true,
           });
         await preview().waitFor();
-        await ui
-          .locator(".event-saves")
-          .getByRole("button", { name: "Preview Telegram", exact: true })
-          .click();
+        await preview().click();
         dialog = ui.getByRole("dialog");
         await dialog
           .getByRole("button", { name: "Send to Telegram", exact: true })
@@ -2779,6 +3064,14 @@ function contrastAudit() {
           await dialog.locator("pre").innerText(),
           /Join meeting: https:\/\/meet.example.com\/asar/,
         );
+        assert.ok((await dialog.locator("pre .telegram-bold").count()) >= 4);
+        assert.ok((await dialog.locator("pre .telegram-italic").count()) >= 2);
+        assert.ok(
+          (await dialog.locator("pre").innerText()).startsWith(
+            "\ud83d\udcc5 NEW MEETING",
+          ),
+        );
+        assert.equal(await dialog.locator("pre img, pre script").count(), 0);
         assert.equal(
           e.requests.filter((r) => r.method === "sendMessage").length,
           0,
@@ -2901,6 +3194,243 @@ function contrastAudit() {
           )
           .waitFor();
         assert.equal(await ui.locator(".activity-entry").count(), 1);
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "admin event deletion confirms, responds immediately, rolls back failures and retains attendance history",
+    async () => {
+      const e = backendEnvironment();
+      for (const type of ["Task", "Meet", "Learning"])
+        e.context.executeHubCommand(
+          type === "Task" ? "saveTask" : "saveEvent",
+          {
+            type,
+            title: "Delete test " + type,
+            members: ["1"],
+            newId: "delete-ui",
+            date: "2099-01-01",
+            loggingEnabled: true,
+          },
+        );
+      e.context.executeHubCommand("completeEvent", {
+        key: "Meet:meet-delete-ui",
+        newId: "retained-attendance",
+      });
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      const pending = [];
+      const release = (fail = false) => {
+        const request = pending.shift();
+        assert.ok(request);
+        if (fail) request.reject(new Error("Delete connection failed"));
+        else
+          request.resolve(
+            JSON.parse(
+              JSON.stringify(e.context.executeHubCommand(...request.args)),
+            ),
+          );
+      };
+      try {
+        await wireProductionRpc(ui, (name, args) =>
+          name === "executeHubCommand"
+            ? new Promise((resolve, reject) =>
+                pending.push({ args, resolve, reject }),
+              )
+            : JSON.parse(JSON.stringify(e.context[name](...args))),
+        );
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        await nav(ui, "Learning");
+        await ui
+          .getByRole("button", {
+            name: "Preview Telegram for Course",
+            exact: true,
+          })
+          .waitFor();
+        for (const [type, tab] of [
+          ["Task", "Tasks"],
+          ["Meet", "Meetings"],
+          ["Learning", "Learning"],
+        ]) {
+          await nav(ui, tab);
+          if (type === "Learning")
+            await ui.setViewportSize({ width: 390, height: 844 });
+          const title = "Delete test " + type;
+          const card = ui.locator(".event-card").filter({
+            has: ui.getByRole("heading", { name: title, exact: true }),
+          });
+          await card
+            .getByRole("button", { name: "Delete " + title, exact: true })
+            .click();
+          let dialog = ui.getByRole("dialog");
+          await dialog.getByText(title, { exact: true }).waitFor();
+          await dialog
+            .getByRole("button", { name: "Cancel", exact: true })
+            .click();
+          assert.equal(pending.length, 0);
+          await card
+            .getByRole("button", { name: "Delete " + title, exact: true })
+            .click();
+          await dialog
+            .getByRole("button", { name: "Delete event", exact: true })
+            .click();
+          await dialog.waitFor({ state: "hidden", timeout: 1500 });
+          await card.waitFor({ state: "hidden", timeout: 1500 });
+          assert.ok(
+            e.context
+              .getTeamData()
+              [
+                { Task: "tasks", Meet: "meet", Learning: "learning" }[type]
+              ].some(
+                (row) => !row.Deleted && Object.values(row).includes(title),
+              ),
+          );
+          await ui.waitForTimeout(100);
+          if (type === "Task") {
+            release(true);
+            await card.waitFor();
+            await openSyncErrors(ui);
+            await ui
+              .getByRole("button", { name: "Retry update", exact: true })
+              .click();
+            await card.waitFor({ state: "hidden", timeout: 1500 });
+            await ui.waitForTimeout(100);
+          }
+          release();
+          await ui
+            .getByRole("button", { name: /^Sync status:/ })
+            .waitFor({ state: "hidden" });
+          assert.equal(await ui.locator(".event-saves").count(), 0);
+          await layout(ui);
+        }
+        await nav(ui, "Completion logs");
+        await ui.getByText("Event deleted", { exact: true }).waitFor();
+        assert.equal(
+          await ui
+            .getByRole("button", { name: /^Review attendance for/ })
+            .count(),
+          0,
+        );
+        assert.equal(e.context.getTeamData().completions.length, 1);
+        await ui.screenshot({
+          path: path.join(out, "deleted-event-history-mobile.png"),
+          fullPage: true,
+        });
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "References accepts member links, preserves authenticated attribution and restricts deletion to admins in responsive themes",
+    async () => {
+      const e = backendEnvironment("member@example.com");
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      try {
+        await wireProductionRpc(ui, (name, args) =>
+          JSON.parse(JSON.stringify(e.context[name](...args))),
+        );
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Member" }).waitFor();
+        await nav(ui, "References");
+        await ui.getByRole("button", { name: "Add link", exact: true }).click();
+        let dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Title", { exact: true })
+          .fill("ASAR firmware repository");
+        await dialog
+          .getByLabel("URL", { exact: true })
+          .fill("https://github.com/example/asar");
+        await dialog
+          .getByLabel("Description (optional)", { exact: true })
+          .fill("Setup, source code and releases. <script> stays plain text.");
+        await dialog
+          .getByRole("button", { name: "Add link", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden", timeout: 1500 });
+        const card = ui.locator(".reference-card");
+        await card
+          .getByRole("link", { name: "ASAR firmware repository", exact: true })
+          .waitFor();
+        assert.equal(
+          await card.getByRole("link").getAttribute("href"),
+          "https://github.com/example/asar",
+        );
+        await card.getByText("Added by Member", { exact: true }).waitFor();
+        assert.equal(
+          await card.getByRole("button", { name: /^Delete reference/ }).count(),
+          0,
+        );
+        await ui
+          .getByRole("button", { name: /^Sync status:/ })
+          .waitFor({ state: "hidden" });
+        await ui
+          .getByRole("searchbox", { name: "Search references", exact: true })
+          .fill("missing");
+        await ui
+          .getByRole("heading", { name: "No matching references" })
+          .waitFor();
+        await ui
+          .getByRole("searchbox", { name: "Search references", exact: true })
+          .fill("firmware");
+        await card.waitFor();
+        for (const theme of ["light", "dark"]) {
+          if (theme === "dark")
+            await ui
+              .getByRole("button", { name: "Switch to dark theme" })
+              .click();
+          await ui.waitForTimeout(250);
+          for (const width of [1440, 768, 390]) {
+            await ui.setViewportSize({ width, height: 1000 });
+            await layout(ui);
+            assert.deepEqual(await ui.evaluate(contrastAudit), []);
+          }
+          await ui.screenshot({
+            path: path.join(out, "references-member-" + theme + "-mobile.png"),
+            fullPage: true,
+          });
+        }
+        e.setEmail("head@example.com");
+        await ui.getByTitle("Refresh sheet data", { exact: true }).click();
+        await card
+          .getByRole("button", {
+            name: "Delete reference ASAR firmware repository",
+            exact: true,
+          })
+          .waitFor();
+        await card.getByRole("button", { name: /^Delete reference/ }).click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByRole("button", { name: "Cancel", exact: true })
+          .click();
+        await card.waitFor();
+        await card.getByRole("button", { name: /^Delete reference/ }).click();
+        await dialog
+          .getByRole("button", { name: "Delete link", exact: true })
+          .click();
+        await card.waitFor({ state: "hidden", timeout: 1500 });
+        await ui
+          .getByRole("button", { name: /^Sync status:/ })
+          .waitFor({ state: "hidden" });
+        const db = e.context.getTeamData();
+        assert.equal(db.references.length, 1);
+        assert.equal(db.references[0].Deleted, "TRUE");
+        assert.equal(db.references[0]["Added By"], "member@example.com");
+        await nav(ui, "Activity");
+        await ui.getByText("Added reference link", { exact: false }).waitFor();
+        await ui
+          .getByText("Deleted reference link", { exact: false })
+          .waitFor();
       } finally {
         await scope.close();
       }

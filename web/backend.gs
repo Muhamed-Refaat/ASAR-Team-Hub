@@ -14,6 +14,7 @@ const HUB_SHEETS_ = {
   skillRequirements: "SkillRequirements",
   subteams: "Subteams",
   memberships: "TeamMemberships",
+  references: "References",
 };
 
 function doGet(e) {
@@ -34,11 +35,12 @@ function hubSpreadsheet_() {
   );
 }
 
-function readHubSheet_(ss, name) {
+function readHubSheet_(ss, name, snapshots) {
   let sheet = ss.getSheetByName(name);
   if (!sheet && name === "Skill") sheet = ss.getSheetByName("SKILLs");
   if (!sheet) return [];
   const rows = sheet.getDataRange().getValues();
+  if (snapshots) snapshots[name] = rows;
   let headerIndex = 0;
   let headers = (rows[0] || []).map((v) => String(v || "").trim());
   if (
@@ -83,10 +85,10 @@ function readHubSheet_(ss, name) {
     });
 }
 
-function hubData_(ss) {
+function hubData_(ss, snapshots) {
   const db = {};
   Object.keys(HUB_SHEETS_).forEach(
-    (key) => (db[key] = readHubSheet_(ss, HUB_SHEETS_[key])),
+    (key) => (db[key] = readHubSheet_(ss, HUB_SHEETS_[key], snapshots)),
   );
   db.team = db.team.filter((m) => String(m.Name || "").trim());
   return db;
@@ -118,7 +120,8 @@ function executeHubCommand(action, payload) {
   let auditContext = null;
   try {
     const ss = hubSpreadsheet_();
-    const before = hubData_(ss);
+    const snapshots = {};
+    const before = hubData_(ss, snapshots);
     const session = hubSession_(before);
     const now = Utilities.formatDate(
       new Date(),
@@ -167,6 +170,7 @@ function executeHubCommand(action, payload) {
                 HUB_SHEETS_[key],
                 before[key],
                 result.db[key],
+                snapshots[HUB_SHEETS_[key]],
               );
           });
         // Record success only after every affected source table has been written.
@@ -178,6 +182,7 @@ function executeHubCommand(action, payload) {
             HUB_SHEETS_.activity,
             before.activity,
             result.db.activity,
+            snapshots[HUB_SHEETS_.activity],
           );
         SpreadsheetApp.flush();
       } catch (error) {
@@ -197,7 +202,9 @@ function executeHubCommand(action, payload) {
         throw error;
       }
     }
-    const db = hubData_(ss);
+    // The validated result already contains persisted rows, including Drive metadata.
+    // Avoid reading the entire workbook a second time for every small update.
+    const db = result.db;
     db.activeUserSession = hubSession_(db);
     return { success: true, data: db, unchanged: result.unchanged };
   } catch (error) {
@@ -261,19 +268,21 @@ function saveHubEvidence_(db, session, upload, submission) {
   }
 }
 
-function writeHubChanges_(ss, name, before, after) {
+function writeHubChanges_(ss, name, before, after, snapshot) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) sheet = ss.insertSheet(name);
-  const values = sheet.getDataRange().getValues();
+  const values = snapshot || sheet.getDataRange().getValues();
   const headers = (values[0] || []).map((v) => String(v || "").trim());
   while (headers.length && !headers[headers.length - 1]) headers.pop();
+  const originalHeaders = headers.slice();
   after.forEach((row) =>
     Object.keys(row).forEach((key) => {
       if (!headers.includes(key)) headers.push(key);
     }),
   );
   if (!headers.length) return;
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (JSON.stringify(headers) !== JSON.stringify(originalHeaders))
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   // Preserve sheet layout, untouched cells and formulas.
   const rowNumbers = values
     .slice(1)
@@ -286,12 +295,32 @@ function writeHubChanges_(ss, name, before, after) {
     if (!previous) {
       sheet.appendRow(headers.map((h) => sheetText_(row[h])));
     } else {
-      Object.keys(row).forEach((key) => {
-        if (JSON.stringify(previous[key]) !== JSON.stringify(row[key]))
-          sheet
-            .getRange(rowNumbers[i], headers.indexOf(key) + 1)
-            .setValue(sheetText_(row[key]));
-      });
+      const changed = Object.keys(row)
+        .filter(
+          (key) => JSON.stringify(previous[key]) !== JSON.stringify(row[key]),
+        )
+        .map((key) => ({
+          column: headers.indexOf(key) + 1,
+          value: sheetText_(row[key]),
+        }))
+        .sort((a, b) => a.column - b.column);
+      for (let index = 0; index < changed.length;) {
+        const first = changed[index++];
+        const cells = [first.value];
+        while (
+          index < changed.length &&
+          changed[index].column === first.column + cells.length
+        )
+          cells.push(changed[index++].value);
+        const range = sheet.getRange(
+          rowNumbers[i],
+          first.column,
+          1,
+          cells.length,
+        );
+        if (cells.length === 1) range.setValue(cells[0]);
+        else range.setValues([cells]);
+      }
     }
   });
 }
@@ -372,11 +401,17 @@ function getTelegramPreview(key) {
     throw new Error("Sign in with your team account to preview notifications.");
   const config = hubTelegramConfig_();
   let preview = HubTelegram.preview(HubModel, db, key, config.url);
-  const delivery = HubTelegram.deliveries(db).get(key) || null;
+  const delivery = HubTelegram.deliveries(db, config.chatId).get(key) || null;
   const waiting =
     delivery &&
     ["Queued", "Sending", "Retrying", "Sent"].includes(delivery.status);
-  if (waiting) preview = { ...preview, text: delivery.text, url: delivery.url };
+  if (waiting)
+    preview = {
+      ...preview,
+      text: delivery.text,
+      url: delivery.url,
+      entities: delivery.entities || [],
+    };
   const canSend = session.isAdmin && hubTelegramReady_(config) && !waiting;
   let receipt = "";
   if (canSend) {
@@ -415,13 +450,15 @@ function hubQueueTelegram_(db, session, payload, now) {
     throw new Error(
       "Only explicitly listed admins can send Telegram notifications.",
     );
-  const existing = HubTelegram.deliveries(db).get(payload.key);
+  const config = hubTelegramConfig_();
+  // Revalidate even duplicate requests: deleted events cannot be announced.
+  const preview = HubTelegram.preview(HubModel, db, payload.key, config.url);
+  const existing = HubTelegram.deliveries(db, config.chatId).get(payload.key);
   if (
     existing &&
     ["Queued", "Sending", "Retrying", "Sent"].includes(existing.status)
   )
     return { db, unchanged: true };
-  const config = hubTelegramConfig_();
   if (!hubTelegramReady_(config))
     throw new Error("Connect Telegram before sending an announcement.");
   let receipt;
@@ -439,7 +476,6 @@ function hubQueueTelegram_(db, session, payload, now) {
     receipt.expiresAt < Date.now()
   )
     throw new Error("Open the notification preview again before sending.");
-  const preview = HubTelegram.preview(HubModel, db, payload.key, config.url);
   if (
     receipt.chatId !== config.chatId ||
     receipt.digest !== hubTelegramDigest_(preview)
@@ -461,6 +497,7 @@ function hubQueueTelegram_(db, session, payload, now) {
       telegram: {
         status: "Queued",
         text: preview.text,
+        entities: preview.entities,
         url: preview.url,
         chatId: config.chatId,
         attempts: 0,
@@ -533,13 +570,21 @@ function setupTelegramNotifications() {
   } finally {
     lock.releaseLock();
   }
-  return {
+  const status = {
     enabled: true,
     chatId: String(chat.result.id),
     chatTitle: chat.result.title,
     message:
       "Connected. Every announcement requires an admin preview and confirmation in the hub.",
   };
+  console.log(
+    "Telegram connected to " +
+      status.chatTitle +
+      " (" +
+      status.chatId +
+      "). Delivery trigger installed; no message sent during setup.",
+  );
+  return status;
 }
 
 function pauseTelegramNotifications() {
@@ -628,13 +673,15 @@ function hubTelegramCall_(config, method, payload) {
         " and run setup again."
       : errorCode === 401
         ? "Telegram rejected the bot token. Update it and run setup again."
-        : errorCode === 403
-          ? "The bot cannot post in this group. Check its membership and permissions."
-          : errorCode === 429
-            ? "Telegram rate limit reached. Delivery will retry automatically."
-            : errorCode >= 500
-              ? "Telegram is temporarily unavailable. Delivery will retry automatically."
-              : "Telegram rejected this request. Check the bot, group ID and connection settings.",
+        : errorCode === 400 && method === "getChat"
+          ? "Telegram could not find this group. Check bot membership and use the Bot API chat ID; a supergroup ID starts with -100."
+          : errorCode === 403
+            ? "The bot cannot post in this group. Check its membership and permissions."
+            : errorCode === 429
+              ? "Telegram rate limit reached. Delivery will retry automatically."
+              : errorCode >= 500
+                ? "Telegram is temporarily unavailable. Delivery will retry automatically."
+                : "Telegram rejected this request. Check the bot, group ID and connection settings.",
   };
 }
 
@@ -652,6 +699,22 @@ function hubTelegramUpdate_(ss, rows, index, data, status, error) {
   after[index] = { ...rows[index], Details: JSON.stringify(data) };
   writeHubChanges_(ss, "Activity", rows, after);
   SpreadsheetApp.flush();
+}
+
+function hubTelegramEventDeleted_(ss, key) {
+  const type = String(key || "").split(":")[0];
+  const table = HubModel.TABLES[type];
+  if (!["Task", "Meet", "Learning"].includes(type)) return true;
+  // Check the source before claiming: its deletion may have persisted even if
+  // the later Activity write failed. Never send from a stale outbox snapshot.
+  const event = HubModel.events(
+    {
+      [table]: readHubSheet_(ss, HUB_SHEETS_[table]),
+      logs: readHubSheet_(ss, "Log"),
+    },
+    { includeDeleted: true },
+  ).find((item) => item.key === key);
+  return !!event?.deleted;
 }
 
 function hubTelegramClaim_() {
@@ -698,6 +761,17 @@ function hubTelegramClaim_() {
           data,
           "Failed",
           "The destination changed. Preview this announcement again.",
+        );
+        return { skipped: true };
+      }
+      if (hubTelegramEventDeleted_(ss, data.event)) {
+        hubTelegramUpdate_(
+          ss,
+          rows,
+          index,
+          data,
+          "Cancelled",
+          "This event was deleted before delivery.",
         );
         return { skipped: true };
       }
@@ -785,9 +859,11 @@ function hubTelegramWorker_() {
       text: claim.item.text,
       link_preview_options: { is_disabled: true },
     };
+    const entities = HubTelegram.entities(claim.item.text, claim.item.entities);
+    if (entities.length) payload.entities = entities;
     if (claim.item.url)
       payload.reply_markup = {
-        inline_keyboard: [[{ text: "Open Team Hub", url: claim.item.url }]],
+        inline_keyboard: [[{ text: "🚀 Open Team Hub", url: claim.item.url }]],
       };
     const result = hubTelegramCall_(claim.config, "sendMessage", payload);
     hubTelegramFinish_(claim, result);

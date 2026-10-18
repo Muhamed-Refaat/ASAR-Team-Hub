@@ -115,6 +115,7 @@ function harness() {
 test("task moves render immediately, retain newer choices through older replies, and roll back only failed changes", async () => {
   const h = harness();
   h.actions.mutate("moveTask", { key: "Task:task-1", status: "Completed" });
+  await tick();
   const latest = h.actions.mutate("moveTask", {
     key: "Task:task-1",
     status: "InProgress",
@@ -145,6 +146,7 @@ test("a failed earlier move cannot be retried over a newer successful move", asy
     key: "Task:task-1",
     status: "Completed",
   });
+  await tick();
   h.actions.mutate("moveTask", { key: "Task:task-1", status: "Backlog" });
   await tick();
   h.requests.shift().reject(new Error("First write failed"));
@@ -157,6 +159,26 @@ test("a failed earlier move cannot be retried over a newer successful move", asy
   assert.equal(h.requests.length, 0);
   assert.equal(h.data().tasks[0].Status, "Backlog");
 });
+test("rapid task moves skip obsolete queued statuses while preserving the latest visible choice", async () => {
+  const h = harness();
+  h.actions.mutate("moveTask", { key: "Task:task-1", status: "InProgress" });
+  await tick();
+  for (const status of ["Completed", "Backlog", "Blocked", "Pending"])
+    h.actions.mutate("moveTask", { key: "Task:task-1", status });
+  assert.equal(h.view().tasks[0].Status, "Pending");
+  assert.equal(h.jobs().filter((job) => job.state === "queued").length, 1);
+  assert.equal(h.requests.length, 1);
+  h.succeed();
+  await tick();
+  assert.equal(h.view().tasks[0].Status, "Pending");
+  assert.equal(h.requests[0].payload.status, "Pending");
+  h.succeed();
+  await tick();
+  assert.equal(h.requests.length, 0);
+  assert.equal(h.data().tasks[0].Status, "Pending");
+  assert.equal(h.data().activity.length, 2);
+});
+
 test("learning submits immediately as Pending, preserves attachments for retry and does not count as approved progress", async () => {
   const h = harness();
   const upload = {

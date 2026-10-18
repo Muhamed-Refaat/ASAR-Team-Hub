@@ -78,6 +78,9 @@ const HubActions = (() => {
           saveHierarchy: "Team distribution saved.",
           saveSkillRequirements: "Required skills saved.",
           removeMember: "Member removed from the active team.",
+          deleteEvent: "Event deleted. History preserved.",
+          addReference: "Reference link added.",
+          deleteReference: "Reference link deleted.",
         }[job.action] || "Changes saved."
       );
     }
@@ -140,7 +143,7 @@ const HubActions = (() => {
           job.error = error.message || String(error);
           if (job.owner === owner() && job.state === "failed")
             onNotice?.(
-              `Couldn’t save “${job.title}”. The unconfirmed change was rolled back; retry from Event saves.`,
+              `Couldn’t save “${job.title}”. Open the sync indicator beside Refresh to retry.`,
               "error",
             );
           emit();
@@ -206,6 +209,10 @@ const HubActions = (() => {
           ) {
             older.replacedBy = id;
             if (older.state === "failed") older.state = "superseded";
+            // A task can cross several columns while a previous request is in flight.
+            // Only the newest status that has not started saving needs a request.
+            if (action === "moveTask" && older.state === "queued")
+              older.state = "superseded";
           }
         });
       }

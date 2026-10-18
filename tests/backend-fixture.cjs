@@ -6,8 +6,11 @@ class Sheet {
   constructor(name, rows) {
     this.name = name;
     this.rows = rows;
+    this.reads = 0;
+    this.writes = [];
   }
   getDataRange() {
+    this.reads++;
     return { getValues: () => this.rows.map((r) => r.slice()) };
   }
   getRange(r, c, h = 1, w = 1) {
@@ -27,6 +30,7 @@ class Sheet {
     };
   }
   set(r, c, v) {
+    this.writes.push({ row: r, column: c, value: v });
     while (this.rows.length < r) this.rows.push([]);
     this.rows[r - 1][c - 1] = v;
   }

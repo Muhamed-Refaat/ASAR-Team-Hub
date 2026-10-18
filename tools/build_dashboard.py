@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHEETS = {'supervisor': 'Supervisor', 'team': 'Team', 'skills': 'Skill', 'learning': 'Learning', 'meet': 'Meet', 'tasks': 'Task', 'logs': 'Log', 'activity': 'Activity', 'admins': 'Admins', 'skillEvents': 'SkillEvents', 'completions': 'Completion', 'skillRequirements': 'SkillRequirements', 'subteams': 'Subteams', 'memberships': 'TeamMemberships'}
+SHEETS = {'supervisor': 'Supervisor', 'team': 'Team', 'skills': 'Skill', 'learning': 'Learning', 'meet': 'Meet', 'tasks': 'Task', 'logs': 'Log', 'activity': 'Activity', 'admins': 'Admins', 'skillEvents': 'SkillEvents', 'completions': 'Completion', 'skillRequirements': 'SkillRequirements', 'subteams': 'Subteams', 'memberships': 'TeamMemberships', 'references': 'References'}
 
 def build():
     model = (ROOT / 'web/model.js').read_text(encoding='utf-8')

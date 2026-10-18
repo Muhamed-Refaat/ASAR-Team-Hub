@@ -19,6 +19,7 @@ NEW_SHEETS = {
     'SkillRequirements': ['Member ID', 'Skill', 'Category', 'Required', 'Target Score'],
     'Subteams': ['Subteam ID', 'Name', 'Description', 'Color', 'Active'],
     'TeamMemberships': ['Subteam ID', 'Member ID', 'Role', 'Active'],
+    'References': ['Reference ID', 'Title', 'URL', 'Description', 'Added By', 'Added By Name', 'Added At', 'Deleted'],
 }
 
 def upgrade(wb):
@@ -36,11 +37,11 @@ def upgrade(wb):
                     existing[column] = last
     for name, columns in {
         'Team': ['Role', 'Reports To', 'Department', 'Aliases', 'Knowledge', 'Skills', 'Active'],
-        'Task': ['Event ID', 'Due to Date', 'Evidence Links'],
-        'Meet': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Logging Enabled'],
+        'Task': ['Event ID', 'Due to Date', 'Evidence Links', 'Deleted'],
+        'Meet': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Logging Enabled', 'Deleted'],
         'Exam': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived'],
-        'Learning': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived'],
-        'Log': ['Source ID', 'Archived'],
+        'Learning': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived', 'Deleted'],
+        'Log': ['Source ID', 'Archived', 'Deleted'],
     }.items():
         sheet = wb[name]
         headers = {str(c.value).strip(): c.column for c in sheet[1] if c.value is not None}

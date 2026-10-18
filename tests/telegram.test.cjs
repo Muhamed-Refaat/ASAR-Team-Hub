@@ -42,6 +42,38 @@ function confirm(e, key) {
 const sends = (e) => e.requests.filter((r) => r.method === "sendMessage");
 const delivery = (e, key) => T.deliveries(e.context.getTeamData()).get(key);
 
+test("imported courses have previews without invented creators and can be announced once per destination", () => {
+  const e = connected();
+  const key = M.events(e.context.getTeamData()).find(
+    (event) => event.type === "Learning",
+  ).key;
+  const p = e.context.getTelegramPreview(key);
+  assert.equal(p.canSend, true);
+  assert.match(p.preview.text, /NEW COURSE/);
+  assert.equal(p.preview.text.includes("Created by:"), false);
+  e.setEmail("member@example.com");
+  assert.equal(e.context.getTelegramPreview(key).canSend, false);
+  e.setEmail("head@example.com");
+  confirm(e, key);
+  e.context.hubTelegramWorker_();
+  assert.equal(sends(e).length, 1);
+  assert.equal(e.context.getTelegramPreview(key).canSend, false);
+  e.scriptProperties.set("TELEGRAM_CHAT_ID", "-5382073850");
+  e.scriptProperties.set("TELEGRAM_CHAT_TITLE", "test");
+  assert.equal(e.context.getTelegramPreview(key).canSend, true);
+  confirm(e, key);
+  e.context.hubTelegramWorker_();
+  assert.deepEqual(
+    sends(e).map((row) => row.payload.chat_id),
+    ["-4488318175", "-5382073850"],
+  );
+  assert.equal(
+    T.deliveries(e.context.getTeamData(), "-4488318175").get(key).status,
+    "Sent",
+  );
+  assert.equal(e.context.getTelegramPreview(key).canSend, false);
+});
+
 test("Telegram setup verifies the intended group without posting; creations and previews never send", () => {
   const e = connected();
   assert.deepEqual(
@@ -164,6 +196,14 @@ test("confirmed delivery uses the exact approved text and button; duplicate requ
   });
   e.context.hubTelegramWorker_();
   assert.equal(sends(e)[0].payload.text, p.preview.text);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(sends(e)[0].payload.entities)),
+    JSON.parse(JSON.stringify(p.preview.entities)),
+  );
+  assert.equal(
+    sends(e)[0].payload.reply_markup.inline_keyboard[0][0].text,
+    "🚀 Open Team Hub",
+  );
   assert.equal(
     sends(e)[0].payload.reply_markup.inline_keyboard[0][0].url,
     p.preview.url,
@@ -276,6 +316,93 @@ test("queued messages are spaced outside the save lock and bounded per worker ru
   assert.equal(e.locked(), false);
 });
 
+test("styled announcements use emoji, readable dates and exact UTF-16 formatting without interpreting member text as HTML", () => {
+  for (const type of ["Task", "Meet", "Learning"]) {
+    const e = connected();
+    const { key, payload } = create(e, type);
+    const title = "🚀 مرحباً <b>Design & build</b>";
+    e.context.executeHubCommand(type === "Task" ? "saveTask" : "saveEvent", {
+      ...payload,
+      key,
+      title,
+      description: '<img src=x onerror="alert(1)">',
+    });
+    const p = e.context.getTelegramPreview(key).preview;
+    assert.ok(
+      p.text.startsWith(
+        {
+          Task: "📌 NEW TASK",
+          Meet: "📅 NEW MEETING",
+          Learning: "🎓 NEW COURSE",
+        }[type],
+      ),
+    );
+    assert.ok(p.text.includes("👥 Assigned to: Abdallah Allam, Member"));
+    assert.ok(p.text.includes('<img src=x onerror="alert(1)">'));
+    const formatted = JSON.parse(
+      JSON.stringify(T.entities(p.text, p.entities)),
+    );
+    assert.deepEqual(formatted, JSON.parse(JSON.stringify(p.entities)));
+    assert.equal(
+      T.fragments(p.text, p.entities)
+        .map((part) => part.text)
+        .join(""),
+      p.text,
+    );
+    assert.ok(
+      p.entities.some(
+        (item) =>
+          item.type === "bold" &&
+          p.text.slice(item.offset, item.offset + item.length) === title,
+      ),
+    );
+    if (type === "Meet") assert.ok(p.text.includes("12 Feb 2099 (Cairo)"));
+    confirm(e, key);
+    e.context.hubTelegramWorker_();
+    assert.equal(sends(e)[0].payload.parse_mode, undefined);
+    assert.equal(sends(e)[0].payload.text, p.text);
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(sends(e)[0].payload.entities)),
+      formatted,
+    );
+  }
+});
+
+test("preview fragments reject unsafe, overlapping and surrogate-splitting entities and retain legacy plain messages", () => {
+  const text = "🚀 <script>literal</script>";
+  const valid = { type: "bold", offset: 3, length: 8 };
+  const styles = [
+    { type: "text_link", offset: 3, length: 8, url: "javascript:alert(1)" },
+    { type: "bold", offset: 1, length: 1 },
+    { type: "italic", offset: -1, length: 10 },
+    valid,
+    { type: "italic", offset: 4, length: 2 },
+    { type: "bold", offset: 1000, length: 2 },
+  ];
+  assert.deepEqual(T.entities(text, styles), [valid]);
+  assert.equal(
+    T.fragments(text, styles)
+      .map((part) => part.text)
+      .join(""),
+    text,
+  );
+  const e = connected(),
+    { key } = create(e);
+  confirm(e, key);
+  const rows = e.sheets.Activity.rows;
+  const index = rows[0].indexOf("Details");
+  const data = JSON.parse(rows.at(-1)[index]);
+  data.telegram.text = "Legacy plain announcement";
+  delete data.telegram.entities;
+  rows.at(-1)[index] = JSON.stringify(data);
+  const p = e.context.getTelegramPreview(key).preview;
+  assert.equal(p.text, "Legacy plain announcement");
+  assert.deepEqual(JSON.parse(JSON.stringify(p.entities)), []);
+  e.context.hubTelegramWorker_();
+  assert.equal(sends(e)[0].payload.text, p.text);
+  assert.equal(sends(e)[0].payload.entities, undefined);
+});
+
 test("notification formatting bounds long text, preserves Unicode and refuses history or unsafe links", () => {
   const e = connected(),
     { key, payload } = create(e, "Learning");
@@ -292,7 +419,7 @@ test("notification formatting bounds long text, preserves Unicode and refuses hi
   assert.ok(p.preview.text.includes("Open Team Hub for the event link"));
   assert.throws(
     () => e.context.getTelegramPreview("Task:task-1"),
-    /Only newly created/,
+    /Choose a saved/,
   );
   const unsafe = T.preview(
     M,
@@ -365,6 +492,47 @@ test("setup rejects missing credentials and posting restrictions; group discover
   assert.equal(JSON.stringify(groups).includes("PRIVATE"), false);
   e.setEmail("member@example.com");
   assert.throws(() => e.context.findTelegramGroups(), /Only explicitly/);
+});
+
+test("switching to the test group blocks old production approvals and sends new confirmations only to test", () => {
+  const e = connected();
+  const old = create(e, "Task", "production");
+  const receipt = e.context.getTelegramPreview(old.key);
+  confirm(e, old.key);
+  e.scriptProperties.set("TELEGRAM_CHAT_ID", "-5382073850");
+  e.fetch(({ method, payload }) => ({
+    code: 200,
+    body: {
+      ok: true,
+      result:
+        method === "getMe"
+          ? { id: 123 }
+          : method === "getChat"
+            ? { id: Number(payload.chat_id), title: "test", type: "group" }
+            : method === "getChatMember"
+              ? { status: "member" }
+              : { message_id: 321 },
+    },
+  }));
+  e.context.setupTelegramNotifications();
+  assert.equal(e.scriptProperties.get("TELEGRAM_CHAT_ID"), "-5382073850");
+  const newer = create(e, "Meet", "test-only");
+  const p = e.context.getTelegramPreview(newer.key);
+  assert.equal(p.chatTitle, "test");
+  confirm(e, newer.key);
+  e.context.hubTelegramWorker_();
+  assert.equal(delivery(e, old.key).status, "Failed");
+  assert.equal(sends(e).length, 1);
+  assert.equal(sends(e)[0].payload.chat_id, "-5382073850");
+  assert.equal(delivery(e, newer.key).status, "Sent");
+  assert.throws(
+    () =>
+      e.context.executeHubCommand("queueTelegramNotification", {
+        key: old.key,
+        receipt: receipt.receipt,
+      }),
+    /preview again|destination changed/,
+  );
 });
 
 test("changing the recipient invalidates an unsent preview and preserves an already approved destination", () => {

@@ -34,7 +34,7 @@ class DataAudit(unittest.TestCase):
         ids = workbook.defined_names['HubMemberIDs']
         sheet, area = next(ids.destinations)
         self.assertEqual(len([c for row in workbook[sheet][area] for c in row if c.value]), 26)
-        for sheet in ('Completion', 'Team', 'Admins', 'Meet', 'SkillRequirements', 'Subteams', 'TeamMemberships'):
+        for sheet in ('Completion', 'Team', 'Admins', 'Meet', 'SkillRequirements', 'Subteams', 'TeamMemberships', 'References'):
             self.assertGreater(len(workbook[sheet].data_validations.dataValidation), 0, sheet)
         for field in ('Name', 'Email', 'Event Name'):
             cell = completion.cell(2, headers.index(field) + 1)
@@ -68,9 +68,10 @@ class DataAudit(unittest.TestCase):
         workbook = openpyxl.load_workbook(DATA / 'ASAR-Team-Hub.xlsx')
         from openpyxl.utils import get_column_letter
         visible = lambda name: {c.value for c in workbook[name][1] if c.value and not workbook[name].column_dimensions[get_column_letter(c.column)].hidden}
-        self.assertEqual(visible('Task'), {'Task Title', 'Task description', 'Assignees', 'Status', 'Due to Date', 'Archived', 'Event ID'})
-        self.assertEqual(visible('Meet'), {'Meeting title', 'Date', 'Description', 'Attachments', 'Invited/Assigned', 'Logging Enabled', 'Due to Date', 'Archived', 'Event ID'})
-        self.assertEqual(visible('Learning'), {'Topic name', 'Link', 'Track Name', 'Obligability', 'Invited/Assigned', 'Due to Date', 'Description', 'Event ID'})
+        self.assertEqual(visible('Task'), {'Task Title', 'Task description', 'Assignees', 'Status', 'Due to Date', 'Archived', 'Deleted', 'Event ID'})
+        self.assertEqual(visible('Meet'), {'Meeting title', 'Date', 'Description', 'Attachments', 'Invited/Assigned', 'Logging Enabled', 'Due to Date', 'Archived', 'Deleted', 'Event ID'})
+        self.assertEqual(visible('Learning'), {'Topic name', 'Link', 'Track Name', 'Obligability', 'Invited/Assigned', 'Due to Date', 'Description', 'Deleted', 'Event ID'})
+        self.assertIn('Deleted', [c.value for c in workbook['Log'][1]])
         self.assertEqual(workbook['SkillEvents'].sheet_state, 'hidden')
         self.assertIn('Knowledge', [c.value for c in workbook['Team'][1]])
         self.assertIn('Skills', [c.value for c in workbook['Team'][1]])
@@ -80,6 +81,9 @@ class DataAudit(unittest.TestCase):
         self.assertIn('Evidence is optional', guide['Course workflow'])
         self.assertIn('saving drafts immediately', guide['Background saves'])
         self.assertIn('forms/TeamApplications.gs', guide['Member lifecycle'])
+        self.assertIn('Completion attempts, evidence and Activity remain recorded', guide['Event deletion'])
+        self.assertIn('Every active member can add', guide['References'])
+        self.assertEqual([c.value for c in workbook['References'][1]], ['Reference ID', 'Title', 'URL', 'Description', 'Added By', 'Added By Name', 'Added At', 'Deleted'])
         workbook.close()
 
     def test_original_nonempty_cells_are_preserved(self):

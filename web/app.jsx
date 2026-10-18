@@ -786,8 +786,8 @@ function ReviewEditor({ submission, onSave, onClose, busy, error }) {
         <EvidenceLink row={submission} />
         <p className="muted">
           Approve completion to set this record to Completed and update the
-          member's progress. Return for changes sends it back with your
-          feedback.
+          member's progress. Return for changes or reject to restore
+          Uncompleted. The member can submit again.
         </p>
         {submission.Evidence && (
           <p className="submission-note" dir="auto">
@@ -803,7 +803,7 @@ function ReviewEditor({ submission, onSave, onClose, busy, error }) {
               setFeedbackError("");
             }}
             maxLength={16000}
-            placeholder="Required when returning for changes"
+            placeholder="Required for returning changes; optional for approval or rejection"
           />
         </label>
         {(error || feedbackError) && (
@@ -815,6 +815,15 @@ function ReviewEditor({ submission, onSave, onClose, busy, error }) {
           </Button>
           <Button type="submit" value="Uncompleted" disabled={busy}>
             Return for changes
+          </Button>
+          <Button
+            type="submit"
+            value="Rejected"
+            className="danger"
+            icon="x"
+            disabled={busy}
+          >
+            Reject submission
           </Button>
           <Button
             type="submit"
@@ -880,7 +889,7 @@ function ReviewQueue({ db, type, eventId = "", onReview, busy }) {
     </section>
   );
 }
-function TaskEvidence({ event, member, admin, onSave, busy }) {
+function TaskEvidence({ event, member, admin, onSave, busy, children }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
@@ -896,45 +905,51 @@ function TaskEvidence({ event, member, admin, onSave, busy }) {
     !event.archived;
   const render = (link) => (
     <li key={link.id}>
-      <a href={safeUrl(link.url)} target="_blank" rel="noopener noreferrer">
+      <a
+        href={safeUrl(link.url)}
+        title={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         <Icon name="external-link" size={13} />
         {link.url}
       </a>
-      <div className="row spread">
-        {member && (admin || link.memberId === M.memberKey(member)) && (
-          <Button
-            className="small icon-button ghost"
-            icon="x"
-            aria-label={`Remove evidence link ${link.url}`}
-            disabled={busy || saving}
-            onClick={async () => {
-              setSaving(true);
-              await onSave("removeTaskLink", {
-                key: event.key,
-                linkId: link.id,
-              });
-              setSaving(false);
-            }}
-          />
-        )}
-      </div>
+      {member && (admin || link.memberId === M.memberKey(member)) && (
+        <Button
+          className="small icon-button ghost"
+          icon="x"
+          aria-label={`Remove evidence link ${link.url}`}
+          disabled={busy || saving}
+          onClick={async () => {
+            setSaving(true);
+            await onSave("removeTaskLink", {
+              key: event.key,
+              linkId: link.id,
+            });
+            setSaving(false);
+          }}
+        />
+      )}
     </li>
   );
+  if (!canAdd && !links.length && !children) return null;
   return (
     <section
       className="task-evidence"
       aria-label={`Evidence for ${event.title}`}
     >
-      <div className="row spread">
-        <h4>Evidence links</h4>
+      <div className="task-tools">
+        {children}
         {canAdd && !open && (
           <Button
             className="small"
             icon="link"
             disabled={busy}
+            aria-label="Add evidence link"
+            title="Add evidence link"
             onClick={() => setOpen(true)}
           >
-            Add evidence link
+            Add link
           </Button>
         )}
       </div>
@@ -1006,6 +1021,49 @@ function TaskEvidence({ event, member, admin, onSave, busy }) {
     </section>
   );
 }
+function CardDescription({ text, title }) {
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const content = useRef(null);
+  const descriptionId = React.useId();
+  useEffect(() => {
+    const measure = () => {
+      const node = content.current;
+      if (node)
+        setCanExpand(
+          node.scrollHeight >
+            parseFloat(getComputedStyle(node).lineHeight) * 2 + 1,
+        );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(content.current);
+    measure();
+    return () => observer.disconnect();
+  }, [text]);
+  return (
+    <div className="card-description">
+      <p
+        ref={content}
+        id={descriptionId}
+        className={"description " + (expanded ? "expanded" : "")}
+        dir="auto"
+      >
+        {text}
+      </p>
+      {canExpand && (
+        <button
+          className="text-link description-toggle"
+          aria-expanded={expanded}
+          aria-controls={descriptionId}
+          aria-label={`${expanded ? "Show less" : "Read more"} about ${title}`}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+}
 function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1049,7 +1107,19 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
               )}
             </div>
             <div className="telegram-message">
-              <pre dir="auto">{result.preview.text}</pre>
+              <pre dir="auto">
+                {HubTelegram.fragments(
+                  result.preview.text,
+                  result.preview.entities,
+                ).map((part, index) => (
+                  <span
+                    key={index}
+                    className={part.type ? `telegram-${part.type}` : undefined}
+                  >
+                    {part.text}
+                  </span>
+                ))}
+              </pre>
               {safeUrl(result.preview.url) && (
                 <a
                   className="button small"
@@ -1057,7 +1127,7 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Open Team Hub
+                  🚀 Open Team Hub
                   <Icon name="external-link" size={14} />
                 </a>
               )}
@@ -1104,6 +1174,68 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
     </Modal>
   );
 }
+function EventTools({
+  event,
+  admin,
+  busy,
+  onEdit,
+  onArchive,
+  onDelete,
+  onTelegramPreview,
+  telegramStatus,
+  syncJob,
+}) {
+  return (
+    <div className="event-utilities">
+      {onTelegramPreview && !syncJob && !event.archived && (
+        <Button
+          className="small icon-button ghost"
+          icon="send"
+          disabled={busy}
+          onClick={() => onTelegramPreview(event.key)}
+          aria-label={`Preview Telegram for ${event.title}`}
+          title={
+            telegramStatus
+              ? `Preview Telegram · ${telegramStatus}`
+              : "Preview Telegram · Admin confirms sending"
+          }
+        />
+      )}
+      {admin && !event.requirement && (
+        <>
+          <Button
+            className="small icon-button ghost"
+            icon="pencil"
+            disabled={busy}
+            onClick={() => onEdit(event)}
+            aria-label={`Edit ${event.title}`}
+            title="Edit"
+          />
+          {event.type !== "Learning" && (
+            <Button
+              className="small icon-button ghost"
+              icon={event.archived ? "archive-restore" : "archive"}
+              disabled={busy}
+              onClick={() => onArchive(event)}
+              aria-label={`${event.archived ? "Restore" : "Archive"} ${event.title}`}
+              title={event.archived ? "Restore" : "Archive"}
+            />
+          )}
+          {onDelete && (
+            <Button
+              className="small icon-button ghost danger"
+              icon="trash-2"
+              disabled={busy}
+              onClick={() => onDelete(event)}
+              aria-label={`Delete ${event.title}`}
+              title="Delete"
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 function EventCard({
   event,
   member,
@@ -1112,6 +1244,7 @@ function EventCard({
   onComplete,
   onRevert,
   onArchive,
+  onDelete,
   onMove,
   onDrag,
   rating,
@@ -1123,7 +1256,6 @@ function EventCard({
   telegramStatus = "",
   busy: pageBusy,
   syncJob = null,
-  pendingUpdate = false,
 }) {
   const busy = pageBusy || !!syncJob;
   const state = M.eventState(event, member, today());
@@ -1154,6 +1286,7 @@ function EventCard({
         (state.pending ? "pending-review " : "") +
         (state.upcoming ? "upcoming-meeting" : "")
       }
+      data-event-type={event.type}
       draggable={event.type === "Task" && admin && !busy}
       onDragStart={(e) => {
         if (!admin || event.type !== "Task") return;
@@ -1163,25 +1296,74 @@ function EventCard({
       }}
       onDragEnd={() => onDrag && onDrag("")}
     >
+      <div className="event-card-header">
+        <div className="event-status">
+          <span
+            className={
+              "badge " +
+              (isDone
+                ? "success"
+                : state.pending || state.closed
+                  ? "warning"
+                  : "accent")
+            }
+          >
+            {isDone && <Icon name="check" size={13} />}
+            {syncJob
+              ? syncJob.state === "failed"
+                ? "Save unconfirmed"
+                : syncJob.state === "queued"
+                  ? "Waiting to save"
+                  : "Saving…"
+              : event.type === "Task"
+                ? M.status(event.row.Status) === "InProgress"
+                  ? "In progress"
+                  : M.status(event.row.Status)
+                : member
+                  ? !allowCompletion
+                    ? state.completed
+                      ? "Completed"
+                      : "Pending"
+                    : state.label
+                  : event.type}
+          </span>
+          {event.archived && <span className="badge">Archived</span>}
+          {event.requirement && (
+            <span className="badge" aria-label="Required project skill">
+              Required
+            </span>
+          )}
+        </div>
+        <EventTools
+          event={event}
+          admin={admin}
+          busy={busy}
+          onEdit={onEdit}
+          onArchive={onArchive}
+          onDelete={onDelete}
+          onTelegramPreview={onTelegramPreview}
+          telegramStatus={telegramStatus}
+          syncJob={syncJob}
+        />
+      </div>
+      <h3 dir="auto">{event.title}</h3>
       {event.type === "Meet" && (
         <div
           className={"meeting-schedule " + (state.upcoming ? "upcoming" : "")}
         >
-          <Icon name="calendar-days" size={22} />
-          <div>
-            <strong>
-              {event.meetingDate
-                ? dateLabel(event.meetingDate)
-                : "Date to be confirmed"}
-            </strong>
-            <small>
-              {state.upcoming
-                ? "Upcoming meeting"
-                : event.meetingDate === today()
-                  ? "Today"
-                  : "Past meeting"}
-            </small>
-          </div>
+          <Icon name="calendar-days" size={16} />
+          <strong>
+            {event.meetingDate
+              ? dateLabel(event.meetingDate)
+              : "Date to be confirmed"}
+          </strong>
+          <small>
+            {state.upcoming
+              ? "Upcoming meeting"
+              : event.meetingDate === today()
+                ? "Today"
+                : "Past meeting"}
+          </small>
         </div>
       )}
       {event.type === "Meet" && event.row.Attachments && !link && (
@@ -1190,49 +1372,10 @@ function EventCard({
           {event.row.Attachments}
         </p>
       )}
-      <div className="row spread">
-        <span
-          className={
-            "badge " +
-            (isDone
-              ? "success"
-              : state.pending || state.closed
-                ? "warning"
-                : "accent")
-          }
-        >
-          {isDone && <Icon name="check" size={13} />}
-          {syncJob
-            ? syncJob.state === "failed"
-              ? "Save unconfirmed"
-              : syncJob.state === "queued"
-                ? "Waiting to save"
-                : "Saving…"
-            : event.type === "Task"
-              ? M.status(event.row.Status) === "InProgress"
-                ? "In progress"
-                : M.status(event.row.Status)
-              : member
-                ? !allowCompletion
-                  ? state.completed
-                    ? "Completed"
-                    : "Pending"
-                  : state.label
-                : event.type}
-        </span>
-        {event.archived && <span className="badge">Archived</span>}
-        {pendingUpdate && (
-          <span className="badge accent" role="status">
-            <Icon name="cloud-upload" size={13} />
-            Saving changes
-          </span>
-        )}
-      </div>
-      <h3 dir="auto">{event.title}</h3>
       {syncJob && (
         <p className="muted event-sync-hint">
           {syncJob.state === "failed"
-            ? "Your draft is kept. Retry from Event saves."
+            ? "Your draft is kept. Use the sync indicator beside Refresh to retry."
             : "Saving in the background. You can keep working."}
         </p>
       )}
@@ -1251,9 +1394,7 @@ function EventCard({
         </ol>
       )}
       {state.pending && (
-        <p className="review-hint">
-          Submitted for admin review. Progress updates after approval.
-        </p>
+        <p className="review-hint">Progress updates after admin approval.</p>
       )}
       {pending.length > 0 && onReview && (
         <div className="event-review-action">
@@ -1279,193 +1420,165 @@ function EventCard({
         </p>
       )}
       {state.submission && <EvidenceLink row={state.submission} />}
-      {rating && (
-        <p className="meta">
-          Recorded rating: <strong>{rating.score}/10</strong>
-        </p>
-      )}
-      {event.requirement && (
-        <span className="badge">Required project skill</span>
-      )}
-      {event.requirement && requirementTarget !== null && (
-        <p className="meta">Target rating: {requirementTarget}/10</p>
-      )}
       {event.description && (
-        <p className="description" dir="auto">
-          {event.description}
-        </p>
+        <CardDescription text={event.description} title={event.title} />
       )}
-      {event.targetSkill && (
-        <p className="meta">
-          <Icon name="sparkles" size={14} />
-          {event.targetSkill}
-        </p>
-      )}
-      {event.type === "Learning" && (
-        <div className="row">
-          <span className="badge">{event.row.Obligability || "Optional"}</span>
-          {event.row.Platform && (
-            <span className="meta">{event.row.Platform}</span>
-          )}
-        </div>
-      )}
-      <div className="meta">
-        <Icon name="calendar" size={14} />
-        {dateLabel(event.due)}
-      </div>
-      <div className="row spread">
-        <span className="meta">
-          <Icon name="users" size={14} />
-          {done} / {event.totalEligible} completed
-        </span>
+      <div className="event-metadata">
+        {rating && (
+          <span className="meta">
+            Recorded rating: <strong>{rating.score}/10</strong>
+          </span>
+        )}
+        {event.requirement && requirementTarget !== null && (
+          <span className="meta">Target: {requirementTarget}/10</span>
+        )}
+        {event.targetSkill && !event.requirement && (
+          <span className="meta">
+            <Icon name="sparkles" size={14} />
+            {event.targetSkill}
+          </span>
+        )}
+        {event.type === "Learning" && (
+          <>
+            <span className="badge">
+              {event.row.Obligability || "Optional"}
+            </span>
+            {event.row.Platform && (
+              <span className="meta">{event.row.Platform}</span>
+            )}
+          </>
+        )}
+        {event.due && (
+          <span className="meta">
+            <Icon name="calendar" size={14} />
+            Due {dateLabel(event.due)}
+          </span>
+        )}
         {event.unresolved.length > 0 && (
           <span className="badge warning" title={event.unresolved.join("\n")}>
             {event.unresolved.length} unmatched names
           </span>
         )}
-      </div>
-      {event.totalEligible > 0 && (
-        <Progress
-          label={`${event.title} team completion`}
-          value={(100 * done) / event.totalEligible}
-          success={done === event.totalEligible}
-        />
-      )}
-      {event.type === "Task" && !syncJob && (
-        <TaskEvidence
-          event={event}
-          member={member}
-          admin={admin}
-          onSave={onTaskLink}
-          busy={busy}
-        />
-      )}
-      {onTelegramPreview && !syncJob && !event.archived && (
-        <div className="telegram-card-action">
-          <Button
-            className="small ghost"
-            icon="send"
-            disabled={busy}
-            onClick={() => onTelegramPreview(event.key)}
-            aria-label={`Preview Telegram for ${event.title}`}
-          >
-            Preview Telegram
-          </Button>
-          <small className="muted">
-            {telegramStatus
-              ? "Telegram: " + telegramStatus
-              : "Preview first · Admin confirms sending"}
+        {onTelegramPreview && telegramStatus && (
+          <small className="meta telegram-delivery">
+            Telegram: {telegramStatus}
           </small>
+        )}
+      </div>
+      {!event.requirement && (
+        <div className="event-progress-summary">
+          <span className="meta">
+            <Icon name="users" size={13} />
+            {done} / {event.totalEligible} completed
+          </span>
+          {event.totalEligible > 0 && (
+            <Progress
+              label={`${event.title} team completion`}
+              value={(100 * done) / event.totalEligible}
+              success={done === event.totalEligible}
+            />
+          )}
         </div>
       )}
       <footer>
-        <div className="row">
-          {event.type !== "Task" &&
-            state.eligible &&
-            !state.completed &&
-            !state.pending &&
-            allowCompletion && (
+        {event.type !== "Task" && (
+          <div className="event-primary-actions">
+            {event.type !== "Task" &&
+              state.eligible &&
+              !state.completed &&
+              !state.pending &&
+              allowCompletion && (
+                <Button
+                  className="small primary"
+                  icon="check"
+                  disabled={busy || !state.canComplete}
+                  onClick={() => onComplete(event)}
+                >
+                  {event.type === "Meet"
+                    ? "Log attendance"
+                    : event.type === "Learning"
+                      ? "Request completion"
+                      : "Complete"}
+                </Button>
+              )}
+            {state.canRevert && allowCompletion && onRevert && (
               <Button
-                className="small primary"
-                icon="check"
-                disabled={busy || !state.canComplete}
-                onClick={() => onComplete(event)}
+                className="small"
+                icon="undo-2"
+                disabled={busy}
+                onClick={() => onRevert(event, state.submission)}
               >
-                {event.type === "Meet"
-                  ? "Log attendance"
-                  : event.type === "Learning"
-                    ? "Request completion"
-                    : "Complete"}
+                {event.type === "Skill"
+                  ? "Reset skill"
+                  : state.pending
+                    ? "Withdraw submission"
+                    : "Undo completion"}
               </Button>
             )}
-          {state.canRevert && allowCompletion && onRevert && (
-            <Button
-              className="small"
-              icon="undo-2"
-              disabled={busy}
-              onClick={() => onRevert(event, state.submission)}
-            >
-              {event.type === "Skill"
-                ? "Reset skill"
-                : state.pending
-                  ? "Withdraw submission"
-                  : "Undo completion"}
-            </Button>
-          )}
-          {event.type === "Skill" && state.completed && allowCompletion && (
-            <Button
-              className="small primary"
-              icon="pencil-line"
-              disabled={busy || state.closed || event.archived}
-              onClick={() => onComplete(event)}
-            >
-              Update result
-            </Button>
-          )}
-          {event.type !== "Task" &&
-            state.eligible &&
-            !state.completed &&
-            !state.pending &&
-            !state.canComplete &&
-            allowCompletion && (
-              <small className="completion-unavailable">
-                {state.loggingDisabled
-                  ? "An admin needs to open attendance logging."
-                  : "Ask an admin to reopen this event."}
-              </small>
-            )}
-          {link && (
-            <a
-              className={
-                "button small" + (event.type === "Meet" ? " primary" : "")
-              }
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {event.type === "Learning"
-                ? "Open course"
-                : event.type === "Meet"
-                  ? "Join meeting"
-                  : "Open link"}
-              <Icon name="external-link" size={14} />
-            </a>
-          )}
-          {event.type !== "Task" &&
-            (!state.canComplete || !allowCompletion) &&
-            !link && (
-              <small>
-                {state.completed
-                  ? allowCompletion
-                    ? "Your completion is recorded."
-                    : "Completion is recorded for this member."
-                  : state.closed
-                    ? "Ask an admin to reopen."
-                    : "View only"}
-              </small>
-            )}
-        </div>
-        {admin && !event.requirement && (
-          <div className="row">
-            <Button
-              className="small"
-              disabled={busy}
-              onClick={() => onEdit(event)}
-              aria-label={`Edit ${event.title}`}
-              icon="pencil"
-            >
-              Edit
-            </Button>
-            {event.type !== "Learning" && (
+            {event.type === "Skill" && state.completed && allowCompletion && (
               <Button
-                className="small icon-button ghost"
-                icon={event.archived ? "archive-restore" : "archive"}
-                disabled={busy}
-                onClick={() => onArchive(event)}
-                aria-label={`${event.archived ? "Restore" : "Archive"} ${event.title}`}
-              />
+                className="small primary"
+                icon="pencil-line"
+                disabled={busy || state.closed || event.archived}
+                onClick={() => onComplete(event)}
+              >
+                Update result
+              </Button>
             )}
-            {event.type === "Task" && onMove && (
+            {event.type !== "Task" &&
+              state.eligible &&
+              !state.completed &&
+              !state.pending &&
+              !state.canComplete &&
+              allowCompletion && (
+                <small className="completion-unavailable">
+                  {state.loggingDisabled
+                    ? "An admin needs to open attendance logging."
+                    : "Ask an admin to reopen this event."}
+                </small>
+              )}
+            {link && (
+              <a
+                className={
+                  "button small" + (event.type === "Meet" ? " primary" : "")
+                }
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {event.type === "Learning"
+                  ? "Open course"
+                  : event.type === "Meet"
+                    ? "Join meeting"
+                    : "Open link"}
+                <Icon name="external-link" size={14} />
+              </a>
+            )}
+            {event.type !== "Task" &&
+              !state.eligible &&
+              (!state.canComplete || !allowCompletion) &&
+              !link && (
+                <small>
+                  {state.completed
+                    ? allowCompletion
+                      ? "Your completion is recorded."
+                      : "Completion is recorded for this member."
+                    : state.closed
+                      ? "Ask an admin to reopen."
+                      : "View only"}
+                </small>
+              )}
+          </div>
+        )}
+        {event.type === "Task" && !syncJob && (
+          <TaskEvidence
+            event={event}
+            member={member}
+            admin={admin}
+            onSave={onTaskLink}
+            busy={busy}
+          >
+            {admin && onMove && (
               <select
                 aria-label={`Move ${event.title}`}
                 value={M.status(event.row.Status)}
@@ -1479,7 +1592,7 @@ function EventCard({
                 ))}
               </select>
             )}
-          </div>
+          </TaskEvidence>
         )}
       </footer>
     </article>
@@ -1499,6 +1612,7 @@ function EventTab({
   onTaskLink,
   onTelegramPreview,
   onArchive,
+  onDelete,
   onMove,
   jobs = [],
   busy,
@@ -1557,20 +1671,17 @@ function EventTab({
       onReview={onReviewEvent}
       onTaskLink={onTaskLink}
       onTelegramPreview={
-        member && telegramCreations.has(e.key) ? onTelegramPreview : undefined
+        member && (e.type === "Learning" || telegramCreations.has(e.key))
+          ? onTelegramPreview
+          : undefined
       }
       telegramStatus={telegramDeliveries.get(e.key)?.status || ""}
       onArchive={onArchive}
+      onDelete={onDelete}
       onMove={onMove}
       onDrag={setDragKey}
       busy={busy}
       syncJob={drafts.find((job) => job.event.key === e.key)}
-      pendingUpdate={jobs.some(
-        (job) =>
-          job.kind === "update" &&
-          job.key === e.key &&
-          ["queued", "saving"].includes(job.state),
-      )}
     />
   );
   const tracks = [
@@ -2318,7 +2429,6 @@ function SkillsPage({
   onRevert,
   onManage,
   busy,
-  updates = [],
 }) {
   const [selected, setSelected] = useState(
     member ? M.memberKey(member) : M.memberKey(db.team[0] || {}),
@@ -2359,10 +2469,6 @@ function SkillsPage({
           onComplete={onComplete}
           onRevert={onRevert}
           busy={busy}
-          pendingUpdate={updates.some(
-            (job) =>
-              job.key === event.key && ["queued", "saving"].includes(job.state),
-          )}
         />
       )
     );
@@ -3719,6 +3825,9 @@ function Activity({ db, member, admin, refreshing }) {
     queueTelegramNotification: "Telegram send request",
     saveTask: "Saved task",
     saveEvent: "Saved event",
+    deleteEvent: "Deleted event",
+    addReference: "Added reference link",
+    deleteReference: "Deleted reference link",
     moveTask: "Changed task status",
     completeEvent: "Submitted completion",
     updateSkillCompletion: "Updated skill result",
@@ -3771,14 +3880,17 @@ function Activity({ db, member, admin, refreshing }) {
             summary =
               details.decision === "Completed"
                 ? "Approved completion"
-                : details.decision === "Uncompleted"
-                  ? "Returned submission for changes"
-                  : "Reviewed submission";
+                : details.decision === "Rejected"
+                  ? "Rejected submission · Uncompleted"
+                  : details.decision === "Uncompleted"
+                    ? "Returned submission for changes"
+                    : "Reviewed submission";
           if (failed && row.Action !== "telegramNotification")
             summary =
               {
                 saveTask: "Task save failed",
                 saveEvent: "Event save failed",
+                deleteEvent: "Event deletion failed",
                 completeEvent: "Submission failed",
                 reviewSubmission: "Review failed",
                 addTaskLink: "Evidence link save failed",
@@ -3950,13 +4062,193 @@ function Activity({ db, member, admin, refreshing }) {
     </>
   );
 }
+function ReferencesPage({ db, member, admin, onAdd, onDelete }) {
+  const [search, setSearch] = useState("");
+  const all = M.references(db).slice().reverse();
+  const links = all.filter((row) =>
+    M.norm(
+      [row.Title, row.URL, row.Description, row["Added By Name"]].join(" "),
+    ).includes(M.norm(search)),
+  );
+  return (
+    <>
+      <Heading
+        eyebrow="Shared knowledge"
+        title="References"
+        description="Your team's repositories, resources and important pages, together in one place."
+      >
+        {member && (
+          <Button className="primary" icon="plus" onClick={onAdd}>
+            Add link
+          </Button>
+        )}
+      </Heading>
+      <section className="panel reference-library">
+        <div className="row spread reference-toolbar">
+          <label className="search">
+            <Icon name="search" />
+            <input
+              className="input"
+              type="search"
+              aria-label="Search references"
+              placeholder="Find a repository, page or resource..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <p className="muted">Members add links. Admins manage removals.</p>
+        </div>
+        {links.length ? (
+          <div className="reference-grid">
+            {links.map((row) => {
+              const href = safeUrl(row.URL);
+              const host = href
+                ? new URL(href).hostname.replace(/^www\./, "")
+                : "Saved link";
+              const repo =
+                /(^|\.)(github\.com|gitlab\.com|bitbucket\.org)$/.test(host);
+              return (
+                <article className="reference-card" key={row["Reference ID"]}>
+                  <div className="row spread">
+                    <span className="reference-symbol">
+                      <Icon name={repo ? "git-branch" : "globe"} size={22} />
+                    </span>
+                    {admin && (
+                      <Button
+                        className="small icon-button ghost danger"
+                        icon="trash-2"
+                        aria-label={`Delete reference ${row.Title}`}
+                        onClick={() => onDelete(row)}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <span className="eyebrow reference-host">{host}</span>
+                    <h3 dir="auto">
+                      {href ? (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {row.Title}
+                          <Icon name="arrow-up-right" size={18} />
+                        </a>
+                      ) : (
+                        row.Title
+                      )}
+                    </h3>
+                  </div>
+                  {row.Description && (
+                    <p className="reference-description" dir="auto">
+                      {row.Description}
+                    </p>
+                  )}
+                  <div className="reference-credit">
+                    {row["Added By Name"] && (
+                      <span dir="auto">Added by {row["Added By Name"]}</span>
+                    )}
+                    {row["Added At"] && (
+                      <time dateTime={row["Added At"]}>
+                        {dateLabel(M.dateOnly(row["Added At"]))}
+                      </time>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty">
+            <Icon name="library" size={32} />
+            <h3>
+              {search
+                ? "No matching references"
+                : "Build your team's link library"}
+            </h3>
+            <p>
+              {search
+                ? "Try another title, description or website."
+                : "Add the repositories and resources your team reaches for most."}
+            </p>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+function ReferenceEditor({ onSave, onClose, error }) {
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [description, setDescription] = useState("");
+  return (
+    <Modal title="Add reference" onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave("addReference", { title, url, description });
+        }}
+      >
+        <label className="field">
+          Title
+          <input
+            className="input"
+            required
+            maxLength={180}
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="For example, ASAR firmware repository"
+          />
+        </label>
+        <label className="field">
+          URL
+          <input
+            className="input"
+            type="url"
+            required
+            maxLength={2048}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://"
+          />
+        </label>
+        <label className="field">
+          Description (optional)
+          <textarea
+            className="input"
+            maxLength={1000}
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Help teammates know when to use this link."
+          />
+        </label>
+        {error && <Notice kind="error">{error}</Notice>}
+        <div className="row modal-actions">
+          <Button type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" className="primary" icon="plus">
+            Add link
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 function History({ kind, db, member, admin, onReview, busy }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const pendingIds = new Set(
     M.pendingReviews(db).map((row) => row["Submission ID"]),
   );
-  const legacy = M.events(db)
+  const historicalEvents = M.events(db, { includeDeleted: true });
+  const deletedKeys = new Set(
+    historicalEvents.filter((e) => e.deleted).map((e) => e.key),
+  );
+  const legacy = historicalEvents
     .filter(
       (e) =>
         e.log &&
@@ -3975,6 +4267,7 @@ function History({ kind, db, member, admin, onReview, busy }) {
           : e.log["Attendees/Completed"],
       ).join(", "),
       "Event Type": e.type,
+      "Event ID": e.key,
       "Event Name": e.title,
       Evidence: "Legacy sheet record. Individual timestamps were not recorded.",
     }));
@@ -4084,7 +4377,12 @@ function History({ kind, db, member, admin, onReview, busy }) {
                           : r.Action}
                       </span>
                     </td>
-                    <td dir="auto">{r["Event Name"] || r.Target}</td>
+                    <td dir="auto">
+                      {r["Event Name"] || r.Target}
+                      {deletedKeys.has(r["Event ID"]) && (
+                        <small className="record-reviewer">Event deleted</small>
+                      )}
+                    </td>
                     {kind === "logs" && (
                       <td>
                         <span
@@ -4171,102 +4469,107 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-function EventSaves({
-  jobs,
-  onRetry,
-  onDismiss,
-  onNavigate,
-  onTelegramPreview,
-}) {
-  if (!jobs.length) return null;
+function SaveIndicator({ jobs, onRetry, onDismiss }) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({});
+  const control = useRef(null);
   const pending = jobs.filter((job) =>
     ["queued", "saving"].includes(job.state),
   ).length;
-  const failed = jobs.filter((job) => job.state === "failed").length;
+  const failed = jobs.filter((job) => job.state === "failed");
+  useEffect(() => {
+    if (!failed.length) setOpen(false);
+  }, [failed.length]);
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (e) => {
+      if (!control.current?.contains(e.target)) setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener("pointerdown", closeOutside);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+  if (!pending && !failed.length) return null;
+  const status = `${pending} pending, ${failed.length} failed`;
   return (
-    <section className="panel event-saves" aria-label="Event saves">
-      <div className="row spread">
-        <h2>Event saves</h2>
-        <span role="status">
-          {pending
-            ? `${pending} saving in the background`
-            : failed
-              ? `${failed} need attention`
-              : "All changes saved"}
-        </span>
-      </div>
-      <div className="event-save-list">
-        {jobs.map((job) => (
-          <div className="event-save-item" key={job.id}>
-            <div className="grow">
+    <div
+      className="sync-control"
+      ref={control}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+    >
+      <Button
+        className={"sync-indicator " + (failed.length ? "needs-attention" : "")}
+        aria-label={`Sync status: ${status}`}
+        aria-expanded={failed.length ? open : undefined}
+        title={
+          failed.length
+            ? `${failed.length} unsaved changes. Click to retry.`
+            : `${pending} changes syncing to the sheet`
+        }
+        onClick={() => {
+          if (!failed.length) return;
+          const rect = control.current.getBoundingClientRect();
+          setPosition({
+            top:
+              control.current.closest("header").getBoundingClientRect().bottom +
+              8,
+            left: Math.max(
+              12,
+              Math.min(rect.right - 320, window.innerWidth - 332),
+            ),
+          });
+          setOpen(!open);
+        }}
+      >
+        <span
+          className={"sync-dot " + (pending ? "syncing" : "")}
+          aria-hidden="true"
+        />
+        <span aria-hidden="true">{failed.length || pending}</span>
+      </Button>
+      <span className="visually-hidden" role="status">
+        {status}
+      </span>
+      {open && failed.length > 0 && (
+        <div
+          className="sync-errors"
+          style={position}
+          role="region"
+          aria-label="Unsaved changes"
+        >
+          <strong>Changes need attention</strong>
+          {failed.map((job) => (
+            <div className="sync-error" key={job.id}>
               <strong dir="auto">{job.title || job.payload.title}</strong>
-              <span
-                className={
-                  "badge " +
-                  (job.state === "saved"
-                    ? "success"
-                    : job.state === "failed"
-                      ? "warning"
-                      : "accent")
-                }
-              >
-                {job.state === "saved"
-                  ? "Saved"
-                  : job.state === "superseded"
-                    ? "Replaced by a newer update"
-                    : job.state === "failed"
-                      ? "Save unconfirmed"
-                      : job.state === "queued"
-                        ? "Waiting to save"
-                        : "Saving…"}
-              </span>
-              {job.error && (
-                <p className="save-error" dir="auto">
-                  {job.error}
-                </p>
-              )}
-            </div>
-            <div className="row">
-              {job.state === "saved" &&
-                job.kind !== "update" &&
-                onTelegramPreview && (
-                  <Button
-                    className="small"
-                    icon="send"
-                    onClick={() =>
-                      onTelegramPreview(
-                        job.event?.key ||
-                          `${job.type}:${job.type.toLowerCase()}-${job.payload.newId}`,
-                      )
-                    }
-                  >
-                    Preview Telegram
-                  </Button>
-                )}
-              {job.state === "failed" && (
+              <p dir="auto">{job.error}</p>
+              <div className="row">
                 <Button
                   className="small primary"
                   onClick={() => onRetry(job.id)}
                 >
                   {job.kind === "update" ? "Retry update" : "Retry save"}
                 </Button>
-              )}
-              <Button className="small" onClick={() => onNavigate(job.type)}>
-                View
-              </Button>
-              {["saved", "failed", "superseded"].includes(job.state) && (
                 <Button
                   className="small icon-button"
                   icon="x"
-                  aria-label={`Dismiss save notice for ${job.title || job.payload.title}`}
+                  aria-label={`Dismiss unsaved change for ${job.title || job.payload.title}`}
                   onClick={() => onDismiss(job.id)}
                 />
-              )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </section>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 function App() {
@@ -4307,7 +4610,9 @@ function App() {
         else setDb(data);
       },
       onChange: setJobs,
-      onNotice: notify,
+      onNotice: (message, kind) => {
+        if (kind === "error") notify(message);
+      },
       storage: sessionStore(),
       makeId: newRequestId,
     });
@@ -4323,7 +4628,9 @@ function App() {
       accept: (data) => syncRef.current.accept(data),
       onView: setDb,
       onChange: setUpdates,
-      onNotice: notify,
+      onNotice: (message, kind) => {
+        if (kind === "error") notify(message);
+      },
       makeId: newRequestId,
     });
   useEffect(() => {
@@ -4374,7 +4681,6 @@ function App() {
         syncRef.current.enqueue(action, payload);
         setModal(null);
         setError("");
-        notify("Saving in the background. You can keep working.");
         return true;
       } catch (error) {
         setError(error.message || String(error));
@@ -4382,7 +4688,7 @@ function App() {
       }
     }
     try {
-      const job = actionsRef.current.mutate(action, payload);
+      actionsRef.current.mutate(action, payload);
       setError("");
       if (
         ![
@@ -4394,11 +4700,6 @@ function App() {
         ].includes(action)
       )
         setModal(null);
-      notify(
-        job
-          ? "Saving changes in the background."
-          : "This change is already saved or queued.",
-      );
       return true;
     } catch (e) {
       if (["addTaskLink", "removeTaskLink"].includes(action))
@@ -4466,6 +4767,7 @@ function App() {
     ["Meet", "Meetings", "calendar"],
     ["Learning", "Learning", "book-open"],
     ["Skill", "Skills", "sparkles"],
+    ["references", "References", "library"],
     ["intelligence", "Team Intelligence", "users"],
     ["logs", "Completion logs", "list-checks"],
     ["activity", "Activity", "history"],
@@ -4559,6 +4861,19 @@ function App() {
             </div>
           </a>
           <div className="header-tools">
+            <SaveIndicator
+              jobs={myJobs}
+              onRetry={(id) =>
+                updates.some((job) => job.id === id)
+                  ? actionsRef.current.retry(id)
+                  : syncRef.current.retry(id)
+              }
+              onDismiss={(id) =>
+                updates.some((job) => job.id === id)
+                  ? actionsRef.current.dismiss(id)
+                  : syncRef.current.dismiss(id)
+              }
+            />
             <Button
               icon={loading ? "loader-circle" : "refresh-cw"}
               aria-busy={loading}
@@ -4622,21 +4937,6 @@ function App() {
         </nav>
       </header>
       <main className="main" id="main">
-        <EventSaves
-          jobs={myJobs}
-          onRetry={(id) => {
-            if (updates.some((job) => job.id === id))
-              actionsRef.current.retry(id);
-            else syncRef.current.retry(id);
-          }}
-          onDismiss={(id) => {
-            if (updates.some((job) => job.id === id))
-              actionsRef.current.dismiss(id);
-            else syncRef.current.dismiss(id);
-          }}
-          onNavigate={navigate}
-          onTelegramPreview={openTelegram}
-        />
         <div
           className="stack"
           style={{ marginBottom: !member || error ? 20 : 0 }}
@@ -4676,6 +4976,10 @@ function App() {
             onArchive={(e) =>
               command("archiveEvent", { key: e.key, archived: !e.archived })
             }
+            onDelete={(event) => {
+              setError("");
+              setModal({ kind: "delete-event", event });
+            }}
             onMove={(key, status) => command("moveTask", { key, status })}
             jobs={myJobs}
             busy={busy}
@@ -4699,7 +5003,6 @@ function App() {
               setModal({ kind: "requirements", member: m });
             }}
             busy={busy}
-            updates={updates}
           />
         )}
         {tab === "intelligence" && (
@@ -4732,6 +5035,21 @@ function App() {
             onNavigate={navigate}
             onViewMember={(m) => {
               navigate("intelligence", M.memberKey(m));
+            }}
+          />
+        )}
+        {tab === "references" && (
+          <ReferencesPage
+            db={db}
+            member={member}
+            admin={admin}
+            onAdd={() => {
+              setError("");
+              setModal({ kind: "add-reference" });
+            }}
+            onDelete={(reference) => {
+              setError("");
+              setModal({ kind: "delete-reference", reference });
             }}
           />
         )}
@@ -4831,6 +5149,83 @@ function App() {
           busy={busy}
           error={error}
         />
+      )}
+      {modal?.kind === "add-reference" && member && (
+        <ReferenceEditor
+          onSave={command}
+          onClose={() => {
+            setModal(null);
+            setError("");
+          }}
+          error={error}
+        />
+      )}
+      {modal?.kind === "delete-reference" && admin && (
+        <Modal
+          title="Delete reference"
+          onClose={() => {
+            setModal(null);
+            setError("");
+          }}
+        >
+          <div className="stack">
+            <p>
+              Remove <strong dir="auto">{modal.reference.Title}</strong> from
+              References?
+            </p>
+            <p className="muted">
+              Its record and activity history are preserved.
+            </p>
+            {error && <Notice kind="error">{error}</Notice>}
+            <div className="row modal-actions">
+              <Button onClick={() => setModal(null)}>Cancel</Button>
+              <Button
+                className="danger"
+                icon="trash-2"
+                onClick={() =>
+                  command("deleteReference", {
+                    referenceId: modal.reference["Reference ID"],
+                    title: modal.reference.Title,
+                  })
+                }
+              >
+                Delete link
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {modal?.kind === "delete-event" && admin && (
+        <Modal
+          title="Delete event"
+          onClose={() => {
+            setModal(null);
+            setError("");
+          }}
+        >
+          <div className="stack">
+            <p>
+              Delete <strong dir="auto">{modal.event.title}</strong> from the
+              hub?
+            </p>
+            <p className="muted">
+              This removes the event from assignments and progress. Completion
+              records, evidence and activity stay in the history. Queued
+              Telegram announcements will be cancelled.
+            </p>
+            {error && <Notice kind="error">{error}</Notice>}
+            <div className="row modal-actions">
+              <Button onClick={() => setModal(null)}>Cancel</Button>
+              <Button
+                className="danger"
+                icon="trash-2"
+                onClick={() => command("deleteEvent", { key: modal.event.key })}
+              >
+                Delete event
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
       {modal?.kind === "remove-member" && admin && (
         <Modal

@@ -1,4 +1,4 @@
-Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date,Source ID,Archived
+Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date,Source ID,Archived,Deleted
 Skill,1,Python,"Abdallah-Allam
 Abdelrahman M. Abdel-Fattah
 Mohamed H. Shaban
@@ -28,5 +28,5 @@ Mohamed Farhat Nasr
 Mostafa Ahmed Sayed
 Ezzat A. Ahmed Mbrok
 Fares Ibrahim Mohamed
-Ibrahim Faraj Abdel-Mawgoud",2026-07-30,,TRUE
-Meet,2,bbb,Abdallah-Allam,Abdallah-Allam,2026-07-30,,
+Ibrahim Faraj Abdel-Mawgoud",2026-07-30,,TRUE,
+Meet,2,bbb,Abdallah-Allam,Abdallah-Allam,2026-07-30,,,

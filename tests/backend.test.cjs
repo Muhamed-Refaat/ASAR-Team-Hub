@@ -2,6 +2,97 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const M = require("../web/model.js");
 const { environment, Sheet } = require("./backend-fixture.cjs");
+
+test("admins reject learning and attendance submissions to Uncompleted while preserving attempts and allowing resubmission", () => {
+  for (const type of ["Meet", "Learning"]) {
+    const e = environment();
+    e.context.executeHubCommand("saveEvent", {
+      type,
+      title: "Rejectable " + type,
+      newId: "rejectable",
+      members: ["2"],
+      date: "2026-10-18",
+      loggingEnabled: true,
+    });
+    const key = type + ":" + type.toLowerCase() + "-rejectable";
+    e.setEmail("member@example.com");
+    const submitted = e.context.executeHubCommand("completeEvent", {
+      key,
+      newId: "first",
+    });
+    const submissionId = submitted.data.completions.at(-1)["Submission ID"];
+    assert.throws(
+      () =>
+        e.context.executeHubCommand("reviewSubmission", {
+          submissionId,
+          decision: "Rejected",
+        }),
+      /Admins sheet/,
+    );
+    e.setEmail("head@example.com");
+    const result = e.context.executeHubCommand("reviewSubmission", {
+      submissionId,
+      decision: "Rejected",
+      note: type === "Meet" ? "No attendance recorded" : "",
+      commandId: "reject-" + type,
+    });
+    const row = result.data.completions.at(-1);
+    assert.equal(row.Status, "Uncompleted");
+    assert.equal(row["Reviewer Email"], "head@example.com");
+    assert.equal(M.pendingReviews(result.data).length, 0);
+    const event = M.events(result.data).find((event) => event.key === key);
+    assert.equal(event.totalCompleted, 0);
+    assert.equal(
+      M.eventState(event, result.data.team[1], "2026-10-18").canComplete,
+      true,
+    );
+    assert.equal(
+      JSON.parse(result.data.activity.at(-1).Details).decision,
+      "Rejected",
+    );
+    assert.throws(
+      () =>
+        e.context.executeHubCommand("reviewSubmission", {
+          submissionId,
+          decision: "Completed",
+        }),
+      /no longer pending/,
+    );
+    e.setEmail("member@example.com");
+    const again = e.context.executeHubCommand("completeEvent", {
+      key,
+      newId: "second",
+    });
+    assert.equal(again.data.completions.length, 2);
+    assert.equal(again.data.completions[0].Status, "Uncompleted");
+    assert.equal(again.data.completions[1].Status, "Pending");
+  }
+});
+
+test("task saves read each existing table once and leave unchanged headers and cells alone", () => {
+  const e = environment();
+  e.sheets.Task.rows[0].push("Untouched formula");
+  e.sheets.Task.rows[1].push("=SUM(1,2)");
+  const payload = {
+    key: "Task:task-1",
+    status: "Completed",
+    commandId: "fast-move",
+  };
+  const result = e.context.executeHubCommand("moveTask", payload);
+  assert.equal(result.data.tasks[0].Status, "Completed");
+  for (const sheet of Object.values(e.sheets)) {
+    if (sheet.name !== "Activity") assert.equal(sheet.reads, 1, sheet.name);
+  }
+  assert.equal(e.sheets.Task.rows[1][4], "=SUM(1,2)");
+  assert.ok(e.sheets.Task.writes.every((write) => write.row > 1));
+  assert.equal(e.sheets.Team.writes.length, 0);
+  const before = e.sheets.Task.writes.length;
+  assert.equal(
+    e.context.executeHubCommand("moveTask", payload).unchanged,
+    true,
+  );
+  assert.equal(e.sheets.Task.writes.length, before);
+});
 test("a failed completion write cannot leave a successful command receipt that suppresses its retry", () => {
   const e = environment("member@example.com");
   const payload = {
@@ -63,7 +154,10 @@ test("member removal preserves source rows and history while denying access and 
   assert.equal(result.data.team[1].Active, "FALSE");
   assert.equal(result.data.team[1].Name, "Member");
   assert.equal(result.data.memberships[1].Active, "FALSE");
-  assert.deepEqual(result.data.completions, before.completions);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(result.data.completions)),
+    JSON.parse(JSON.stringify(before.completions)),
+  );
   assert.equal(
     M.events(result.data).find((event) => event.key === "Task:task-1")
       .totalEligible,

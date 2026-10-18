@@ -31,6 +31,7 @@ const HubModel = (() => {
       "Status",
       "Due to Date",
       "Archived",
+      "Deleted",
       "Event ID",
     ],
     Meet: [
@@ -42,6 +43,7 @@ const HubModel = (() => {
       "Logging Enabled",
       "Due to Date",
       "Archived",
+      "Deleted",
       "Event ID",
     ],
     Learning: [
@@ -52,6 +54,7 @@ const HubModel = (() => {
       "Invited/Assigned",
       "Due to Date",
       "Description",
+      "Deleted",
       "Event ID",
     ],
   };
@@ -269,7 +272,7 @@ const HubModel = (() => {
       });
     return [...items.values()];
   }
-  function events(db) {
+  function events(db, { includeDeleted = false } = {}) {
     const result = [];
     const matchedLogs = new Set();
     TYPES.forEach((type) =>
@@ -365,7 +368,7 @@ const HubModel = (() => {
           ),
         );
     });
-    return result;
+    return result.filter((event) => includeDeleted || !event.deleted);
   }
   function taskLinks(row) {
     try {
@@ -381,6 +384,11 @@ const HubModel = (() => {
     } catch (_) {
       return [];
     }
+  }
+  function references(db) {
+    return (db.references || []).filter(
+      (row) => !truth(row.Deleted) && clean(row.Title) && clean(row.URL),
+    );
   }
   function makeEvent(db, type, title, eventId, row, logs, log) {
     const assigned = clean(
@@ -473,6 +481,7 @@ const HubModel = (() => {
       description: clean(row.Description || row["Task description"]),
       archived:
         type !== "Learning" && truth(row.Archived || (log && log.Archived)),
+      deleted: truth(row.Deleted) || logs.some((item) => truth(item.Deleted)),
       requirement: truth(row.Requirement),
       meetingDate: type === "Meet" ? dateOnly(row.Date) : "",
       loggingEnabled: type !== "Meet" || truth(row["Logging Enabled"]),
@@ -850,11 +859,13 @@ const HubModel = (() => {
       "saveEvent",
       "saveTask",
       "archiveEvent",
+      "deleteEvent",
       "saveHierarchy",
       "moveTask",
       "saveSkillRequirements",
       "reviewSubmission",
       "removeMember",
+      "deleteReference",
     ];
     if (adminActions.includes(action))
       assert(
@@ -1025,8 +1036,8 @@ const HubModel = (() => {
         "This submission is no longer pending. Refresh before reviewing.",
       );
       assert(
-        ["Completed", "Uncompleted"].includes(payload.decision),
-        "Choose approve or return for changes.",
+        ["Completed", "Uncompleted", "Rejected"].includes(payload.decision),
+        "Choose approve, return for changes or reject.",
       );
       const note = safeText(payload.note);
       assert(
@@ -1034,7 +1045,8 @@ const HubModel = (() => {
         "Add feedback when returning a submission.",
       );
       Object.assign(submission, {
-        Status: payload.decision,
+        Status:
+          payload.decision === "Rejected" ? "Uncompleted" : payload.decision,
         "Reviewer Email": norm(member.Mail),
         "Reviewer Name": clean(member.Name),
         "Reviewed At": now,
@@ -1260,6 +1272,109 @@ const HubModel = (() => {
         created: !existing,
         event: type + ":" + row["Event ID"],
       };
+    } else if (action === "addReference") {
+      const title = safeText(payload.title);
+      const url = clean(payload.url);
+      const description = safeText(payload.description);
+      assert(
+        title && title.length <= 180,
+        "Enter a link title, up to 180 characters.",
+      );
+      assert(
+        url.length <= 2048 &&
+          /^https?:\/\/[^\s<>"'\\]+$/i.test(url) &&
+          /^https?:\/\/[^/?#]+/i.test(url),
+        "Enter a valid http or https URL.",
+      );
+      assert(
+        description.length <= 1000,
+        "Keep the description under 1,000 characters.",
+      );
+      db.references = db.references || [];
+      const referenceId = newId("reference");
+      const existing = db.references.find(
+        (row) => row["Reference ID"] === referenceId,
+      );
+      if (existing) {
+        assert(
+          norm(existing["Added By"]) === norm(member.Mail),
+          "This link ID is already in use.",
+        );
+      } else
+        db.references.push({
+          "Reference ID": referenceId,
+          Title: title,
+          URL: url,
+          Description: description,
+          "Added By": norm(member.Mail),
+          "Added By Name": clean(member.Name),
+          "Added At": now,
+          Deleted: "FALSE",
+        });
+      target = existing?.Title || title;
+      details = { referenceId };
+    } else if (action === "deleteReference") {
+      const row = (db.references || []).find(
+        (item) => item["Reference ID"] === clean(payload.referenceId),
+      );
+      assert(row, "Link not found. Refresh the page.");
+      row.Deleted = "TRUE";
+      target = row.Title;
+      details = { referenceId: row["Reference ID"] };
+    } else if (action === "deleteEvent") {
+      // Keep source rows, evidence and attempts in place, including after a partial write.
+      const e = events(db, { includeDeleted: true }).find(
+        (event) => event.key === payload.key,
+      );
+      assert(e, "Event not found. Refresh the page.");
+      assert(
+        ["Task", "Meet", "Learning"].includes(e.type),
+        "Only tasks, meetings and learning courses can be deleted.",
+      );
+      const source = (db[TABLES[e.type]] || []).includes(e.row);
+      if (source) {
+        e.row["Event ID"] = e.id;
+        e.row.Deleted = "TRUE";
+      }
+      db.logs
+        .filter(
+          (log) =>
+            log === e.log ||
+            (clean(log["Event Type"]) === e.type &&
+              (id(log["Source ID"]) === e.id ||
+                (source &&
+                  !clean(log["Source ID"]) &&
+                  norm(log["Event Name"]) === norm(e.title)))),
+        )
+        .forEach((log) => {
+          log.Deleted = "TRUE";
+        });
+      db.activity.forEach((row) => {
+        if (row.Action !== "telegramNotification") return;
+        let data;
+        try {
+          data = JSON.parse(row.Details || "{}");
+        } catch (_) {
+          return;
+        }
+        const item = data?.telegram;
+        if (
+          data?.event !== e.key ||
+          !["Queued", "Retrying"].includes(item?.status)
+        )
+          return;
+        const error = "This event was deleted before delivery.";
+        item.status = "Cancelled";
+        item.error = error;
+        item.history = [
+          ...(item.history || []),
+          { status: "Cancelled", at: now, error },
+        ].slice(-20);
+        data.outcome = "Cancelled";
+        row.Details = JSON.stringify(data);
+      });
+      target = e.title;
+      details = { event: e.key, type: e.type };
     } else if (action === "archiveEvent") {
       const e = find();
       assert(e.type !== "Learning", "Learning courses cannot be archived.");
@@ -1536,6 +1651,7 @@ const HubModel = (() => {
     events,
     pendingReviews,
     taskLinks,
+    references,
     failureActivity,
     eventState,
     progress,
@@ -1557,8 +1673,61 @@ const HubTelegram = (() => {
   const clean = (value) => String(value == null ? "" : value).trim();
   const clip = (value, max) => {
     const text = clean(value);
-    return text.length > max ? text.slice(0, max - 1) + "…" : text;
+    if (text.length <= max) return text;
+    let cut = text.slice(0, max - 1);
+    if (/[\uD800-\uDBFF]$/.test(cut)) cut = cut.slice(0, -1);
+    return cut + "…";
   };
+  // Telegram entity positions use UTF-16 units, matching JavaScript string offsets.
+  // Only presentation styles are accepted; sheet content is always literal text.
+  function entities(text, values) {
+    let end = 0;
+    const boundary = (at) =>
+      !(
+        at > 0 &&
+        /[\uD800-\uDBFF]/.test(text[at - 1]) &&
+        /[\uDC00-\uDFFF]/.test(text[at] || "")
+      );
+    return (Array.isArray(values) ? values : [])
+      .filter(
+        (item) =>
+          item &&
+          ["bold", "italic"].includes(item.type) &&
+          Number.isInteger(item.offset) &&
+          Number.isInteger(item.length) &&
+          item.offset >= 0 &&
+          item.length > 0 &&
+          item.offset + item.length <= text.length &&
+          boundary(item.offset) &&
+          boundary(item.offset + item.length),
+      )
+      .sort((a, b) => a.offset - b.offset)
+      .filter((item) => {
+        if (item.offset < end) return false;
+        end = item.offset + item.length;
+        return true;
+      })
+      .map(({ type, offset, length }) => ({ type, offset, length }));
+  }
+  function fragments(text, styles) {
+    text = String(text || "");
+    const parts = [];
+    let at = 0;
+    for (const item of entities(text, styles)) {
+      if (item.offset > at)
+        parts.push({ text: text.slice(at, item.offset), type: "" });
+      at = item.offset + item.length;
+      parts.push({ text: text.slice(item.offset, at), type: item.type });
+    }
+    if (at < text.length) parts.push({ text: text.slice(at), type: "" });
+    return parts;
+  }
+  function dateLabel(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(clean(value));
+    return match
+      ? `${Number(match[3])} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(match[2]) - 1]} ${match[1]} (Cairo)`
+      : clean(value);
+  }
   function details(row) {
     try {
       const value = JSON.parse(row.Details || "{}");
@@ -1581,13 +1750,14 @@ const HubTelegram = (() => {
       }),
     );
   }
-  function deliveries(db) {
+  function deliveries(db, chatId) {
     return new Map(
       (db.activity || []).flatMap((row) => {
         const data = details(row);
         return row.Action === "telegramNotification" &&
           data.event &&
-          data.telegram
+          data.telegram &&
+          (chatId === undefined || data.telegram.chatId === chatId)
           ? [[data.event, { ...data.telegram, actor: row.Email }]]
           : [];
       }),
@@ -1602,54 +1772,109 @@ const HubTelegram = (() => {
   function preview(model, db, key, hubUrl) {
     const creation = creations(db).get(key);
     const event = model.events(db).find((item) => item.key === key);
-    if (!creation || !event || !types.includes(event.type))
+    if (
+      !event ||
+      !types.includes(event.type) ||
+      (!creation && event.type !== "Learning")
+    )
       throw new Error(
-        "Only newly created tasks, meetings and courses can be announced.",
+        "Choose a saved course, newly created task or meeting to announce.",
       );
     if (event.archived)
       throw new Error("Restore this event before announcing it.");
-    const label = { Task: "task", Meet: "meeting", Learning: "course" }[
-      event.type
-    ];
-    const lines = ["ASAR Team Hub · New " + label, "", clip(event.title, 240)];
-    if (event.meetingDate)
-      lines.push("Meeting date: " + event.meetingDate + " (Cairo)");
-    if (event.due) lines.push("Due: " + event.due + " (Cairo)");
-    if (event.type === "Task")
-      lines.push(
-        "Status: " +
-          model.status(event.row.Status).replace("InProgress", "In progress"),
-      );
-    lines.push(
-      "Assigned to: " +
-        clip(
-          event.eligible.map((member) => clean(member.Name)).join(", ") ||
-            "No members assigned",
-          700,
-        ),
+    let text = "";
+    const styles = [];
+    const add = (value, type) => {
+      value = String(value);
+      if (type && value.length)
+        styles.push({ type, offset: text.length, length: value.length });
+      text += value;
+    };
+    const line = (icon, label, value) => {
+      add(icon + " ");
+      add(label + ":", "bold");
+      add(" " + value + "\n");
+    };
+    add(
+      {
+        Task: "📌 NEW TASK",
+        Meet: "📅 NEW MEETING",
+        Learning: "🎓 NEW COURSE",
+      }[event.type],
+      "bold",
     );
-    if (event.description) lines.push("", clip(event.description, 900));
-    const link = url(event.row.Link || event.row.Attachments);
-    if (link)
-      lines.push(
-        "",
-        link.length <= 1000
-          ? (event.type === "Meet" ? "Join meeting: " : "Course: ") + link
-          : "Open Team Hub for the event link.",
+    add("\n");
+    add("ASAR Team Hub", "italic");
+    add("\n\n");
+    add(clip(event.title, 240), "bold");
+    add("\n\n");
+    if (event.meetingDate)
+      line("🗓️", "Meeting date", dateLabel(event.meetingDate));
+    if (event.due) line("⏳", "Due", dateLabel(event.due));
+    if (event.type === "Task") {
+      const status = model.status(event.row.Status);
+      line(
+        {
+          Backlog: "🗂️",
+          Pending: "🟡",
+          InProgress: "🔵",
+          Blocked: "🔴",
+          Completed: "✅",
+        }[status] || "📍",
+        "Status",
+        status.replace("InProgress", "In progress"),
       );
-    else if (event.type === "Meet" && event.row.Attachments)
-      lines.push("Location: " + clip(event.row.Attachments, 300));
-    const creator = model.actor(db, creation.Email);
-    if (creator) lines.push("", "Created by: " + clip(creator.Name, 160));
+    }
+    const names = event.eligible.map((member) => clean(member.Name));
+    line(
+      "👥",
+      "Assigned to",
+      clip(names.slice(0, 5).join(", ") || "No members assigned", 650) +
+        (names.length > 5 ? ` +${names.length - 5} more` : ""),
+    );
+    if (event.description) {
+      add("\n📝 ");
+      add("Details", "bold");
+      add("\n" + clip(event.description, 900) + "\n");
+    }
+    const link = url(event.row.Link || event.row.Attachments);
+    if (link) {
+      add("\n");
+      if (link.length <= 1000)
+        line(
+          "🔗",
+          { Meet: "Join meeting", Learning: "Course", Task: "Reference" }[
+            event.type
+          ],
+          link,
+        );
+      else add("🔗 Open Team Hub for the event link.\n");
+    } else if (event.type === "Meet" && event.row.Attachments)
+      line("📍", "Location", clip(event.row.Attachments, 300));
+    const creator = creation ? model.actor(db, creation.Email) : null;
+    if (creator) {
+      add("\n");
+      line("👤", "Created by", clip(creator.Name, 160));
+    }
+    add("\n");
+    add(
+      {
+        Task: "🚀 Let’s turn plans into progress.",
+        Meet: "🤝 See you there. Let’s move forward together.",
+        Learning: "🌱 Learn it. Apply it. Share what you discover.",
+      }[event.type],
+      "italic",
+    );
     return {
       key,
       type: event.type,
       title: event.title,
-      text: lines.join("\n"),
+      text,
+      entities: styles,
       url: /^https:\/\//i.test(url(hubUrl)) ? url(hubUrl) : "",
     };
   }
-  return { details, creations, deliveries, preview };
+  return { details, creations, deliveries, preview, entities, fragments };
 })();
 if (typeof module !== "undefined" && module.exports)
   module.exports = HubTelegram;
@@ -1670,6 +1895,7 @@ const HUB_SHEETS_ = {
   skillRequirements: "SkillRequirements",
   subteams: "Subteams",
   memberships: "TeamMemberships",
+  references: "References",
 };
 
 function doGet(e) {
@@ -1690,11 +1916,12 @@ function hubSpreadsheet_() {
   );
 }
 
-function readHubSheet_(ss, name) {
+function readHubSheet_(ss, name, snapshots) {
   let sheet = ss.getSheetByName(name);
   if (!sheet && name === "Skill") sheet = ss.getSheetByName("SKILLs");
   if (!sheet) return [];
   const rows = sheet.getDataRange().getValues();
+  if (snapshots) snapshots[name] = rows;
   let headerIndex = 0;
   let headers = (rows[0] || []).map((v) => String(v || "").trim());
   if (
@@ -1739,10 +1966,10 @@ function readHubSheet_(ss, name) {
     });
 }
 
-function hubData_(ss) {
+function hubData_(ss, snapshots) {
   const db = {};
   Object.keys(HUB_SHEETS_).forEach(
-    (key) => (db[key] = readHubSheet_(ss, HUB_SHEETS_[key])),
+    (key) => (db[key] = readHubSheet_(ss, HUB_SHEETS_[key], snapshots)),
   );
   db.team = db.team.filter((m) => String(m.Name || "").trim());
   return db;
@@ -1774,7 +2001,8 @@ function executeHubCommand(action, payload) {
   let auditContext = null;
   try {
     const ss = hubSpreadsheet_();
-    const before = hubData_(ss);
+    const snapshots = {};
+    const before = hubData_(ss, snapshots);
     const session = hubSession_(before);
     const now = Utilities.formatDate(
       new Date(),
@@ -1823,6 +2051,7 @@ function executeHubCommand(action, payload) {
                 HUB_SHEETS_[key],
                 before[key],
                 result.db[key],
+                snapshots[HUB_SHEETS_[key]],
               );
           });
         // Record success only after every affected source table has been written.
@@ -1834,6 +2063,7 @@ function executeHubCommand(action, payload) {
             HUB_SHEETS_.activity,
             before.activity,
             result.db.activity,
+            snapshots[HUB_SHEETS_.activity],
           );
         SpreadsheetApp.flush();
       } catch (error) {
@@ -1853,7 +2083,9 @@ function executeHubCommand(action, payload) {
         throw error;
       }
     }
-    const db = hubData_(ss);
+    // The validated result already contains persisted rows, including Drive metadata.
+    // Avoid reading the entire workbook a second time for every small update.
+    const db = result.db;
     db.activeUserSession = hubSession_(db);
     return { success: true, data: db, unchanged: result.unchanged };
   } catch (error) {
@@ -1917,19 +2149,21 @@ function saveHubEvidence_(db, session, upload, submission) {
   }
 }
 
-function writeHubChanges_(ss, name, before, after) {
+function writeHubChanges_(ss, name, before, after, snapshot) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) sheet = ss.insertSheet(name);
-  const values = sheet.getDataRange().getValues();
+  const values = snapshot || sheet.getDataRange().getValues();
   const headers = (values[0] || []).map((v) => String(v || "").trim());
   while (headers.length && !headers[headers.length - 1]) headers.pop();
+  const originalHeaders = headers.slice();
   after.forEach((row) =>
     Object.keys(row).forEach((key) => {
       if (!headers.includes(key)) headers.push(key);
     }),
   );
   if (!headers.length) return;
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (JSON.stringify(headers) !== JSON.stringify(originalHeaders))
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   // Preserve sheet layout, untouched cells and formulas.
   const rowNumbers = values
     .slice(1)
@@ -1942,12 +2176,32 @@ function writeHubChanges_(ss, name, before, after) {
     if (!previous) {
       sheet.appendRow(headers.map((h) => sheetText_(row[h])));
     } else {
-      Object.keys(row).forEach((key) => {
-        if (JSON.stringify(previous[key]) !== JSON.stringify(row[key]))
-          sheet
-            .getRange(rowNumbers[i], headers.indexOf(key) + 1)
-            .setValue(sheetText_(row[key]));
-      });
+      const changed = Object.keys(row)
+        .filter(
+          (key) => JSON.stringify(previous[key]) !== JSON.stringify(row[key]),
+        )
+        .map((key) => ({
+          column: headers.indexOf(key) + 1,
+          value: sheetText_(row[key]),
+        }))
+        .sort((a, b) => a.column - b.column);
+      for (let index = 0; index < changed.length;) {
+        const first = changed[index++];
+        const cells = [first.value];
+        while (
+          index < changed.length &&
+          changed[index].column === first.column + cells.length
+        )
+          cells.push(changed[index++].value);
+        const range = sheet.getRange(
+          rowNumbers[i],
+          first.column,
+          1,
+          cells.length,
+        );
+        if (cells.length === 1) range.setValue(cells[0]);
+        else range.setValues([cells]);
+      }
     }
   });
 }
@@ -2028,11 +2282,17 @@ function getTelegramPreview(key) {
     throw new Error("Sign in with your team account to preview notifications.");
   const config = hubTelegramConfig_();
   let preview = HubTelegram.preview(HubModel, db, key, config.url);
-  const delivery = HubTelegram.deliveries(db).get(key) || null;
+  const delivery = HubTelegram.deliveries(db, config.chatId).get(key) || null;
   const waiting =
     delivery &&
     ["Queued", "Sending", "Retrying", "Sent"].includes(delivery.status);
-  if (waiting) preview = { ...preview, text: delivery.text, url: delivery.url };
+  if (waiting)
+    preview = {
+      ...preview,
+      text: delivery.text,
+      url: delivery.url,
+      entities: delivery.entities || [],
+    };
   const canSend = session.isAdmin && hubTelegramReady_(config) && !waiting;
   let receipt = "";
   if (canSend) {
@@ -2071,13 +2331,15 @@ function hubQueueTelegram_(db, session, payload, now) {
     throw new Error(
       "Only explicitly listed admins can send Telegram notifications.",
     );
-  const existing = HubTelegram.deliveries(db).get(payload.key);
+  const config = hubTelegramConfig_();
+  // Revalidate even duplicate requests: deleted events cannot be announced.
+  const preview = HubTelegram.preview(HubModel, db, payload.key, config.url);
+  const existing = HubTelegram.deliveries(db, config.chatId).get(payload.key);
   if (
     existing &&
     ["Queued", "Sending", "Retrying", "Sent"].includes(existing.status)
   )
     return { db, unchanged: true };
-  const config = hubTelegramConfig_();
   if (!hubTelegramReady_(config))
     throw new Error("Connect Telegram before sending an announcement.");
   let receipt;
@@ -2095,7 +2357,6 @@ function hubQueueTelegram_(db, session, payload, now) {
     receipt.expiresAt < Date.now()
   )
     throw new Error("Open the notification preview again before sending.");
-  const preview = HubTelegram.preview(HubModel, db, payload.key, config.url);
   if (
     receipt.chatId !== config.chatId ||
     receipt.digest !== hubTelegramDigest_(preview)
@@ -2117,6 +2378,7 @@ function hubQueueTelegram_(db, session, payload, now) {
       telegram: {
         status: "Queued",
         text: preview.text,
+        entities: preview.entities,
         url: preview.url,
         chatId: config.chatId,
         attempts: 0,
@@ -2189,13 +2451,21 @@ function setupTelegramNotifications() {
   } finally {
     lock.releaseLock();
   }
-  return {
+  const status = {
     enabled: true,
     chatId: String(chat.result.id),
     chatTitle: chat.result.title,
     message:
       "Connected. Every announcement requires an admin preview and confirmation in the hub.",
   };
+  console.log(
+    "Telegram connected to " +
+      status.chatTitle +
+      " (" +
+      status.chatId +
+      "). Delivery trigger installed; no message sent during setup.",
+  );
+  return status;
 }
 
 function pauseTelegramNotifications() {
@@ -2284,13 +2554,15 @@ function hubTelegramCall_(config, method, payload) {
         " and run setup again."
       : errorCode === 401
         ? "Telegram rejected the bot token. Update it and run setup again."
-        : errorCode === 403
-          ? "The bot cannot post in this group. Check its membership and permissions."
-          : errorCode === 429
-            ? "Telegram rate limit reached. Delivery will retry automatically."
-            : errorCode >= 500
-              ? "Telegram is temporarily unavailable. Delivery will retry automatically."
-              : "Telegram rejected this request. Check the bot, group ID and connection settings.",
+        : errorCode === 400 && method === "getChat"
+          ? "Telegram could not find this group. Check bot membership and use the Bot API chat ID; a supergroup ID starts with -100."
+          : errorCode === 403
+            ? "The bot cannot post in this group. Check its membership and permissions."
+            : errorCode === 429
+              ? "Telegram rate limit reached. Delivery will retry automatically."
+              : errorCode >= 500
+                ? "Telegram is temporarily unavailable. Delivery will retry automatically."
+                : "Telegram rejected this request. Check the bot, group ID and connection settings.",
   };
 }
 
@@ -2308,6 +2580,22 @@ function hubTelegramUpdate_(ss, rows, index, data, status, error) {
   after[index] = { ...rows[index], Details: JSON.stringify(data) };
   writeHubChanges_(ss, "Activity", rows, after);
   SpreadsheetApp.flush();
+}
+
+function hubTelegramEventDeleted_(ss, key) {
+  const type = String(key || "").split(":")[0];
+  const table = HubModel.TABLES[type];
+  if (!["Task", "Meet", "Learning"].includes(type)) return true;
+  // Check the source before claiming: its deletion may have persisted even if
+  // the later Activity write failed. Never send from a stale outbox snapshot.
+  const event = HubModel.events(
+    {
+      [table]: readHubSheet_(ss, HUB_SHEETS_[table]),
+      logs: readHubSheet_(ss, "Log"),
+    },
+    { includeDeleted: true },
+  ).find((item) => item.key === key);
+  return !!event?.deleted;
 }
 
 function hubTelegramClaim_() {
@@ -2354,6 +2642,17 @@ function hubTelegramClaim_() {
           data,
           "Failed",
           "The destination changed. Preview this announcement again.",
+        );
+        return { skipped: true };
+      }
+      if (hubTelegramEventDeleted_(ss, data.event)) {
+        hubTelegramUpdate_(
+          ss,
+          rows,
+          index,
+          data,
+          "Cancelled",
+          "This event was deleted before delivery.",
         );
         return { skipped: true };
       }
@@ -2441,9 +2740,11 @@ function hubTelegramWorker_() {
       text: claim.item.text,
       link_preview_options: { is_disabled: true },
     };
+    const entities = HubTelegram.entities(claim.item.text, claim.item.entities);
+    if (entities.length) payload.entities = entities;
     if (claim.item.url)
       payload.reply_markup = {
-        inline_keyboard: [[{ text: "Open Team Hub", url: claim.item.url }]],
+        inline_keyboard: [[{ text: "🚀 Open Team Hub", url: claim.item.url }]],
       };
     const result = hubTelegramCall_(claim.config, "sendMessage", payload);
     hubTelegramFinish_(claim, result);
