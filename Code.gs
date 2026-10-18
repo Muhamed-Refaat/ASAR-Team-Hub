@@ -1,4 +1,4 @@
-// Generated from web/model.js and web/backend.gs.
+// Generated from shared web/ sources.
 /* Shared by Apps Script, the local adapter and tests. No browser or GAS dependencies. */
 const HubModel = (() => {
   const TYPES = ["Task", "Meet", "Learning", "Skill"];
@@ -65,7 +65,7 @@ const HubModel = (() => {
   function validateUpload(upload) {
     assert(
       upload && typeof upload === "object",
-      "Upload course evidence (PDF, PNG or JPEG, up to 10 MB).",
+      "Choose a PDF, PNG or JPEG evidence file, up to 10 MB.",
     );
     const name = clean(upload.name).replace(/[\\/\x00-\x1f]/g, "_");
     const signatures = {
@@ -363,6 +363,21 @@ const HubModel = (() => {
     });
     return result;
   }
+  function taskLinks(row) {
+    try {
+      const links = JSON.parse(clean(row["Evidence Links"]) || "[]");
+      return Array.isArray(links)
+        ? links.filter(
+            (link) =>
+              link &&
+              clean(link.id) &&
+              /^https?:\/\/[^\s]+$/i.test(clean(link.url)),
+          )
+        : [];
+    } catch (_) {
+      return [];
+    }
+  }
   function makeEvent(db, type, title, eventId, row, logs, log) {
     const assigned = clean(
       type === "Task"
@@ -429,6 +444,10 @@ const HubModel = (() => {
       key,
       id: eventId,
       type,
+      links:
+        type === "Task"
+          ? taskLinks(row).filter((link) => link.active !== false)
+          : [],
       title,
       row,
       log,
@@ -908,10 +927,7 @@ const HubModel = (() => {
         score === null || (e.type === "Skill" && score >= 0 && score <= 10),
         "Skill assessment scores must be from 0 to 10.",
       );
-      const upload =
-        e.type === "Learning" || payload.upload
-          ? validateUpload(payload.upload)
-          : null;
+      const upload = payload.upload ? validateUpload(payload.upload) : null;
       assert(
         !payload.upload || REVIEW_TYPES.includes(e.type),
         "Evidence files are supported for courses and meetings.",
@@ -1025,6 +1041,81 @@ const HubModel = (() => {
       });
       syncLog(e);
       target = e.title;
+    } else if (["addTaskLink", "removeTaskLink"].includes(action)) {
+      const event = find();
+      assert(event.type === "Task", "Evidence links belong to a task.");
+      assert(
+        admin ||
+          event.eligible.some(
+            (person) => memberKey(person) === memberKey(member),
+          ),
+        "Only task assignees or admins can update task evidence.",
+      );
+      if (clean(event.row["Evidence Links"])) {
+        let valid = false;
+        try {
+          valid = Array.isArray(JSON.parse(event.row["Evidence Links"]));
+        } catch (_) {}
+        assert(
+          valid,
+          "Existing task evidence could not be read. Ask an admin to check this task.",
+        );
+      }
+      const links = taskLinks(event.row);
+      if (action === "addTaskLink") {
+        assert(!event.archived, "Restore this task before adding evidence.");
+        const url = clean(payload.url);
+        assert(
+          url.length <= 2048 && /^https?:\/\/[^\s]+$/i.test(url),
+          "Enter a valid https:// or http:// evidence link.",
+        );
+        assert(
+          ["Completion", "Issue"].includes(payload.kind),
+          "Choose completion evidence or an issue.",
+        );
+        const note = safeText(payload.note);
+        assert(note.length <= 1000, "Keep the note within 1,000 characters.");
+        const linkId = newId("task-link");
+        if (links.some((link) => link.id === linkId))
+          return { db: input, unchanged: true };
+        links.push({
+          id: linkId,
+          url,
+          kind: payload.kind,
+          note,
+          memberId: memberKey(member),
+          name: clean(member.Name),
+          timestamp: now,
+          active: true,
+        });
+        details = { link: linkId, url, kind: payload.kind };
+      } else {
+        const link = links.find((item) => item.id === payload.linkId);
+        assert(link, "This link is no longer available.");
+        assert(
+          admin || link.memberId === memberKey(member),
+          "Only the link's author or an admin can remove it.",
+        );
+        if (link.active === false) return { db: input, unchanged: true };
+        link.active = false;
+        details = { link: link.id, url: link.url, kind: link.kind };
+      }
+      const value = JSON.stringify(links);
+      assert(
+        value.length <= 40000,
+        "This task's evidence links are full. Ask an admin to review them.",
+      );
+      event.row["Evidence Links"] = value;
+      if (!db.tasks.includes(event.row)) {
+        event.row.Assignees = event.eligible
+          .map((person) => clean(person.Name))
+          .join("\n");
+        event.row.Status = status(event.row.Status);
+        db.tasks.push(event.row);
+      }
+      event.row["Event ID"] = event.id;
+      event.row["Task Title"] = event.title;
+      target = event.title;
     } else if (action === "saveEvent" || action === "saveTask") {
       const type = action === "saveTask" ? "Task" : clean(payload.type);
       assert(
@@ -1038,6 +1129,15 @@ const HubModel = (() => {
       const assigned = selectedMembers(db, payload);
       const table = TABLES[type];
       db[table] = db[table] || [];
+      // Retrying an unconfirmed creation reuses its stable ID without duplicating or overwriting it.
+      if (
+        !payload.key &&
+        clean(payload.newId) &&
+        db[table].some(
+          (row) => id(row["Event ID"]) === newId(type.toLowerCase()),
+        )
+      )
+        return { db: input, unchanged: true };
       const existing = payload.key ? find() : null;
       assert(
         !existing || !existing.requirement,
@@ -1117,6 +1217,10 @@ const HubModel = (() => {
         existing.log["Source ID"] = row["Event ID"];
       }
       target = title;
+      details = {
+        created: !existing,
+        event: type + ":" + row["Event ID"],
+      };
     } else if (action === "archiveEvent") {
       const e = find();
       assert(e.type !== "Learning", "Learning courses cannot be archived.");
@@ -1276,13 +1380,41 @@ const HubModel = (() => {
       Email: norm(member.Mail),
       Action: action,
       Target: target,
-      Details: JSON.stringify(
-        action === "completeEvent"
-          ? { event: payload.key, member: memberKey(member) }
-          : { event: payload.key || "", type: payload.type || "", ...details },
-      ),
+      Details: JSON.stringify({
+        event: payload.key || "",
+        type:
+          payload.type ||
+          (payload.key
+            ? payload.key.split(":")[0]
+            : action === "saveTask"
+              ? "Task"
+              : ""),
+        requestId: clean(payload.newId),
+        outcome: "Succeeded",
+        ...(action === "completeEvent" ? { member: memberKey(member) } : {}),
+        ...details,
+      }),
     });
     return { db, unchanged: false };
+  }
+  function failureActivity(db, email, action, payload, error, now) {
+    if (!actor(db, email)) return null;
+    const event = payload.key
+      ? events(db).find((item) => item.key === payload.key)
+      : null;
+    return {
+      Timestamp: now,
+      Email: norm(email),
+      Action: action,
+      Target: clean(event?.title || payload.title || "Request").slice(0, 240),
+      Details: JSON.stringify({
+        outcome: "Failed",
+        event: clean(payload.key),
+        type: event?.type || clean(payload.type),
+        requestId: clean(payload.newId),
+        error: clean(error.message || error).slice(0, 1000),
+      }),
+    };
   }
   return {
     TYPES,
@@ -1320,6 +1452,8 @@ const HubModel = (() => {
     ratingCategory,
     events,
     pendingReviews,
+    taskLinks,
+    failureActivity,
     eventState,
     progress,
     skillGroups,
@@ -1333,6 +1467,109 @@ const HubModel = (() => {
   };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = HubModel;
+
+/* Public notification formatting only. Bot credentials belong in Script Properties. */
+const HubTelegram = (() => {
+  const types = ["Task", "Meet", "Learning"];
+  const clean = (value) => String(value == null ? "" : value).trim();
+  const clip = (value, max) => {
+    const text = clean(value);
+    return text.length > max ? text.slice(0, max - 1) + "…" : text;
+  };
+  function details(row) {
+    try {
+      const value = JSON.parse(row.Details || "{}");
+      return value && !Array.isArray(value) && typeof value === "object"
+        ? value
+        : {};
+    } catch (_) {
+      return {};
+    }
+  }
+  function creations(db) {
+    return new Map(
+      (db.activity || []).flatMap((row) => {
+        const data = details(row);
+        return ["saveTask", "saveEvent"].includes(row.Action) &&
+          data.created === true &&
+          types.includes(data.type)
+          ? [[data.event, row]]
+          : [];
+      }),
+    );
+  }
+  function deliveries(db) {
+    return new Map(
+      (db.activity || []).flatMap((row) => {
+        const data = details(row);
+        return row.Action === "telegramNotification" &&
+          data.event &&
+          data.telegram
+          ? [[data.event, { ...data.telegram, actor: row.Email }]]
+          : [];
+      }),
+    );
+  }
+  function url(value) {
+    let text = clean(value);
+    if (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/|$)/i.test(text))
+      text = "https://" + text;
+    return /^https?:\/\/[^\s<>"']+$/i.test(text) ? text : "";
+  }
+  function preview(model, db, key, hubUrl) {
+    const creation = creations(db).get(key);
+    const event = model.events(db).find((item) => item.key === key);
+    if (!creation || !event || !types.includes(event.type))
+      throw new Error(
+        "Only newly created tasks, meetings and courses can be announced.",
+      );
+    if (event.archived)
+      throw new Error("Restore this event before announcing it.");
+    const label = { Task: "task", Meet: "meeting", Learning: "course" }[
+      event.type
+    ];
+    const lines = ["ASAR Team Hub · New " + label, "", clip(event.title, 240)];
+    if (event.meetingDate)
+      lines.push("Meeting date: " + event.meetingDate + " (Cairo)");
+    if (event.due) lines.push("Due: " + event.due + " (Cairo)");
+    if (event.type === "Task")
+      lines.push(
+        "Status: " +
+          model.status(event.row.Status).replace("InProgress", "In progress"),
+      );
+    lines.push(
+      "Assigned to: " +
+        clip(
+          event.eligible.map((member) => clean(member.Name)).join(", ") ||
+            "No members assigned",
+          700,
+        ),
+    );
+    if (event.description) lines.push("", clip(event.description, 900));
+    const link = url(event.row.Link || event.row.Attachments);
+    if (link)
+      lines.push(
+        "",
+        link.length <= 1000
+          ? (event.type === "Meet" ? "Join meeting: " : "Course: ") + link
+          : "Open Team Hub for the event link.",
+      );
+    else if (event.type === "Meet" && event.row.Attachments)
+      lines.push("Location: " + clip(event.row.Attachments, 300));
+    const creator = model.actor(db, creation.Email);
+    if (creator) lines.push("", "Created by: " + clip(creator.Name, 160));
+    return {
+      key,
+      type: event.type,
+      title: event.title,
+      text: lines.join("\n"),
+      url: /^https:\/\//i.test(url(hubUrl)) ? url(hubUrl) : "",
+    };
+  }
+  return { details, creations, deliveries, preview };
+})();
+if (typeof module !== "undefined" && module.exports)
+  module.exports = HubTelegram;
 
 const SPREADSHEET_ID = "188lG-b__CVXFxj2ebrGXilpfw8-Y7Q-O9KrGzkOWqkU";
 const HUB_SHEETS_ = {
@@ -1451,6 +1688,7 @@ function getTeamData() {
 function executeHubCommand(action, payload) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
+  let auditContext = null;
   try {
     const ss = hubSpreadsheet_();
     const before = hubData_(ss);
@@ -1460,13 +1698,17 @@ function executeHubCommand(action, payload) {
       Session.getScriptTimeZone() || "Africa/Cairo",
       "yyyy-MM-dd'T'HH:mm:ssXXX",
     );
-    const result = HubModel.transition(
-      before,
-      session.email,
-      action,
-      payload || {},
-      now,
-    );
+    auditContext = { ss, before, session, now };
+    const result =
+      action === "queueTelegramNotification"
+        ? hubQueueTelegram_(before, session, payload || {}, now)
+        : HubModel.transition(
+            before,
+            session.email,
+            action,
+            payload || {},
+            now,
+          );
     if (!result.unchanged) {
       // The transition validates identity, eligibility, state and bytes before Drive is touched.
       let evidenceFile = null;
@@ -1518,6 +1760,28 @@ function executeHubCommand(action, payload) {
     const db = hubData_(ss);
     db.activeUserSession = hubSession_(db);
     return { success: true, data: db, unchanged: result.unchanged };
+  } catch (error) {
+    if (auditContext) {
+      try {
+        const { ss, before, session, now } = auditContext;
+        const row = HubModel.failureActivity(
+          before,
+          session.email,
+          action,
+          payload || {},
+          error,
+          now,
+        );
+        if (row) {
+          const history = readHubSheet_(ss, "Activity");
+          writeHubChanges_(ss, "Activity", history, [...history, row]);
+          SpreadsheetApp.flush();
+        }
+      } catch (_) {
+        /* Preserve the original error if the audit sheet is unavailable. */
+      }
+    }
+    throw error;
   } finally {
     lock.releaseLock();
   }
@@ -1614,5 +1878,480 @@ function doPost(e) {
     return ContentService.createTextOutput(
       JSON.stringify({ success: false, error: err.message }),
     ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Telegram credentials stay in Script Properties, never in hubData_ or client responses.
+function hubTelegramConfig_() {
+  const p = PropertiesService.getScriptProperties();
+  return {
+    token: String(p.getProperty("TELEGRAM_BOT_TOKEN") || "").trim(),
+    chatId: String(p.getProperty("TELEGRAM_CHAT_ID") || "").trim(),
+    title: p.getProperty("TELEGRAM_CHAT_TITLE") || "Team Telegram group",
+    url:
+      p.getProperty("TELEGRAM_HUB_URL") ||
+      ScriptApp.getService().getUrl() ||
+      "",
+    enabled: p.getProperty("TELEGRAM_NOTIFICATIONS_ENABLED") === "true",
+    installer: p.getProperty("TELEGRAM_INSTALLER_EMAIL") || "",
+  };
+}
+
+function hubTelegramReady_(config) {
+  return (
+    config.enabled &&
+    /^\d+:[A-Za-z0-9_-]{20,}$/.test(config.token) &&
+    /^-[1-9]\d*$/.test(config.chatId)
+  );
+}
+
+function hubTelegramAdmin_() {
+  const db = hubData_(hubSpreadsheet_());
+  const session = hubSession_(db);
+  if (!session.isAdmin)
+    throw new Error(
+      "Only explicitly listed admins can manage Telegram notifications.",
+    );
+  return session;
+}
+
+function hubTelegramDigest_(preview) {
+  return Utilities.base64Encode(
+    Utilities.computeDigest(
+      Utilities.DigestAlgorithm.SHA_256,
+      JSON.stringify(preview),
+      Utilities.Charset.UTF_8,
+    ),
+  );
+}
+
+function getTelegramPreview(key) {
+  const db = hubData_(hubSpreadsheet_());
+  const session = hubSession_(db);
+  if (!session.memberId)
+    throw new Error("Sign in with your team account to preview notifications.");
+  const config = hubTelegramConfig_();
+  let preview = HubTelegram.preview(HubModel, db, key, config.url);
+  const delivery = HubTelegram.deliveries(db).get(key) || null;
+  const waiting =
+    delivery &&
+    ["Queued", "Sending", "Retrying", "Sent"].includes(delivery.status);
+  if (waiting) preview = { ...preview, text: delivery.text, url: delivery.url };
+  const canSend = session.isAdmin && hubTelegramReady_(config) && !waiting;
+  let receipt = "";
+  if (canSend) {
+    receipt = Utilities.getUuid();
+    PropertiesService.getUserProperties().setProperty(
+      "ASAR_TELEGRAM_PREVIEW",
+      JSON.stringify({
+        receipt,
+        key,
+        digest: hubTelegramDigest_(preview),
+        chatId: config.chatId,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      }),
+    );
+  }
+  return {
+    preview,
+    receipt,
+    canSend,
+    delivery,
+    chatTitle: config.title,
+    reason: waiting
+      ? delivery.status === "Sent"
+        ? "This announcement has already been sent."
+        : "This announcement is already in the delivery queue."
+      : !session.isAdmin
+        ? "Only an admin can send this announcement."
+        : !hubTelegramReady_(config)
+          ? "Telegram is not connected yet. Ask the hub owner to complete the bot setup."
+          : "Review the message, then confirm to send it to the team group.",
+  };
+}
+
+function hubQueueTelegram_(db, session, payload, now) {
+  if (!session.isAdmin)
+    throw new Error(
+      "Only explicitly listed admins can send Telegram notifications.",
+    );
+  const existing = HubTelegram.deliveries(db).get(payload.key);
+  if (
+    existing &&
+    ["Queued", "Sending", "Retrying", "Sent"].includes(existing.status)
+  )
+    return { db, unchanged: true };
+  const config = hubTelegramConfig_();
+  if (!hubTelegramReady_(config))
+    throw new Error("Connect Telegram before sending an announcement.");
+  let receipt;
+  try {
+    receipt = JSON.parse(
+      PropertiesService.getUserProperties().getProperty(
+        "ASAR_TELEGRAM_PREVIEW",
+      ) || "null",
+    );
+  } catch (_) {}
+  if (
+    !receipt ||
+    receipt.receipt !== payload.receipt ||
+    receipt.key !== payload.key ||
+    receipt.expiresAt < Date.now()
+  )
+    throw new Error("Open the notification preview again before sending.");
+  const preview = HubTelegram.preview(HubModel, db, payload.key, config.url);
+  if (
+    receipt.chatId !== config.chatId ||
+    receipt.digest !== hubTelegramDigest_(preview)
+  )
+    throw new Error(
+      "The event or destination changed. Open the preview again before sending.",
+    );
+  const next = JSON.parse(JSON.stringify(db));
+  next.activity.push({
+    Timestamp: now,
+    Email: session.email,
+    Action: "telegramNotification",
+    Target: preview.title,
+    Details: JSON.stringify({
+      event: preview.key,
+      type: preview.type,
+      requestId: receipt.receipt,
+      outcome: "Queued",
+      telegram: {
+        status: "Queued",
+        text: preview.text,
+        url: preview.url,
+        chatId: config.chatId,
+        attempts: 0,
+        nextAttemptAt: 0,
+        history: [{ status: "Queued", at: now }],
+      },
+    }),
+  });
+  // The durable Activity row, written by executeHubCommand, is the delivery outbox.
+  return { db: next, unchanged: false };
+}
+
+// Run once in the Apps Script editor after adding the Script Properties in README.
+// Setup verifies the bot and group but never posts a message.
+function setupTelegramNotifications() {
+  const session = hubTelegramAdmin_();
+  const config = hubTelegramConfig_();
+  if (
+    !/^\d+:[A-Za-z0-9_-]{20,}$/.test(config.token) ||
+    !/^-[1-9]\d*$/.test(config.chatId)
+  )
+    throw new Error(
+      "Set TELEGRAM_BOT_TOKEN and the negative numeric TELEGRAM_CHAT_ID in Script Properties first.",
+    );
+  if (config.installer && config.installer !== session.email)
+    throw new Error(
+      "Run setup from the original installer account: " + config.installer,
+    );
+  const bot = hubTelegramCall_(config, "getMe", {});
+  const chat = hubTelegramCall_(config, "getChat", { chat_id: config.chatId });
+  if (!bot.ok || !chat.ok) throw new Error((!bot.ok ? bot : chat).error);
+  if (!["group", "supergroup"].includes(chat.result.type))
+    throw new Error(
+      "Choose the team's Telegram group, not a private chat or channel.",
+    );
+  const membership = hubTelegramCall_(config, "getChatMember", {
+    chat_id: config.chatId,
+    user_id: bot.result.id,
+  });
+  if (!membership.ok) throw new Error(membership.error);
+  const role = membership.result;
+  if (
+    ["left", "kicked"].includes(role.status) ||
+    role.is_member === false ||
+    role.can_send_messages === false ||
+    (!["administrator", "creator"].includes(role.status) &&
+      chat.result.permissions &&
+      chat.result.permissions.can_send_messages === false)
+  )
+    throw new Error("Add the bot to this group and allow it to send messages.");
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const triggers = ScriptApp.getProjectTriggers().filter(
+      (t) => t.getHandlerFunction() === "hubTelegramWorker_",
+    );
+    if (!triggers.length)
+      ScriptApp.newTrigger("hubTelegramWorker_")
+        .timeBased()
+        .everyMinutes(1)
+        .create();
+    // One installer owns the trigger. Remove duplicates created by this account.
+    triggers.slice(1).forEach((trigger) => ScriptApp.deleteTrigger(trigger));
+    PropertiesService.getScriptProperties().setProperties({
+      TELEGRAM_CHAT_ID: String(chat.result.id),
+      TELEGRAM_CHAT_TITLE: String(chat.result.title || "Team Telegram group"),
+      TELEGRAM_NOTIFICATIONS_ENABLED: "true",
+      TELEGRAM_INSTALLER_EMAIL: session.email,
+    });
+  } finally {
+    lock.releaseLock();
+  }
+  return {
+    enabled: true,
+    chatId: String(chat.result.id),
+    chatTitle: chat.result.title,
+    message:
+      "Connected. Every announcement requires an admin preview and confirmation in the hub.",
+  };
+}
+
+function pauseTelegramNotifications() {
+  hubTelegramAdmin_();
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    PropertiesService.getScriptProperties().setProperty(
+      "TELEGRAM_NOTIFICATIONS_ENABLED",
+      "false",
+    );
+  } finally {
+    lock.releaseLock();
+  }
+  return {
+    enabled: false,
+    message: "Delivery paused. Queued announcements are preserved.",
+  };
+}
+
+// Optional setup aid: group IDs/titles only, without returning incoming messages.
+function findTelegramGroups() {
+  hubTelegramAdmin_();
+  const result = hubTelegramCall_(hubTelegramConfig_(), "getUpdates", {
+    timeout: 0,
+    limit: 100,
+    allowed_updates: ["message", "my_chat_member"],
+  });
+  if (!result.ok) throw new Error(result.error);
+  const groups = new Map();
+  (result.result || []).forEach((update) => {
+    const chat = (update.message || update.my_chat_member || {}).chat;
+    if (chat && ["group", "supergroup"].includes(chat.type))
+      groups.set(String(chat.id), {
+        chatId: String(chat.id),
+        title: String(chat.title || "Group"),
+      });
+  });
+  return [...groups.values()];
+}
+
+function hubTelegramCall_(config, method, payload) {
+  let response, body, code;
+  try {
+    response = UrlFetchApp.fetch(
+      "https://api.telegram.org/bot" + config.token + "/" + method,
+      {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true,
+        followRedirects: false,
+        timeoutSeconds: 20,
+      },
+    );
+    code = response.getResponseCode();
+    body = JSON.parse(response.getContentText());
+  } catch (_) {
+    // Fetch exceptions can contain the request URL and bot token. Never expose them.
+    return {
+      ok: false,
+      uncertain: true,
+      error:
+        "Telegram did not confirm delivery. Check the group before retrying.",
+    };
+  }
+  if (!body || typeof body !== "object")
+    return {
+      ok: false,
+      uncertain: true,
+      error:
+        "Telegram did not confirm delivery. Check the group before retrying.",
+    };
+  if (code >= 200 && code < 300 && body.ok === true)
+    return { ok: true, result: body.result };
+  const errorCode = Number(body.error_code || code);
+  const migrated = body.parameters && body.parameters.migrate_to_chat_id;
+  return {
+    ok: false,
+    code: errorCode,
+    retryAfter: Number(body.parameters && body.parameters.retry_after) || 0,
+    uncertain: !body || typeof body.ok !== "boolean",
+    error: migrated
+      ? "The group migrated. Set TELEGRAM_CHAT_ID to " +
+        String(migrated) +
+        " and run setup again."
+      : errorCode === 401
+        ? "Telegram rejected the bot token. Update it and run setup again."
+        : errorCode === 403
+          ? "The bot cannot post in this group. Check its membership and permissions."
+          : errorCode === 429
+            ? "Telegram rate limit reached. Delivery will retry automatically."
+            : errorCode >= 500
+              ? "Telegram is temporarily unavailable. Delivery will retry automatically."
+              : "Telegram rejected this request. Check the bot, group ID and connection settings.",
+  };
+}
+
+function hubTelegramUpdate_(ss, rows, index, data, status, error) {
+  const item = data.telegram;
+  const now = new Date().toISOString();
+  item.status = status;
+  item.error = error || "";
+  item.history = [
+    ...(item.history || []),
+    { status, at: now, ...(error ? { error } : {}) },
+  ].slice(-20);
+  data.outcome = status;
+  const after = rows.slice();
+  after[index] = { ...rows[index], Details: JSON.stringify(data) };
+  writeHubChanges_(ss, "Activity", rows, after);
+  SpreadsheetApp.flush();
+}
+
+function hubTelegramClaim_() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return null;
+  try {
+    const config = hubTelegramConfig_();
+    if (!hubTelegramReady_(config)) return null;
+    const ss = hubSpreadsheet_();
+    const access = {
+      team: readHubSheet_(ss, "Team"),
+      admins: readHubSheet_(ss, "Admins"),
+    };
+    if (!HubModel.isAdmin(access, HubModel.actor(access, config.installer)))
+      return null;
+    const rows = readHubSheet_(ss, "Activity");
+    const now = Date.now();
+    for (let index = 0; index < rows.length; index++) {
+      if (rows[index].Action !== "telegramNotification") continue;
+      const data = HubTelegram.details(rows[index]),
+        item = data.telegram;
+      if (!item) continue;
+      if (item.status === "Sending" && item.leaseUntil < now) {
+        hubTelegramUpdate_(
+          ss,
+          rows,
+          index,
+          data,
+          "Unconfirmed",
+          "Delivery was interrupted. Check the group before retrying.",
+        );
+        return { skipped: true };
+      }
+      if (
+        !["Queued", "Retrying"].includes(item.status) ||
+        item.nextAttemptAt > now
+      )
+        continue;
+      if (item.chatId !== config.chatId) {
+        hubTelegramUpdate_(
+          ss,
+          rows,
+          index,
+          data,
+          "Failed",
+          "The destination changed. Preview this announcement again.",
+        );
+        return { skipped: true };
+      }
+      const properties = PropertiesService.getScriptProperties();
+      const wait =
+        Number(properties.getProperty("ASAR_TELEGRAM_NEXT_SEND_AT") || 0) - now;
+      if (wait > 0) return { wait: Math.min(wait, 3500) };
+      item.attempts = (item.attempts || 0) + 1;
+      item.leaseId = Utilities.getUuid();
+      item.leaseUntil = now + 2 * 60 * 1000;
+      properties.setProperty("ASAR_TELEGRAM_NEXT_SEND_AT", String(now + 3200));
+      hubTelegramUpdate_(ss, rows, index, data, "Sending");
+      return {
+        config,
+        index,
+        receipt: data.requestId,
+        leaseId: item.leaseId,
+        item,
+      };
+    }
+    return null;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function hubTelegramFinish_(claim, result) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ss = hubSpreadsheet_(),
+      rows = readHubSheet_(ss, "Activity");
+    const index = rows.findIndex(
+      (row) =>
+        row.Action === "telegramNotification" &&
+        HubTelegram.details(row).requestId === claim.receipt,
+    );
+    if (index < 0) return;
+    const data = HubTelegram.details(rows[index]),
+      item = data.telegram;
+    if (item.status !== "Sending" || item.leaseId !== claim.leaseId) return;
+    if (result.ok) {
+      item.messageId = result.result.message_id;
+      item.sentAt = new Date().toISOString();
+      hubTelegramUpdate_(ss, rows, index, data, "Sent");
+    } else {
+      const retry =
+        !result.uncertain && (result.code === 429 || result.code >= 500);
+      item.nextAttemptAt =
+        Date.now() +
+        Math.max(
+          result.retryAfter || 0,
+          Math.min(3600, 30 * Math.pow(2, Math.min(item.attempts, 7))),
+        ) *
+          1000;
+      hubTelegramUpdate_(
+        ss,
+        rows,
+        index,
+        data,
+        result.uncertain ? "Unconfirmed" : retry ? "Retrying" : "Failed",
+        result.error,
+      );
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Private trigger entry point. No script lock is held during network calls or spacing.
+function hubTelegramWorker_() {
+  const started = Date.now();
+  let sent = 0,
+    passes = 0;
+  while (sent < 5 && passes++ < 20 && Date.now() - started < 45000) {
+    const claim = hubTelegramClaim_();
+    if (!claim) break;
+    if (claim.skipped) continue;
+    if (claim.wait) {
+      Utilities.sleep(claim.wait);
+      continue;
+    }
+    const payload = {
+      chat_id: claim.item.chatId,
+      text: claim.item.text,
+      link_preview_options: { is_disabled: true },
+    };
+    if (claim.item.url)
+      payload.reply_markup = {
+        inline_keyboard: [[{ text: "Open Team Hub", url: claim.item.url }]],
+      };
+    const result = hubTelegramCall_(claim.config, "sendMessage", payload);
+    hubTelegramFinish_(claim, result);
+    sent++;
+    if (!result.ok) break;
   }
 }

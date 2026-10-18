@@ -74,6 +74,10 @@ class DataAudit(unittest.TestCase):
         self.assertEqual(workbook['SkillEvents'].sheet_state, 'hidden')
         self.assertIn('Knowledge', [c.value for c in workbook['Team'][1]])
         self.assertIn('Skills', [c.value for c in workbook['Team'][1]])
+        self.assertIn('Evidence Links', [c.value for c in workbook['Task'][1]])
+        guide = dict(workbook['Workbook Guide'].iter_rows(min_row=2, values_only=True))
+        self.assertIn('Evidence is optional', guide['Course workflow'])
+        self.assertIn('saving drafts immediately', guide['Background saves'])
         workbook.close()
 
     def test_original_nonempty_cells_are_preserved(self):
@@ -113,9 +117,10 @@ class DataAudit(unittest.TestCase):
     def test_generated_interfaces_share_model_theme_and_react_app(self):
         for name in ('Index.html','local_test_dashboard.html'):
             content = (ROOT/name).read_text(encoding='utf-8')
-            for source in ('model.js','cv.js','theme.css','app.jsx'):
+            for source in ('model.js','cv.js','sync.js','telegram.js','theme.css','app.jsx'):
                 self.assertIn((ROOT/'web'/source).read_text(encoding='utf-8'),content)
         self.assertIn((ROOT/'web/model.js').read_text(encoding='utf-8'),(ROOT/'Code.gs').read_text(encoding='utf-8'))
+        self.assertIn((ROOT/'web/telegram.js').read_text(encoding='utf-8'),(ROOT/'Code.gs').read_text(encoding='utf-8'))
         self.assertNotIn('LOCAL_SEED',(ROOT/'Index.html').read_text(encoding='utf-8'))
 
     def test_actual_word_exports_have_professional_layout_complete_skills_and_arabic_direction(self):

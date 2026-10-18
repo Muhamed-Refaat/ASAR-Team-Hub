@@ -1,174 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const vm = require("node:vm");
 const M = require("../web/model.js");
-class Sheet {
-  constructor(name, rows) {
-    this.name = name;
-    this.rows = rows;
-  }
-  getDataRange() {
-    return { getValues: () => this.rows.map((r) => r.slice()) };
-  }
-  getRange(r, c, h = 1, w = 1) {
-    return {
-      setValue: (v) => this.set(r, c, v),
-      setValues: (rows) =>
-        rows.forEach((row, i) =>
-          row.forEach((v, j) => this.set(r + i, c + j, v)),
-        ),
-      getValues: () =>
-        Array.from({ length: h }, (_, i) =>
-          Array.from(
-            { length: w },
-            (_, j) => this.rows[r + i - 1]?.[c + j - 1] ?? "",
-          ),
-        ),
-    };
-  }
-  set(r, c, v) {
-    while (this.rows.length < r) this.rows.push([]);
-    this.rows[r - 1][c - 1] = v;
-  }
-  appendRow(row) {
-    this.rows.push(row.slice());
-  }
-}
-function environment(email = "head@example.com") {
-  const sheets = {
-    Team: new Sheet("Team", [
-      ["Name", "ID", "Mail", "Role", "Reports To", "Department"],
-      ["Abdallah Allam", "1", "head@example.com", "Team Leader", "", ""],
-      ["Member", "2", "member@example.com", "Team member", "1", ""],
-    ]),
-    Admins: new Sheet("Admins", [
-      ["Email", "Enabled"],
-      ["head@example.com", true],
-    ]),
-    Task: new Sheet("Task", [
-      ["Task Title", "Assignees", "Status", "Event ID"],
-      ["Build prototype", "Abdallah Allam\nMember", "Pending", "task-1"],
-    ]),
-    Learning: new Sheet("Learning", [
-      ["Topic name", "", "Link"],
-      ["Course", "", "https://example.com/course"],
-    ]),
-    SKILLs: new Sheet("SKILLs", [
-      ["Hard Technical SKILLS", "", "", "Soft skills", "", "Technology"],
-      [
-        "SKILL",
-        "Competency",
-        "Application",
-        "Skill",
-        "Description",
-        "Layer",
-        "Tool",
-        "Function",
-      ],
-      ["Python", "Development", "A", "Thinking", "B", "AI", "Editor", "C"],
-    ]),
-  };
-  const ss = {
-    getSheetByName: (name) => sheets[name],
-    insertSheet: (name) => (sheets[name] = new Sheet(name, [[]])),
-  };
-  let locked = false,
-    lockCount = 0;
-  const files = [],
-    folders = new Map(),
-    properties = new Map();
-  let failSharing = false;
-  const context = vm.createContext({
-    console,
-    Date,
-    JSON,
-    Math,
-    Map,
-    Set,
-    Intl,
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush: () => {} },
-    Session: {
-      getActiveUser: () => ({ getEmail: () => email }),
-      getScriptTimeZone: () => "Africa/Cairo",
-    },
-    LockService: {
-      getScriptLock: () => ({
-        waitLock: () => {
-          assert.equal(locked, false);
-          locked = true;
-          lockCount++;
-        },
-        releaseLock: () => {
-          locked = false;
-        },
-      }),
-    },
-    Utilities: {
-      base64Decode: (value) => [...Buffer.from(value, "base64")],
-      newBlob: (bytes, mimeType, name) => ({ bytes, mimeType, name }),
-      formatDate: (d, tz, format) =>
-        format === "yyyy-MM-dd"
-          ? d.toISOString().slice(0, 10)
-          : d.toISOString(),
-    },
-    PropertiesService: {
-      getUserProperties: () => ({
-        getProperty: (key) => properties.get(email + key),
-        setProperty: (key, value) => properties.set(email + key, value),
-      }),
-    },
-    DriveApp: {
-      getFolderById: (id) => folders.get(id),
-      createFolder: (name) => {
-        const folder = {
-          getId: () => "folder-" + email,
-          createFile: (blob) => {
-            const id = "file-" + (files.length + 1);
-            const file = {
-              blob,
-              owner: email,
-              viewers: [],
-              trashed: false,
-              getId: () => id,
-              getUrl: () => "https://drive.google.com/file/d/" + id + "/view",
-              addViewer: (viewer) => {
-                if (failSharing) throw new Error("Sharing denied");
-                file.viewers.push(viewer);
-              },
-              setTrashed: (value) => {
-                file.trashed = value;
-              },
-            };
-            files.push(file);
-            return file;
-          },
-        };
-        folders.set(folder.getId(), folder);
-        return folder;
-      },
-    },
-    ContentService: {
-      MimeType: { JSON: "application/json" },
-      createTextOutput: (text) => ({ setMimeType: () => text }),
-    },
-  });
-  vm.runInContext(fs.readFileSync("Code.gs", "utf8"), context);
-  return {
-    context,
-    sheets,
-    ss,
-    setEmail: (v) => {
-      email = v;
-    },
-    locked: () => locked,
-    lockCount: () => lockCount,
-    files,
-    failSharing: (value) => {
-      failSharing = value;
-    },
-  };
-}
+const { environment, Sheet } = require("./backend-fixture.cjs");
 test("production persists board moves and per-member requirements without losing ratings or other rows", () => {
   const e = environment();
   e.context.executeHubCommand("moveTask", {
@@ -429,6 +262,84 @@ test("production admin can approve their own attendance and the inbox only expos
   assert.equal(e.locked(), false);
 });
 
+test("production accepts course completion without a file, requires review, and creates no Drive file", () => {
+  const e = environment("member@example.com");
+  const event = M.events(e.context.getTeamData()).find(
+    (item) => item.type === "Learning",
+  );
+  let result = e.context.executeHubCommand("completeEvent", {
+    key: event.key,
+    evidence: "Finished the course",
+  });
+  assert.equal(result.data.completions[0].Status, "Pending");
+  assert.equal(result.data.completions[0]["Evidence Filename"], "");
+  assert.equal(e.files.length, 0);
+  assert.equal(
+    M.progress(result.data, result.data.team[1]).byType.Learning.completed,
+    0,
+  );
+  e.setEmail("head@example.com");
+  result = e.context.executeHubCommand("reviewSubmission", {
+    submissionId: result.data.completions[0]["Submission ID"],
+    decision: "Completed",
+  });
+  assert.equal(
+    M.progress(result.data, result.data.team[1]).byType.Learning.completed,
+    1,
+  );
+});
+
+test("production retries do not duplicate event rows and failures record the real actor without sensitive payloads", () => {
+  const e = environment();
+  const payload = {
+    type: "Meet",
+    title: "Retry-safe meeting",
+    date: "2026-10-18",
+    members: ["1", "2"],
+    newId: "stable-create",
+  };
+  e.context.executeHubCommand("saveEvent", payload);
+  const duplicate = e.context.executeHubCommand("saveEvent", {
+    ...payload,
+    title: "Do not overwrite",
+  });
+  assert.equal(duplicate.unchanged, true);
+  assert.equal(duplicate.data.meet.length, 1);
+  assert.equal(duplicate.data.meet[0]["Meeting title"], payload.title);
+  e.setEmail("member@example.com");
+  assert.throws(
+    () =>
+      e.context.executeHubCommand("saveEvent", {
+        ...payload,
+        email: "head@example.com",
+        upload: { base64: "PRIVATE_BYTES" },
+      }),
+    /Admins/,
+  );
+  const failure = e.context.getTeamData().activity.at(-1);
+  assert.equal(failure.Email, "member@example.com");
+  assert.equal(JSON.parse(failure.Details).outcome, "Failed");
+  assert.equal(failure.Details.includes("PRIVATE_BYTES"), false);
+  assert.equal(JSON.parse(failure.Details).requestId, "stable-create");
+});
+
+test("production task evidence is attributed to the assignee and preserved independently of board status", () => {
+  const e = environment("member@example.com");
+  const result = e.context.executeHubCommand("addTaskLink", {
+    key: "Task:task-1",
+    url: "https://example.com/result",
+    kind: "Completion",
+    note: "Test result",
+    newId: "task-proof",
+    memberId: "1",
+  });
+  const event = M.events(result.data).find((item) => item.type === "Task");
+  assert.equal(event.links[0].memberId, "2");
+  assert.equal(event.row.Status, "Pending");
+  assert.equal(event.links[0].note, "Test result");
+  assert.equal(result.data.activity.at(-1).Action, "addTaskLink");
+});
+
 test("production refuses invalid evidence before upload and removes files on failed reviewer sharing or persistence", () => {
   const e = environment("member@example.com");
   const key = M.events(e.context.getTeamData()).find(
@@ -440,8 +351,12 @@ test("production refuses invalid evidence before upload and removes files on fai
     base64: Buffer.from("%PDF-1.4\n%%EOF").toString("base64"),
   };
   assert.throws(
-    () => e.context.executeHubCommand("completeEvent", { key }),
-    /Upload course evidence/,
+    () =>
+      e.context.executeHubCommand("completeEvent", {
+        key,
+        upload: { ...upload, base64: "PHNjcmlwdD4=" },
+      }),
+    /contents/,
   );
   assert.equal(e.files.length, 0);
   e.failSharing(true);

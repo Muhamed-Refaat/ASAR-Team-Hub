@@ -2,7 +2,11 @@
 
 A Google Apps Script team dashboard backed by Google Sheets, with a matching local preview generated from the workbook in `spreedsheet-copy/ASAR-Team-Hub.xlsx`.
 
-The interface has dedicated Tasks, Meetings, Learning, and Skills tabs. Tasks use board status; courses, meetings and required skills expose their personal actions on their cards. Completion logs hold submission records; Activity holds management history. Completed events have a green border, check mark, and explicit status label.
+The interface has dedicated Tasks, Meetings, Learning, and Skills tabs. Tasks use board status; courses, meetings and required skills expose their personal actions on their cards. Completion logs hold submission records; Activity covers user actions, reviews, evidence, management changes and errors. Completed events have a green border, check mark, and explicit status label.
+
+Creating an event responds immediately: the form closes and a saving draft appears while the backend runs asynchronously. Event saves reports success or keeps the draft with Retry save if confirmation fails. You can navigate and create other events meanwhile. Writes and refreshes are serialized, retries reuse stable IDs, and drafts never count as confirmed progress. Session storage retains unconfirmed fields across reloads when available; a restored draft waits for Retry or a refresh rather than silently resubmitting. A completed background save does not close a newer form.
+
+New tasks, meetings and courses offer **Preview Telegram** after saving. Members can inspect the message; an explicitly listed admin must confirm **Send to Telegram**. Approved messages are delivered by a background worker, with status and retry history in Activity. Bot credentials remain in Apps Script settings. Follow [the Telegram setup guide](docs/telegram-setup.md) to create your bot and connect the team group. Local preview never posts messages.
 
 The dashboard opens as a landing page: a purple/teal hero, circular personal progress graphic, floating skill/team details, and scroll-revealed chapters for progress, review stages, recorded strengths, next steps, upcoming meetings and team coverage. Every number comes from the current data. Both themes, keyboard focus and reduced-motion preferences are supported.
 
@@ -55,7 +59,7 @@ Enabled admins have an additional **Admin** badge beside their team roles in the
 | SKILLs / Skill | Skill catalogue; the existing two-header-row SKILLs sheet is supported |
 | Log | Event-level invited/completed aggregates, linked through Source ID |
 | Completion | Individual submission attempts, three-state review status, authenticated member, evidence attachment metadata, reviewer, feedback, review time and last status change |
-| Activity | Audit history of changes; completion audit rows are stored but shown only as records in Completion logs |
+| Activity | User actions, approvals, task evidence, settings changes and authenticated request errors with safe request IDs |
 | Lookups | Member IDs/names/emails, event keys/titles, enabled reviewers, project skills and allowed dropdown values |
 | Workbook Guide | Instructions for the workflow, permissions, evidence, lookups and deployment |
 
@@ -63,7 +67,7 @@ The importer preserves sparse columns, dates, multiline cells and all nonempty s
 
 Course, meeting and skill submissions are idempotent and per member. Tasks use shared board Status only: drag/drop or the status dropdown updates progress for all assignees, and moving away from Completed reverses that progress. No task completion form or personal completion entry is created. Historical task records remain stored. Deadlines stay open through the end of the date in Africa/Cairo. Tasks may be archived; courses cannot. Missing ratings and qualifications stay missing.
 
-Courses and meeting attendance use **Uncompleted → Pending → Completed**. A course requires an uploaded PDF, PNG or JPEG evidence file, up to 10 MB. Attendance evidence is optional. Submitting never increases progress: an explicitly listed admin must approve it. Returning a submission requires feedback and restores Uncompleted. Required skills retain direct completion. Course cards show **Request completion**, meeting cards show **Log attendance**, and required skill cards show **Complete**. These actions are independent of event settings. Closed actions stay visible with an explanation; pending and approved cards show withdrawal/undo controls where supported.
+Courses and meeting attendance use **Uncompleted → Pending → Completed**. Evidence is optional for both: submit without a file, or attach a PDF, PNG or JPEG up to 10 MB. Supplied files are still validated and shared with reviewers. Submitting never increases progress: an explicitly listed admin must approve it. Returning a submission requires feedback and restores Uncompleted. Required skills retain direct completion. Course cards show **Request completion**, meeting cards show **Log attendance**, and required skill cards show **Complete**. These actions are independent of event settings. Closed actions stay visible with an explanation; pending and approved cards show withdrawal/undo controls where supported.
 
 To approve attendance, open **Meetings → Review attendance** on the meeting card, select the attendee if several are pending, then choose **Approve completion**. The Attendance approvals queue above the cards provides the same review flow. Admins can also open **Completion logs → Pending review** and review an individual record there. This includes the admin's own attendance. Meetings, Learning and Completion logs display pending-review counts for admins; their event Pending review filter covers all members awaiting approval. Historical attempts and withdrawn submissions are excluded from review actions.
 
@@ -77,9 +81,13 @@ The styled, import-ready delivery is [`deliverables/ASAR-Team-Hub-Updated.xlsx`]
 
 Required skills initially follow each member's recorded Hard Skill, Soft Skill, and Technology entries. Admins can override these in Skills using the project catalogue. `SkillRequirements` rows use the member's ID and exact Category/Skill, with `Required` set to `TRUE` or `FALSE`; an optional target rating is shown on the skill card. Requirement changes preserve recorded ratings and past completions. Members can use **Update result** or **Reset skill** on their own skill cards without opening event settings. Updates append an assessment attempt; reset clears completion and excludes that event's assessment from the current matrix while preserving original Team ratings and history. Re-completing records a fresh result. Viewing another member never exposes controls to log on their behalf.
 
-Admins can drag tasks between Kanban columns or use the status selector. Members retain their own completion controls. Task movement saves the shared status through the same authenticated server checks.
+Admins can drag tasks between Kanban columns or use the status selector. Both actions save the shared status through authenticated server checks and update progress for all assignees.
 
 Meeting `Date` is the scheduled date. `Logging Enabled` must be `TRUE` for attendance logging; admins can open or close it in the meeting editor. A scheduled date alone does not close logging. An explicit `Due to Date` remains the completion deadline. Upcoming meetings have a separate section and a highlighted date card. Exams have been removed from the app, progress, and exports; the original workbook data remains preserved.
+
+Meeting URLs have a direct **Join meeting** hyperlink, and the attendance switch stays in admin settings. Task assignees and admins can use **Add evidence link** on a task card for completion or issue evidence, with an optional note. Authors can remove their own links and admins can remove any; removal preserves history. The app-managed `Task.Evidence Links` column stores the metadata without adding another sheet. These actions never change task status.
+
+Activity opens from cached data and refreshes in the background. It shows 40 entries at a time with Show more, searches cached text, and filters by member or by submissions, reviews, task evidence, management changes and errors. Expand View details for account, action, event and request IDs. Error auditing records the authenticated actor and a short error, excluding uploads and full payloads.
 
 `python sync_local_db.py --upgrade-schema` adds missing columns/sheets and stable IDs, preserving an initial `ASAR-Team-Hub.before-schema.xlsx` backup. The already-run `--provisional-distribution` option is a one-time initializer for the distribution above; do not rerun it after making your own distribution changes.
 
@@ -91,7 +99,7 @@ The Skills page has no standalone assessment section or creation control; admins
 
 ## Edit and verify
 
-Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/cv.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, CV layouts, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
+Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/cv.js`, `web/sync.js`, `web/telegram.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, CV layouts, notification formatter, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
 
 ```powershell
 python tools/build_dashboard.py
@@ -106,7 +114,7 @@ Browser checks use installed Chrome (override with `PLAYWRIGHT_CHANNEL`), start 
 
 Verification covers model/server transitions, evidence storage and failures, the full review/undo UI, scroll visuals and reduced motion, all eight tabs at 1440/768/390 pixels in both themes, text contrast, Word/PDF exports, source-cell preservation, lookup/schema integrity and delivery-workbook parity. Reports and artifacts are written to `test-results/`.
 
-Verified on 2026-10-18: all 35 model/server tests, 21 browser workflows and 8 data/workbook/CV audits passed. Coverage includes Admin badges alongside team roles, admin self-attendance approval from cards and Completion logs, multi-attendee review, all-member pending filters, non-admin permission controls, text-only profile lists, navigation order, required skills, task status, minimal event forms, review/undo, subteam roles, responsive themes and contrast. CV checks cover empty fields, approved-learning eligibility, complete recorded skill labels, Arabic direction, links and multi-page A4 output. Browser reports show no failures or script errors.
+Verified on 2026-10-18: all 53 model/server/background-save/Telegram tests, 24 browser workflows and 8 data/workbook/CV audits passed. Telegram coverage includes member previews, admin confirmation, exact approved message delivery, duplicate prevention, stale previews, destination changes, bot setup, token privacy, retries, ambiguous responses and Activity status/error filters. Tests use a fake Telegram API; live activation requires the owner's bot setup. Existing responsive event creation, optional course evidence, inline task links, meeting permissions, review/undo, required skills, hierarchy, contrast and professional CV checks also pass. Browser reports show no failures or script errors.
 
 ## Apps Script deployment
 
@@ -115,5 +123,7 @@ Verified on 2026-10-18: all 35 model/server tests, 21 browser workflows and 8 da
 3. Set the project's timezone to **Africa/Cairo**.
 4. Deploy a web app with **Execute as: User accessing the web app** and restrict access to signed-in Google accounts. Allow the requested Drive authorization for evidence uploads. Each user needs spreadsheet permissions for the operations they perform. The app checks the authenticated active-user email against Team and Admins on every mutation. Do not deploy anonymously or substitute a payload email for identity. [Google documents when active-user email is unavailable](https://developers.google.com/apps-script/reference/base/session).
 5. Verify a real admin and a real member account after deployment. Local tests exercise the production adapter and server contract; they do not publish or verify a hosted deployment.
+
+For an existing deployment with live sheet edits, update the script files and deploy a new version without replacing the spreadsheet. The backend adds the app-managed `Task.Evidence Links` column on its first task-link write.
 
 Writes use confirmed Apps Script RPC responses; the JSON POST endpoint applies the same authorization and validation. No opaque `no-cors` response is treated as a successful write. Apps Script writes are serialized with a script lock to prevent simultaneous completions from overwriting one another.

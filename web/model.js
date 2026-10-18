@@ -64,7 +64,7 @@ const HubModel = (() => {
   function validateUpload(upload) {
     assert(
       upload && typeof upload === "object",
-      "Upload course evidence (PDF, PNG or JPEG, up to 10 MB).",
+      "Choose a PDF, PNG or JPEG evidence file, up to 10 MB.",
     );
     const name = clean(upload.name).replace(/[\\/\x00-\x1f]/g, "_");
     const signatures = {
@@ -362,6 +362,21 @@ const HubModel = (() => {
     });
     return result;
   }
+  function taskLinks(row) {
+    try {
+      const links = JSON.parse(clean(row["Evidence Links"]) || "[]");
+      return Array.isArray(links)
+        ? links.filter(
+            (link) =>
+              link &&
+              clean(link.id) &&
+              /^https?:\/\/[^\s]+$/i.test(clean(link.url)),
+          )
+        : [];
+    } catch (_) {
+      return [];
+    }
+  }
   function makeEvent(db, type, title, eventId, row, logs, log) {
     const assigned = clean(
       type === "Task"
@@ -428,6 +443,10 @@ const HubModel = (() => {
       key,
       id: eventId,
       type,
+      links:
+        type === "Task"
+          ? taskLinks(row).filter((link) => link.active !== false)
+          : [],
       title,
       row,
       log,
@@ -907,10 +926,7 @@ const HubModel = (() => {
         score === null || (e.type === "Skill" && score >= 0 && score <= 10),
         "Skill assessment scores must be from 0 to 10.",
       );
-      const upload =
-        e.type === "Learning" || payload.upload
-          ? validateUpload(payload.upload)
-          : null;
+      const upload = payload.upload ? validateUpload(payload.upload) : null;
       assert(
         !payload.upload || REVIEW_TYPES.includes(e.type),
         "Evidence files are supported for courses and meetings.",
@@ -1024,6 +1040,81 @@ const HubModel = (() => {
       });
       syncLog(e);
       target = e.title;
+    } else if (["addTaskLink", "removeTaskLink"].includes(action)) {
+      const event = find();
+      assert(event.type === "Task", "Evidence links belong to a task.");
+      assert(
+        admin ||
+          event.eligible.some(
+            (person) => memberKey(person) === memberKey(member),
+          ),
+        "Only task assignees or admins can update task evidence.",
+      );
+      if (clean(event.row["Evidence Links"])) {
+        let valid = false;
+        try {
+          valid = Array.isArray(JSON.parse(event.row["Evidence Links"]));
+        } catch (_) {}
+        assert(
+          valid,
+          "Existing task evidence could not be read. Ask an admin to check this task.",
+        );
+      }
+      const links = taskLinks(event.row);
+      if (action === "addTaskLink") {
+        assert(!event.archived, "Restore this task before adding evidence.");
+        const url = clean(payload.url);
+        assert(
+          url.length <= 2048 && /^https?:\/\/[^\s]+$/i.test(url),
+          "Enter a valid https:// or http:// evidence link.",
+        );
+        assert(
+          ["Completion", "Issue"].includes(payload.kind),
+          "Choose completion evidence or an issue.",
+        );
+        const note = safeText(payload.note);
+        assert(note.length <= 1000, "Keep the note within 1,000 characters.");
+        const linkId = newId("task-link");
+        if (links.some((link) => link.id === linkId))
+          return { db: input, unchanged: true };
+        links.push({
+          id: linkId,
+          url,
+          kind: payload.kind,
+          note,
+          memberId: memberKey(member),
+          name: clean(member.Name),
+          timestamp: now,
+          active: true,
+        });
+        details = { link: linkId, url, kind: payload.kind };
+      } else {
+        const link = links.find((item) => item.id === payload.linkId);
+        assert(link, "This link is no longer available.");
+        assert(
+          admin || link.memberId === memberKey(member),
+          "Only the link's author or an admin can remove it.",
+        );
+        if (link.active === false) return { db: input, unchanged: true };
+        link.active = false;
+        details = { link: link.id, url: link.url, kind: link.kind };
+      }
+      const value = JSON.stringify(links);
+      assert(
+        value.length <= 40000,
+        "This task's evidence links are full. Ask an admin to review them.",
+      );
+      event.row["Evidence Links"] = value;
+      if (!db.tasks.includes(event.row)) {
+        event.row.Assignees = event.eligible
+          .map((person) => clean(person.Name))
+          .join("\n");
+        event.row.Status = status(event.row.Status);
+        db.tasks.push(event.row);
+      }
+      event.row["Event ID"] = event.id;
+      event.row["Task Title"] = event.title;
+      target = event.title;
     } else if (action === "saveEvent" || action === "saveTask") {
       const type = action === "saveTask" ? "Task" : clean(payload.type);
       assert(
@@ -1037,6 +1128,15 @@ const HubModel = (() => {
       const assigned = selectedMembers(db, payload);
       const table = TABLES[type];
       db[table] = db[table] || [];
+      // Retrying an unconfirmed creation reuses its stable ID without duplicating or overwriting it.
+      if (
+        !payload.key &&
+        clean(payload.newId) &&
+        db[table].some(
+          (row) => id(row["Event ID"]) === newId(type.toLowerCase()),
+        )
+      )
+        return { db: input, unchanged: true };
       const existing = payload.key ? find() : null;
       assert(
         !existing || !existing.requirement,
@@ -1116,6 +1216,10 @@ const HubModel = (() => {
         existing.log["Source ID"] = row["Event ID"];
       }
       target = title;
+      details = {
+        created: !existing,
+        event: type + ":" + row["Event ID"],
+      };
     } else if (action === "archiveEvent") {
       const e = find();
       assert(e.type !== "Learning", "Learning courses cannot be archived.");
@@ -1275,13 +1379,41 @@ const HubModel = (() => {
       Email: norm(member.Mail),
       Action: action,
       Target: target,
-      Details: JSON.stringify(
-        action === "completeEvent"
-          ? { event: payload.key, member: memberKey(member) }
-          : { event: payload.key || "", type: payload.type || "", ...details },
-      ),
+      Details: JSON.stringify({
+        event: payload.key || "",
+        type:
+          payload.type ||
+          (payload.key
+            ? payload.key.split(":")[0]
+            : action === "saveTask"
+              ? "Task"
+              : ""),
+        requestId: clean(payload.newId),
+        outcome: "Succeeded",
+        ...(action === "completeEvent" ? { member: memberKey(member) } : {}),
+        ...details,
+      }),
     });
     return { db, unchanged: false };
+  }
+  function failureActivity(db, email, action, payload, error, now) {
+    if (!actor(db, email)) return null;
+    const event = payload.key
+      ? events(db).find((item) => item.key === payload.key)
+      : null;
+    return {
+      Timestamp: now,
+      Email: norm(email),
+      Action: action,
+      Target: clean(event?.title || payload.title || "Request").slice(0, 240),
+      Details: JSON.stringify({
+        outcome: "Failed",
+        event: clean(payload.key),
+        type: event?.type || clean(payload.type),
+        requestId: clean(payload.newId),
+        error: clean(error.message || error).slice(0, 1000),
+      }),
+    };
   }
   return {
     TYPES,
@@ -1319,6 +1451,8 @@ const HubModel = (() => {
     ratingCategory,
     events,
     pendingReviews,
+    taskLinks,
+    failureActivity,
     eventState,
     progress,
     skillGroups,

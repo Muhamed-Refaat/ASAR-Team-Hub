@@ -36,7 +36,7 @@ def upgrade(wb):
                     existing[column] = last
     for name, columns in {
         'Team': ['Role', 'Reports To', 'Department', 'Aliases', 'Knowledge', 'Skills'],
-        'Task': ['Event ID', 'Due to Date'],
+        'Task': ['Event ID', 'Due to Date', 'Evidence Links'],
         'Meet': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Logging Enabled'],
         'Exam': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived'],
         'Learning': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived'],

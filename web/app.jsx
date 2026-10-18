@@ -48,6 +48,16 @@ const saveBlob = (blob, name) => {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 };
+const newRequestId = () =>
+  window.crypto?.randomUUID?.() ||
+  Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+const sessionStore = () => {
+  try {
+    return window.sessionStorage;
+  } catch (_) {
+    return null;
+  }
+};
 function Icon({ name, size = 18 }) {
   const ref = useRef();
   useEffect(() => {
@@ -260,9 +270,24 @@ const rpc = (name, ...args) =>
           "Open the deployed Apps Script app, or use local_test_dashboard.html for the local preview.",
         ),
       );
+    const timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            "The server has not confirmed this request. Refresh or retry the saved draft.",
+          ),
+        ),
+      90000,
+    );
     google.script.run
-      .withSuccessHandler(resolve)
-      .withFailureHandler(reject)
+      .withSuccessHandler((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .withFailureHandler((error) => {
+        clearTimeout(timer);
+        reject(error);
+      })
       [name](...args);
   });
 async function exportCV(db, member) {
@@ -285,6 +310,7 @@ function printCV(db, member) {
   popup.document.close();
 }
 function EventEditor({ event, type, db, onSave, onClose, busy, error }) {
+  const [newId] = useState(newRequestId);
   const row = event ? event.row : {};
   const [memberSearch, setMemberSearch] = useState("");
   const [draft, setDraft] = useState(() => ({
@@ -326,6 +352,7 @@ function EventEditor({ event, type, db, onSave, onClose, busy, error }) {
           onSave(type === "Task" ? "saveTask" : "saveEvent", {
             key: draft.key,
             type,
+            ...(!event ? { newId } : {}),
             ...Object.fromEntries(
               M.EVENT_FORM_FIELDS[type].map((key) => [key, draft[key]]),
             ),
@@ -341,6 +368,7 @@ function EventEditor({ event, type, db, onSave, onClose, busy, error }) {
           <label className="field full">
             Description
             <textarea
+              aria-label="Description"
               value={draft.description}
               onChange={(e) =>
                 setDraft({ ...draft, description: e.target.value })
@@ -377,19 +405,23 @@ function EventEditor({ event, type, db, onSave, onClose, busy, error }) {
               {field("link", "Meeting link or location", {
                 placeholder: "Call URL or meeting location",
               })}
-              <label className="check-label field full">
+              <label className="meeting-logging-toggle full">
                 <input
                   type="checkbox"
+                  role="switch"
+                  aria-label="Attendance logging open"
                   checked={draft.loggingEnabled}
                   onChange={(e) =>
                     setDraft({ ...draft, loggingEnabled: e.target.checked })
                   }
                 />
-                Attendance logging open
+                <span>
+                  <strong>Attendance logging open</strong>
+                  <small>
+                    Members can submit attendance for admin approval.
+                  </small>
+                </span>
               </label>
-              <p className="field full muted form-note">
-                Attendance submissions require admin approval.
-              </p>
             </>
           )}
           {type === "Learning" && (
@@ -528,6 +560,7 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
   const [upload, setUpload] = useState(null);
   const [fileError, setFileError] = useState("");
   const [reading, setReading] = useState(false);
+  const fileInput = useRef();
   const reviewed = M.REVIEW_TYPES.includes(event.type);
   return (
     <Modal
@@ -544,8 +577,7 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (reading || fileError || (event.type === "Learning" && !upload))
-            return;
+          if (reading || fileError) return;
           onSave(updatingSkill ? "updateSkillCompletion" : "completeEvent", {
             key: event.key,
             evidence,
@@ -572,12 +604,12 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
         {reviewed && (
           <label className="field evidence-upload">
             {event.type === "Learning"
-              ? "Course evidence file"
+              ? "Course evidence file (optional)"
               : "Attendance evidence file (optional)"}
             <input
               type="file"
+              ref={fileInput}
               accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-              required={event.type === "Learning"}
               disabled={busy || reading}
               onChange={async (e) => {
                 const file = e.target.files[0];
@@ -613,10 +645,24 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
             />
             <small>
               Certificate, result or screenshot · PDF, PNG or JPEG · up to 10
-              MB. Evidence is linked in the backend sheet for admin review.
+              MB. You can submit without a file.
             </small>
             {upload && (
               <span className="badge success">Ready: {upload.name}</span>
+            )}
+            {(upload || fileError) && (
+              <Button
+                type="button"
+                className="small"
+                disabled={reading || busy}
+                onClick={() => {
+                  setUpload(null);
+                  setFileError("");
+                  fileInput.current.value = "";
+                }}
+              >
+                Remove file
+              </Button>
             )}
             {IS_LOCAL && (
               <small>
@@ -662,12 +708,7 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
           <Button
             type="submit"
             className="primary"
-            disabled={
-              busy ||
-              reading ||
-              !!fileError ||
-              (event.type === "Learning" && !upload)
-            }
+            disabled={busy || reading || !!fileError}
             icon="check-circle"
           >
             {busy
@@ -835,6 +876,261 @@ function ReviewQueue({ db, type, eventId = "", onReview, busy }) {
     </section>
   );
 }
+function TaskEvidence({ event, member, admin, onSave, busy }) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const [kind, setKind] = useState("Completion");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const requestId = useRef(newRequestId());
+  const links = event.links || [];
+  const canAdd =
+    member &&
+    (admin ||
+      event.eligible.some(
+        (person) => M.memberKey(person) === M.memberKey(member),
+      )) &&
+    !event.archived;
+  const render = (link) => (
+    <li key={link.id}>
+      <a href={safeUrl(link.url)} target="_blank" rel="noopener noreferrer">
+        <Icon name="external-link" size={13} />
+        {link.note ||
+          (safeUrl(link.url) ? new URL(link.url).hostname : link.url)}
+      </a>
+      <div className="row spread">
+        <small>
+          {link.kind} · {link.name} · {dateLabel(M.dateOnly(link.timestamp))}
+        </small>
+        {member && (admin || link.memberId === M.memberKey(member)) && (
+          <Button
+            className="small icon-button ghost"
+            icon="x"
+            aria-label={`Remove evidence link ${link.url}`}
+            disabled={busy || saving}
+            onClick={async () => {
+              setSaving(true);
+              await onSave("removeTaskLink", {
+                key: event.key,
+                linkId: link.id,
+              });
+              setSaving(false);
+            }}
+          />
+        )}
+      </div>
+    </li>
+  );
+  return (
+    <section
+      className="task-evidence"
+      aria-label={`Evidence for ${event.title}`}
+    >
+      <div className="row spread">
+        <h4>Evidence & issues</h4>
+        {canAdd && !open && (
+          <Button
+            className="small"
+            icon="link"
+            disabled={busy}
+            onClick={() => setOpen(true)}
+          >
+            Add evidence link
+          </Button>
+        )}
+      </div>
+      {links.length > 0 && <ul>{links.slice(-3).reverse().map(render)}</ul>}
+      {links.length > 3 && (
+        <details>
+          <summary>View earlier links ({links.length - 3})</summary>
+          <ul>{links.slice(0, -3).reverse().map(render)}</ul>
+        </details>
+      )}
+      {open && (
+        <form
+          className="task-link-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (saving) return;
+            setSaving(true);
+            setError("");
+            if (
+              await onSave("addTaskLink", {
+                key: event.key,
+                url,
+                kind,
+                note,
+                newId: requestId.current,
+              })
+            ) {
+              setUrl("");
+              setNote("");
+              setOpen(false);
+              requestId.current = newRequestId();
+            } else
+              setError(
+                "The link could not be saved. Your fields are kept here; please try again.",
+              );
+            setSaving(false);
+          }}
+        >
+          <label className="field">
+            Evidence URL
+            <input
+              className="input"
+              type="url"
+              required
+              maxLength={2048}
+              placeholder="https://…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              disabled={saving}
+            />
+          </label>
+          <label className="field">
+            Purpose
+            <select
+              aria-label="Evidence purpose"
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+              disabled={saving}
+            >
+              <option value="Completion">Completion evidence</option>
+              <option value="Issue">Issue evidence</option>
+            </select>
+          </label>
+          <label className="field">
+            Note (optional)
+            <input
+              className="input"
+              maxLength={1000}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              disabled={saving}
+            />
+          </label>
+          {error && <p className="save-error">{error}</p>}
+          <div className="row">
+            <Button
+              type="submit"
+              className="small primary"
+              disabled={saving || busy}
+            >
+              {saving ? "Saving link…" : "Save link"}
+            </Button>
+            <Button
+              type="button"
+              className="small"
+              disabled={saving}
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    let active = true;
+    onLoad(eventKey)
+      .then((data) => {
+        if (active) setResult(data);
+      })
+      .catch((e) => {
+        if (active) setLoadError(e.message || String(e));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [eventKey]);
+  return (
+    <Modal title="Preview Telegram announcement" onClose={onClose} busy={busy}>
+      <div className="stack telegram-preview">
+        <p className="muted">
+          Nothing is posted until an admin confirms. Event saving is separate
+          from Telegram delivery.
+        </p>
+        {loading && <p role="status">Preparing your preview…</p>}
+        {(loadError || error) && (
+          <Notice kind="error">{loadError || error}</Notice>
+        )}
+        {result && (
+          <>
+            <div className="row spread">
+              <span className="badge accent">
+                <Icon name="send" size={14} />
+                {result.chatTitle}
+              </span>
+              {result.delivery && (
+                <span className="badge">{result.delivery.status}</span>
+              )}
+            </div>
+            <div className="telegram-message">
+              <pre dir="auto">{result.preview.text}</pre>
+              {safeUrl(result.preview.url) && (
+                <a
+                  className="button small"
+                  href={result.preview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Team Hub
+                  <Icon name="external-link" size={14} />
+                </a>
+              )}
+            </div>
+            {result.delivery?.status === "Unconfirmed" && (
+              <Notice kind="warning">
+                Telegram did not confirm the earlier attempt. Check the group
+                before sending again; it may already be there.
+              </Notice>
+            )}
+            {result.delivery?.error && (
+              <p className="save-error">{result.delivery.error}</p>
+            )}
+            <p className="muted">{result.reason}</p>
+            <div className="row modal-actions">
+              <Button onClick={onClose} disabled={busy}>
+                Close preview
+              </Button>
+              {result.canSend && (
+                <Button
+                  className="primary"
+                  icon="send"
+                  disabled={busy}
+                  onClick={() =>
+                    onQueue("queueTelegramNotification", {
+                      key: eventKey,
+                      receipt: result.receipt,
+                    })
+                  }
+                >
+                  {busy ? "Queueing…" : "Send to Telegram"}
+                </Button>
+              )}
+            </div>
+            {result.canSend && (
+              <small className="muted">
+                Delivery runs in the background, usually within a minute. The
+                message above is the exact text that will be sent.
+              </small>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
 function EventCard({
   event,
   member,
@@ -849,15 +1145,27 @@ function EventCard({
   requirementTarget = null,
   allowCompletion = true,
   onReview,
-  busy,
+  onTaskLink,
+  onTelegramPreview,
+  telegramStatus = "",
+  busy: pageBusy,
+  syncJob = null,
 }) {
+  const busy = pageBusy || !!syncJob;
   const state = M.eventState(event, member, today());
   const done = event.totalCompleted;
   const isDone =
-    event.type === "Task"
+    !syncJob &&
+    (event.type === "Task"
       ? M.status(event.row.Status) === "Completed"
-      : state.completed;
-  const link = safeUrl(event.row.Link || event.row.Attachments);
+      : state.completed);
+  const rawLink = M.clean(event.row.Link || event.row.Attachments);
+  const link =
+    safeUrl(rawLink) ||
+    (event.type === "Meet" &&
+    /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/|$)/i.test(rawLink)
+      ? safeUrl("https://" + rawLink)
+      : "");
   const pending =
     admin && M.REVIEW_TYPES.includes(event.type)
       ? [...event.submissions.values()].filter(
@@ -920,21 +1228,34 @@ function EventCard({
           }
         >
           {isDone && <Icon name="check" size={13} />}
-          {event.type === "Task"
-            ? M.status(event.row.Status) === "InProgress"
-              ? "In progress"
-              : M.status(event.row.Status)
-            : member
-              ? !allowCompletion
-                ? state.completed
-                  ? "Completed"
-                  : "Pending"
-                : state.label
-              : event.type}
+          {syncJob
+            ? syncJob.state === "failed"
+              ? "Save unconfirmed"
+              : syncJob.state === "queued"
+                ? "Waiting to save"
+                : "Saving…"
+            : event.type === "Task"
+              ? M.status(event.row.Status) === "InProgress"
+                ? "In progress"
+                : M.status(event.row.Status)
+              : member
+                ? !allowCompletion
+                  ? state.completed
+                    ? "Completed"
+                    : "Pending"
+                  : state.label
+                : event.type}
         </span>
         {event.archived && <span className="badge">Archived</span>}
       </div>
       <h3 dir="auto">{event.title}</h3>
+      {syncJob && (
+        <p className="muted event-sync-hint">
+          {syncJob.state === "failed"
+            ? "Your draft is kept. Retry from Event saves."
+            : "Saving in the background. You can keep working."}
+        </p>
+      )}
       {state.reviewRequired && state.eligible && (
         <ol className="completion-steps" aria-label="Completion status">
           {M.COMPLETION_STATES.map((status) => (
@@ -1030,6 +1351,33 @@ function EventCard({
           success={done === event.totalEligible}
         />
       )}
+      {event.type === "Task" && !syncJob && (
+        <TaskEvidence
+          event={event}
+          member={member}
+          admin={admin}
+          onSave={onTaskLink}
+          busy={busy}
+        />
+      )}
+      {onTelegramPreview && !syncJob && !event.archived && (
+        <div className="telegram-card-action">
+          <Button
+            className="small ghost"
+            icon="send"
+            disabled={busy}
+            onClick={() => onTelegramPreview(event.key)}
+            aria-label={`Preview Telegram for ${event.title}`}
+          >
+            Preview Telegram
+          </Button>
+          <small className="muted">
+            {telegramStatus
+              ? "Telegram: " + telegramStatus
+              : "Preview first · Admin confirms sending"}
+          </small>
+        </div>
+      )}
       <footer>
         <div className="row">
           {event.type !== "Task" &&
@@ -1088,12 +1436,18 @@ function EventCard({
             )}
           {link && (
             <a
-              className="button small"
+              className={
+                "button small" + (event.type === "Meet" ? " primary" : "")
+              }
               href={link}
               target="_blank"
               rel="noopener noreferrer"
             >
-              {event.type === "Learning" ? "Open course" : "Open link"}
+              {event.type === "Learning"
+                ? "Open course"
+                : event.type === "Meet"
+                  ? "Join meeting"
+                  : "Open link"}
               <Icon name="external-link" size={14} />
             </a>
           )}
@@ -1162,8 +1516,11 @@ function EventTab({
   onRevert,
   onReview,
   onReviewEvent,
+  onTaskLink,
+  onTelegramPreview,
   onArchive,
   onMove,
+  jobs = [],
   busy,
 }) {
   const [search, setSearch] = useState("");
@@ -1171,7 +1528,23 @@ function EventTab({
   const [view, setView] = useState("board");
   const [dragKey, setDragKey] = useState("");
   const [dropTarget, setDropTarget] = useState("");
-  const all = M.events(db).filter((e) => e.type === type);
+  const telegramCreations = useMemo(
+    () => HubTelegram.creations(db),
+    [db.activity],
+  );
+  const telegramDeliveries = useMemo(
+    () => HubTelegram.deliveries(db),
+    [db.activity],
+  );
+  const confirmed = M.events(db).filter((e) => e.type === type);
+  const drafts = jobs.filter(
+    (job) =>
+      job.type === type &&
+      job.state !== "saved" &&
+      job.event &&
+      !confirmed.some((event) => event.key === job.event.key),
+  );
+  const all = [...drafts.map((job) => job.event), ...confirmed];
   const visible = all.filter((e) => {
     const s = M.eventState(e, member, today());
     return (
@@ -1202,10 +1575,16 @@ function EventTab({
       onComplete={onComplete}
       onRevert={onRevert}
       onReview={onReviewEvent}
+      onTaskLink={onTaskLink}
+      onTelegramPreview={
+        member && telegramCreations.has(e.key) ? onTelegramPreview : undefined
+      }
+      telegramStatus={telegramDeliveries.get(e.key)?.status || ""}
       onArchive={onArchive}
       onMove={onMove}
       onDrag={setDragKey}
       busy={busy}
+      syncJob={drafts.find((job) => job.event.key === e.key)}
     />
   );
   const tracks = [
@@ -1660,7 +2039,7 @@ function Overview({ db, member, onNavigate }) {
           <p className="review-hint">
             {pending
               ? `${pending} submission${pending === 1 ? " is" : "s are"} awaiting admin review. You can withdraw or update from the event card.`
-              : "Finish a course, upload your evidence, and submit it for review. Every approved step moves you forward."}
+              : "Finish a course and submit it for review, with optional evidence. Every approved step moves you forward."}
           </p>
           <Button
             className="small"
@@ -3302,6 +3681,245 @@ function Hierarchy({
     </>
   );
 }
+function Activity({ db, member, admin, refreshing }) {
+  const [search, setSearch] = useState("");
+  const [person, setPerson] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [limit, setLimit] = useState(40);
+  const actionLabels = {
+    telegramNotification: "Telegram announcement",
+    queueTelegramNotification: "Telegram send request",
+    saveTask: "Saved task",
+    saveEvent: "Saved event",
+    moveTask: "Changed task status",
+    completeEvent: "Submitted completion",
+    updateSkillCompletion: "Updated skill result",
+    revertCompletion: "Undid or withdrew completion",
+    reviewSubmission: "Reviewed submission",
+    addTaskLink: "Added task evidence",
+    removeTaskLink: "Removed task evidence",
+    saveHierarchy: "Updated team distribution",
+    saveSkillRequirements: "Updated required skills",
+  };
+  const records = useMemo(
+    () =>
+      (db.activity || [])
+        .map((row, index) => {
+          let details = {};
+          try {
+            details = JSON.parse(row.Details || "{}");
+          } catch (_) {}
+          if (!details || typeof details !== "object" || Array.isArray(details))
+            details = {};
+          const actor = M.actor(db, row.Email);
+          const failed = ["Failed", "Unconfirmed"].includes(details?.outcome);
+          const group = failed
+            ? "errors"
+            : row.Action === "telegramNotification"
+              ? "telegram"
+              : [
+                    "completeEvent",
+                    "revertCompletion",
+                    "updateSkillCompletion",
+                    "attendEvent",
+                    "logEvent",
+                  ].includes(row.Action)
+                ? "submissions"
+                : row.Action === "reviewSubmission"
+                  ? "reviews"
+                  : ["addTaskLink", "removeTaskLink"].includes(row.Action)
+                    ? "evidence"
+                    : "management";
+          let summary = actionLabels[row.Action] || row.Action;
+          if (row.Action === "telegramNotification")
+            summary =
+              "Telegram announcement · " +
+              (details.telegram?.status || "Queued");
+          if (row.Action === "completeEvent" && details.type === "Meet")
+            summary = "Logged attendance for review";
+          if (row.Action === "completeEvent" && details.type === "Learning")
+            summary = "Submitted course completion";
+          if (row.Action === "reviewSubmission")
+            summary =
+              details.decision === "Completed"
+                ? "Approved completion"
+                : details.decision === "Uncompleted"
+                  ? "Returned submission for changes"
+                  : "Reviewed submission";
+          if (failed && row.Action !== "telegramNotification")
+            summary =
+              {
+                saveTask: "Task save failed",
+                saveEvent: "Event save failed",
+                completeEvent: "Submission failed",
+                reviewSubmission: "Review failed",
+                addTaskLink: "Evidence link save failed",
+              }[row.Action] || "Request failed";
+          return {
+            ...row,
+            details,
+            failed,
+            group,
+            summary,
+            actorName: actor?.Name || row.Email || "Unknown account",
+            id: details.requestId || `${row.Timestamp}-${index}`,
+            searchText: M.norm(
+              [
+                row.Email,
+                actor?.Name,
+                row.Action,
+                row.Target,
+                row.Details,
+              ].join(" "),
+            ),
+          };
+        })
+        .reverse(),
+    [db.activity, db.team],
+  );
+  useEffect(() => setLimit(40), [search, person, category]);
+  const filtered = records.filter(
+    (row) =>
+      (person === "all" || M.norm(row.Email) === M.norm(person)) &&
+      (category === "all" ||
+        row.group === category ||
+        (category === "telegram" && row.Action === "telegramNotification")) &&
+      row.searchText.includes(M.norm(search)),
+  );
+  return (
+    <>
+      <Heading
+        eyebrow="People & progress"
+        title="Activity history"
+        description="Follow user actions, approvals, task evidence and errors. Open details when you need to investigate."
+      >
+        {refreshing && (
+          <span className="badge accent" role="status">
+            Refreshing activity…
+          </span>
+        )}
+      </Heading>
+      <section className="panel activity-feed">
+        <div className="toolbar">
+          <input
+            className="input search"
+            aria-label="Search activity"
+            placeholder="Find a person, event or request…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <select
+            className="filter"
+            aria-label="Activity member"
+            value={person}
+            onChange={(event) => setPerson(event.target.value)}
+          >
+            <option value="all">All members</option>
+            {db.team.map((person) => (
+              <option value={person.Mail} key={M.memberKey(person)}>
+                {person.Name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="filter"
+            aria-label="Activity category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          >
+            <option value="all">All activity</option>
+            <option value="submissions">User submissions</option>
+            <option value="reviews">Reviews & approvals</option>
+            <option value="evidence">Task evidence & issues</option>
+            <option value="management">Event & team changes</option>
+            <option value="telegram">Telegram announcements</option>
+            <option value="errors">Errors</option>
+          </select>
+        </div>
+        <p className="muted activity-count">
+          Showing {Math.min(limit, filtered.length)} of {filtered.length}{" "}
+          activities
+        </p>
+        <div className="activity-list" aria-label="Activity entries">
+          {filtered.slice(0, limit).map((row, index) => (
+            <article
+              className={
+                "activity-entry " + (row.failed ? "activity-failed" : "")
+              }
+              key={row.id + "-" + index}
+            >
+              <div className="avatar">{initials(row.actorName)}</div>
+              <div className="grow">
+                <div className="row spread">
+                  <strong dir="auto">{row.actorName}</strong>
+                  <time dateTime={row.Timestamp}>
+                    {M.clean(row.Timestamp).replace("T", " ").slice(0, 19)}
+                  </time>
+                </div>
+                <p>
+                  {row.summary}{" "}
+                  <span
+                    className={"badge " + (row.failed ? "warning" : "success")}
+                  >
+                    {row.failed ? "Failed" : "Recorded"}
+                  </span>
+                </p>
+                <p className="activity-target" dir="auto">
+                  {row.Target}
+                </p>
+                {row.details?.previousStatus && (
+                  <small>
+                    {row.details.previousStatus} → {row.details.status}
+                  </small>
+                )}
+                {row.failed && (
+                  <p className="save-error" dir="auto">
+                    {row.details.error || row.details.telegram?.error}
+                  </p>
+                )}
+                <details className="activity-debug">
+                  <summary>View details</summary>
+                  <dl>
+                    <dt>Account</dt>
+                    <dd>{row.Email}</dd>
+                    <dt>Action</dt>
+                    <dd>{row.Action}</dd>
+                    {row.details?.event && (
+                      <>
+                        <dt>Event</dt>
+                        <dd>{row.details.event}</dd>
+                      </>
+                    )}
+                    {row.details?.requestId && (
+                      <>
+                        <dt>Request</dt>
+                        <dd>{row.details.requestId}</dd>
+                      </>
+                    )}
+                  </dl>
+                  <pre>{row.Details}</pre>
+                </details>
+              </div>
+            </article>
+          ))}
+        </div>
+        {!filtered.length && (
+          <Empty title="No matching activity">
+            Try another member or category.
+          </Empty>
+        )}
+        {filtered.length > limit && (
+          <Button
+            className="small"
+            onClick={() => setLimit((value) => value + 40)}
+          >
+            Show more activity
+          </Button>
+        )}
+      </section>
+    </>
+  );
+}
 function History({ kind, db, member, admin, onReview, busy }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -3523,10 +4141,108 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+function EventSaves({
+  jobs,
+  onRetry,
+  onDismiss,
+  onNavigate,
+  onTelegramPreview,
+}) {
+  if (!jobs.length) return null;
+  const pending = jobs.filter((job) =>
+    ["queued", "saving"].includes(job.state),
+  ).length;
+  const failed = jobs.filter((job) => job.state === "failed").length;
+  return (
+    <section className="panel event-saves" aria-label="Event saves">
+      <div className="row spread">
+        <h2>Event saves</h2>
+        <span role="status">
+          {pending
+            ? `${pending} saving in the background`
+            : failed
+              ? `${failed} need attention`
+              : "All events saved"}
+        </span>
+      </div>
+      <div className="event-save-list">
+        {jobs.map((job) => (
+          <div className="event-save-item" key={job.id}>
+            <div className="grow">
+              <strong dir="auto">{job.payload.title}</strong>
+              <span
+                className={
+                  "badge " +
+                  (job.state === "saved"
+                    ? "success"
+                    : job.state === "failed"
+                      ? "warning"
+                      : "accent")
+                }
+              >
+                {job.state === "saved"
+                  ? "Saved"
+                  : job.state === "failed"
+                    ? "Save unconfirmed"
+                    : job.state === "queued"
+                      ? "Waiting to save"
+                      : "Saving…"}
+              </span>
+              {job.error && (
+                <p className="save-error" dir="auto">
+                  {job.error}
+                </p>
+              )}
+            </div>
+            <div className="row">
+              {job.state === "saved" && onTelegramPreview && (
+                <Button
+                  className="small"
+                  icon="send"
+                  onClick={() =>
+                    onTelegramPreview(
+                      job.event?.key ||
+                        `${job.type}:${job.type.toLowerCase()}-${job.payload.newId}`,
+                    )
+                  }
+                >
+                  Preview Telegram
+                </Button>
+              )}
+              {job.state === "failed" && (
+                <Button
+                  className="small primary"
+                  onClick={() => onRetry(job.id)}
+                >
+                  Retry save
+                </Button>
+              )}
+              <Button className="small" onClick={() => onNavigate(job.type)}>
+                View
+              </Button>
+              {["saved", "failed"].includes(job.state) && (
+                <Button
+                  className="small icon-button"
+                  icon="x"
+                  aria-label={`Dismiss save notice for ${job.payload.title}`}
+                  onClick={() => onDismiss(job.id)}
+                />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 function App() {
   const [db, setDb] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const dbRef = useRef(null);
+  const syncRef = useRef(null);
   const [tab, setTab] = useState("overview");
   const [modal, setModal] = useState(null);
   const [profileId, setProfileId] = useState("");
@@ -3540,19 +4256,40 @@ function App() {
     setToast(message);
     toastTimer.current = setTimeout(() => setToast(""), 5000);
   };
+  if (!syncRef.current)
+    syncRef.current = HubSync.create({
+      model: M,
+      getData: () => dbRef.current,
+      send: (action, payload) =>
+        IS_LOCAL
+          ? LocalHub.command(action, payload)
+          : rpc("executeHubCommand", action, payload),
+      onData: (data) => {
+        dbRef.current = data;
+        setDb(data);
+      },
+      onChange: setJobs,
+      onNotice: notify,
+      storage: sessionStore(),
+      makeId: newRequestId,
+    });
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("azar_theme", theme);
   }, [theme]);
   const load = async (reset = false) => {
-    setBusy(true);
+    setLoading(true);
     setError("");
     try {
-      setDb(IS_LOCAL ? await LocalHub.load(reset) : await rpc("getTeamData"));
+      await syncRef.current.run(async () => {
+        syncRef.current.accept(
+          IS_LOCAL ? await LocalHub.load(reset) : await rpc("getTeamData"),
+        );
+      });
     } catch (e) {
       setError(e.message || String(e));
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   };
   useEffect(() => {
@@ -3564,20 +4301,43 @@ function App() {
     setTab(id);
     setError("");
     window.scrollTo({ top: 0, behavior: "instant" });
+    if (id === "activity" && !loading) load(false);
   };
   const command = async (action, payload) => {
-    setBusy(true);
+    if (["saveEvent", "saveTask"].includes(action) && !payload.key) {
+      try {
+        syncRef.current.enqueue(action, payload);
+        setModal(null);
+        setError("");
+        notify("Saving in the background. You can keep working.");
+        return true;
+      } catch (error) {
+        setError(error.message || String(error));
+        return false;
+      }
+    }
+    const inline = ["addTaskLink", "removeTaskLink"].includes(action);
+    if (!inline) setBusy(true);
     setError("");
     try {
-      const result = IS_LOCAL
-        ? await LocalHub.command(action, payload)
-        : await rpc("executeHubCommand", action, payload);
-      if (!result.success) throw new Error(result.error || "Update failed.");
-      setDb(result.data);
-      setModal(null);
+      const email = dbRef.current.activeUserSession?.email;
+      const result = await syncRef.current.run(async () => {
+        if (email !== dbRef.current.activeUserSession?.email)
+          throw new Error("Your account changed. Please try again.");
+        const response = IS_LOCAL
+          ? await LocalHub.command(action, payload)
+          : await rpc("executeHubCommand", action, payload);
+        if (!response.success)
+          throw new Error(response.error || "Update failed.");
+        syncRef.current.accept(response.data);
+        return response;
+      });
+      if (!inline) setModal(null);
       notify(
         result.unchanged
-          ? "Your completion or submission is already recorded."
+          ? inline
+            ? "This evidence link update is already saved."
+            : "Your completion or submission is already recorded."
           : action === "completeEvent"
             ? M.REVIEW_TYPES.some((type) => payload.key.startsWith(type + ":"))
               ? "Submitted for admin review. Status: Pending."
@@ -3588,14 +4348,21 @@ function App() {
                 ? payload.decision === "Completed"
                   ? "Approved. Member progress is updated."
                   : "Returned to the member with your feedback."
-                : "Changes saved.",
+                : action === "addTaskLink"
+                  ? "Evidence link added."
+                  : action === "removeTaskLink"
+                    ? "Evidence link removed."
+                    : action === "queueTelegramNotification"
+                      ? "Announcement queued for Telegram. Delivery runs in the background."
+                      : "Changes saved.",
       );
       return true;
     } catch (e) {
-      setError(e.message || String(e));
+      if (inline) notify(e.message || String(e));
+      else setError(e.message || String(e));
       return false;
     } finally {
-      setBusy(false);
+      if (!inline) setBusy(false);
     }
   };
   const doExport = async (m) => {
@@ -3626,6 +4393,12 @@ function App() {
     );
   const member = M.actor(db, db.activeUserSession?.email);
   const admin = M.isAdmin(db, member);
+  const myJobs = jobs.filter(
+    (job) => job.owner === M.norm(db.activeUserSession?.email),
+  );
+  const pendingSaves = myJobs.some((job) =>
+    ["queued", "saving"].includes(job.state),
+  );
   const pendingReviews = admin ? M.pendingReviews(db) : [];
   const review = (submission) => {
     setError("");
@@ -3657,6 +4430,24 @@ function App() {
     setError("");
     setModal({ kind: "edit", type });
   };
+  const openTelegram = (key) => {
+    setError("");
+    setModal({ kind: "telegram", key });
+  };
+  const loadTelegram = (key) =>
+    syncRef.current.run(async () =>
+      IS_LOCAL
+        ? {
+            preview: HubTelegram.preview(M, dbRef.current, key, ""),
+            receipt: "",
+            canSend: false,
+            delivery: null,
+            chatTitle: "Team Telegram group",
+            reason:
+              "Local preview only. Connect the bot in Apps Script and use the deployed hub to send announcements.",
+          }
+        : rpc("getTelegramPreview", key),
+    );
   const complete = (e) => {
     setError("");
     setModal({ kind: "complete", event: e });
@@ -3684,8 +4475,9 @@ function App() {
             <select
               aria-label="Local preview account"
               value={db.activeUserSession.email}
+              disabled={pendingSaves || busy || loading}
               onChange={(e) => {
-                setDb(LocalHub.select(e.target.value));
+                syncRef.current.accept(LocalHub.select(e.target.value));
                 setModal(null);
                 setError("");
               }}
@@ -3722,7 +4514,7 @@ function App() {
             <Button
               icon="refresh-cw"
               onClick={() => load(false)}
-              disabled={busy}
+              disabled={busy || loading}
               title="Refresh sheet data"
             >
               <span className="button-label">Refresh</span>
@@ -3779,6 +4571,13 @@ function App() {
         </nav>
       </header>
       <main className="main" id="main">
+        <EventSaves
+          jobs={myJobs}
+          onRetry={(id) => syncRef.current.retry(id)}
+          onDismiss={(id) => syncRef.current.dismiss(id)}
+          onNavigate={navigate}
+          onTelegramPreview={openTelegram}
+        />
         <div
           className="stack"
           style={{ marginBottom: !member || error ? 20 : 0 }}
@@ -3813,10 +4612,13 @@ function App() {
             }
             onReview={review}
             onReviewEvent={reviewEvent}
+            onTaskLink={command}
+            onTelegramPreview={openTelegram}
             onArchive={(e) =>
               command("archiveEvent", { key: e.key, archived: !e.archived })
             }
             onMove={(key, status) => command("moveTask", { key, status })}
+            jobs={myJobs}
             busy={busy}
           />
         )}
@@ -3865,7 +4667,7 @@ function App() {
             }}
           />
         )}
-        {["logs", "activity"].includes(tab) && (
+        {tab === "logs" && (
           <History
             key={tab}
             kind={tab}
@@ -3874,6 +4676,14 @@ function App() {
             admin={admin}
             onReview={review}
             busy={busy}
+          />
+        )}
+        {tab === "activity" && (
+          <Activity
+            db={db}
+            member={member}
+            admin={admin}
+            refreshing={loading}
           />
         )}
         {unmatched.length > 0 && ["logs", "intelligence"].includes(tab) && (
@@ -3912,7 +4722,7 @@ function App() {
               <Button
                 className="small"
                 onClick={() => load(true)}
-                disabled={busy}
+                disabled={busy || pendingSaves || loading}
               >
                 Reload CSVs
               </Button>
@@ -3940,6 +4750,20 @@ function App() {
           </details>
         )}
       </footer>
+      {modal?.kind === "telegram" && member && (
+        <TelegramPreview
+          key={modal.key}
+          eventKey={modal.key}
+          onLoad={loadTelegram}
+          onQueue={command}
+          onClose={() => {
+            setModal(null);
+            setError("");
+          }}
+          busy={busy}
+          error={error}
+        />
+      )}
       {modal?.kind === "edit" && (
         <EventEditor
           event={modal.event}

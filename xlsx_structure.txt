@@ -7,7 +7,7 @@ Sheet 'SKILLs': ['Hard  Technical SKILLS', 'Soft skills', 'Technologies and Tool
 Sheet 'Learning': ['Topic name', 'Track ID', 'Track Name', 'Obligability', 'Skill', 'Platform', 'Link', 'Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived']
 Sheet 'Meet': ['Meeting title', 'Meeting Type', 'Date', 'Description', 'Attachments', 'Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Logging Enabled']
 Sheet 'Exam': ['Exam name', 'Date', 'Category ', '# Attendee', 'Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived']
-Sheet 'Task': ['Task Title', 'Task description', 'Break down (DOD)', 'Assignees', 'Status', 'Score', 'Feedback', 'ETA', 'ATA', 'Scale', 'Archived', 'Event ID', 'Due to Date']
+Sheet 'Task': ['Task Title', 'Task description', 'Break down (DOD)', 'Assignees', 'Status', 'Score', 'Feedback', 'ETA', 'ATA', 'Scale', 'Archived', 'Event ID', 'Due to Date', 'Evidence Links']
 Sheet 'Log': ['Event Type', 'Event ID', 'Event Name', 'Invited/Assigned', 'Attendees/Completed', 'Due to Date', 'Source ID', 'Archived']
 Sheet 'Admins': ['Email', 'Name', 'Enabled']
 Sheet 'SkillEvents': ['Event Name', 'Target Skill', 'Description', 'Date', 'Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Skill Category']

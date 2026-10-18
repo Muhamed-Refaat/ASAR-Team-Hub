@@ -92,13 +92,21 @@ const LocalHub = (() => {
         .map((p) => [p.type, p.value]),
     );
     const timestamp = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${parts.timeZoneName.replace("GMT", "") || "Z"}`;
-    const result = HubModel.transition(
-      db,
-      selected,
-      action,
-      payload,
-      timestamp,
-    );
+    let result;
+    try {
+      result = HubModel.transition(db, selected, action, payload, timestamp);
+    } catch (error) {
+      const row = HubModel.failureActivity(
+        db,
+        selected,
+        action,
+        payload,
+        error,
+        timestamp,
+      );
+      if (row) db.activity.push(row);
+      throw error;
+    }
     if (!result.unchanged && action === "completeEvent" && payload.upload) {
       const row = result.db.completions[result.db.completions.length - 1];
       const bytes = Uint8Array.from(atob(payload.upload.base64), (c) =>

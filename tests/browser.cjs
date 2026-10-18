@@ -5,6 +5,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { fileURLToPath, pathToFileURL } = require("node:url");
+const { environment: backendEnvironment } = require("./backend-fixture.cjs");
 const root = path.resolve(__dirname, "..");
 const out = path.join(root, "test-results");
 fs.mkdirSync(out, { recursive: true });
@@ -758,7 +759,7 @@ function contrastAudit() {
     },
   );
   await check(
-    "completion records appear in Completion logs and stay out of Activity",
+    "completion records stay in Completion logs and user actions appear in Activity",
     async () => {
       await nav(page, "Completion logs");
       assert.ok(
@@ -767,6 +768,8 @@ function contrastAudit() {
         ),
       );
       await nav(page, "Activity");
+      await page.getByLabel("Activity category").selectOption("submissions");
+      assert.ok((await page.locator(".activity-entry").count()) > 0);
       assert.equal(
         await page
           .getByRole("cell", { name: "completeEvent", exact: true })
@@ -1402,7 +1405,7 @@ function contrastAudit() {
               .getByRole("dialog")
               .getByRole("button", { name: "Submit for review", exact: true })
               .isDisabled(),
-            true,
+            false,
           );
           await page
             .getByRole("dialog")
@@ -1570,10 +1573,14 @@ function contrastAudit() {
       );
       await nav(page, "Activity");
       assert.ok(
-        (await page.getByRole("main").innerText()).includes("revertCompletion"),
+        (await page.getByRole("main").innerText()).includes(
+          "Undid or withdrew completion",
+        ),
       );
       assert.ok(
-        (await page.getByRole("main").innerText()).includes("reviewSubmission"),
+        (await page.getByRole("main").innerText()).includes(
+          "Approved completion",
+        ),
       );
     },
   );
@@ -1873,6 +1880,696 @@ function contrastAudit() {
     },
   );
   await check(
+    "async event creation stays responsive through slow replies, failures, retries and reload",
+    async () => {
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      try {
+        const initial = await page.evaluate(() => LocalHub.load());
+        initial.activeUserSession = { email: initial.team[0].Mail };
+        await ui.addInitScript((initial) => {
+          window.remoteData = JSON.parse(
+            sessionStorage.getItem("test_remote_data") ||
+              JSON.stringify(initial),
+          );
+          window.pendingWrites = [];
+          window.releaseWrite = (mode = "success") => {
+            const request = window.pendingWrites.shift();
+            if (!request) throw new Error("No pending request");
+            if (mode === "fail") {
+              const error = new Error("Test server temporarily unavailable");
+              window.remoteData.activity.push(
+                HubModel.failureActivity(
+                  window.remoteData,
+                  window.remoteData.activeUserSession.email,
+                  request.action,
+                  request.payload,
+                  error,
+                  new Date().toISOString(),
+                ),
+              );
+              sessionStorage.setItem(
+                "test_remote_data",
+                JSON.stringify(window.remoteData),
+              );
+              request.failure(error);
+              return;
+            }
+            const result = HubModel.transition(
+              window.remoteData,
+              window.remoteData.activeUserSession.email,
+              request.action,
+              request.payload,
+              new Date().toISOString(),
+            );
+            window.remoteData = result.db;
+            sessionStorage.setItem(
+              "test_remote_data",
+              JSON.stringify(window.remoteData),
+            );
+            if (mode === "lost")
+              request.failure(new Error("Test connection lost after saving"));
+            else
+              request.success({
+                success: true,
+                data: JSON.parse(JSON.stringify(window.remoteData)),
+                unchanged: result.unchanged,
+              });
+          };
+          window.google = { script: {} };
+          Object.defineProperty(window.google.script, "run", {
+            get: () => ({
+              withSuccessHandler(callback) {
+                this.success = callback;
+                return this;
+              },
+              withFailureHandler(callback) {
+                this.failure = callback;
+                return this;
+              },
+              getTeamData() {
+                this.success(JSON.parse(JSON.stringify(window.remoteData)));
+              },
+              executeHubCommand(action, payload) {
+                window.pendingWrites.push({
+                  action,
+                  payload,
+                  success: this.success,
+                  failure: this.failure,
+                });
+              },
+            }),
+          });
+        }, initial);
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        const openCreate = async (type, title) => {
+          await nav(
+            ui,
+            { Task: "Tasks", Meet: "Meetings", Learning: "Learning" }[type],
+          );
+          await ui
+            .getByRole("button", {
+              name:
+                "Create " + (type === "Meet" ? "meeting" : type.toLowerCase()),
+              exact: true,
+            })
+            .click();
+          const dialog = ui.getByRole("dialog");
+          await dialog.getByLabel("Title", { exact: true }).fill(title);
+          if (type === "Meet")
+            await dialog
+              .getByLabel("Meeting date", { exact: true })
+              .fill("2099-01-01");
+          return dialog;
+        };
+        const submit = async (dialog, type) => {
+          await dialog
+            .getByRole("button", {
+              name: type === "Task" ? "Save task" : "Save event",
+              exact: true,
+            })
+            .click();
+          await dialog.waitFor({ state: "hidden", timeout: 1500 });
+        };
+        let dialog = await openCreate("Task", "Async task A");
+        const beforeCount = await ui.locator(".page-footer").innerText();
+        await submit(dialog, "Task");
+        await ui.waitForFunction(() => window.pendingWrites.length === 1);
+        assert.equal(await ui.locator(".page-footer").innerText(), beforeCount);
+        assert.equal(
+          await ui
+            .getByRole("button", { name: "Create task", exact: true })
+            .isEnabled(),
+          true,
+        );
+        dialog = await openCreate("Task", "Async task B");
+        await dialog
+          .getByLabel("Description", { exact: true })
+          .fill("Keep this new draft open");
+        await ui.evaluate(() => releaseWrite());
+        await ui.waitForFunction(() =>
+          remoteData.tasks.some((row) => row["Task Title"] === "Async task A"),
+        );
+        assert.equal(
+          await dialog.getByLabel("Title", { exact: true }).inputValue(),
+          "Async task B",
+        );
+        assert.equal(
+          await dialog.getByLabel("Description", { exact: true }).inputValue(),
+          "Keep this new draft open",
+        );
+        await submit(dialog, "Task");
+        await ui.waitForFunction(() => pendingWrites.length === 1);
+        await submit(await openCreate("Meet", "Async meeting C"), "Meet");
+        await ui.getByRole("button", { name: "Refresh", exact: true }).click();
+        await submit(
+          await openCreate("Learning", "Async course D"),
+          "Learning",
+        );
+        assert.equal(await ui.evaluate(() => pendingWrites.length), 1);
+        await ui.evaluate(() => releaseWrite());
+        await ui.waitForFunction(
+          () => pendingWrites[0]?.payload.title === "Async meeting C",
+        );
+        await ui.evaluate(() => releaseWrite());
+        await ui.waitForFunction(
+          () => pendingWrites[0]?.payload.title === "Async course D",
+        );
+        const stableId = await ui.evaluate(
+          () => pendingWrites[0].payload.newId,
+        );
+        await ui.evaluate(() => releaseWrite("fail"));
+        const courseNotice = ui
+          .getByRole("region", { name: "Event saves", exact: true })
+          .locator(".event-save-item")
+          .filter({ hasText: "Async course D" });
+        await courseNotice
+          .getByRole("button", { name: "Retry save", exact: true })
+          .waitFor();
+        await nav(ui, "Activity");
+        await ui.getByLabel("Activity category").selectOption("errors");
+        await ui
+          .getByLabel("Activity entries")
+          .getByText("Test server temporarily unavailable", { exact: true })
+          .waitFor();
+        await courseNotice
+          .getByRole("button", { name: "Retry save", exact: true })
+          .click();
+        await ui.waitForFunction(() => pendingWrites.length === 1);
+        assert.equal(
+          await ui.evaluate(() => pendingWrites[0].payload.newId),
+          stableId,
+        );
+        await ui.evaluate(() => releaseWrite("lost"));
+        await courseNotice
+          .getByRole("button", { name: "Retry save", exact: true })
+          .waitFor();
+        await courseNotice
+          .getByRole("button", { name: "Retry save", exact: true })
+          .click();
+        await ui.waitForFunction(() => pendingWrites.length === 1);
+        await ui.evaluate(() => releaseWrite());
+        await ui.waitForFunction(() => pendingWrites.length === 0);
+        assert.equal(
+          await ui.evaluate(
+            () =>
+              remoteData.learning.filter(
+                (row) => row["Topic name"] === "Async course D",
+              ).length,
+          ),
+          1,
+        );
+        await submit(await openCreate("Task", "Restored async draft"), "Task");
+        await ui.waitForFunction(() => pendingWrites.length === 1);
+        await ui.reload();
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        const restored = ui
+          .getByRole("region", { name: "Event saves", exact: true })
+          .locator(".event-save-item")
+          .filter({ hasText: "Restored async draft" });
+        await restored
+          .getByRole("button", { name: "Retry save", exact: true })
+          .waitFor();
+        assert.equal(await ui.evaluate(() => pendingWrites.length), 0);
+        await restored
+          .getByRole("button", { name: "Retry save", exact: true })
+          .click();
+        await ui.waitForFunction(() => pendingWrites.length === 1);
+        await nav(ui, "Tasks");
+        await ui.screenshot({
+          path: path.join(out, "async-event-saving.png"),
+          fullPage: true,
+        });
+        await ui.evaluate(() => releaseWrite());
+        await ui.waitForFunction(() => pendingWrites.length === 0);
+        assert.equal(
+          await ui.evaluate(
+            () =>
+              remoteData.tasks.filter(
+                (row) => row["Task Title"] === "Restored async draft",
+              ).length,
+          ),
+          1,
+        );
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "task evidence is inline, course files are optional, and members join meetings without editing settings",
+    async () => {
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      try {
+        await ui.goto(url + "/local_test_dashboard.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        const db = await ui.evaluate(() => LocalHub.load());
+        await nav(ui, "Tasks");
+        await ui
+          .getByRole("button", { name: "Create task", exact: true })
+          .click();
+        let dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Title", { exact: true })
+          .fill("Inline task proof");
+        await dialog
+          .getByRole("button", { name: "Clear", exact: true })
+          .click();
+        for (const index of [0, 1])
+          await dialog
+            .getByRole("checkbox", { name: db.team[index].Name, exact: true })
+            .check();
+        await dialog
+          .getByRole("button", { name: "Save task", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden" });
+        await ui
+          .getByLabel("Local preview account")
+          .selectOption(db.team[1].Mail);
+        const task = ui.locator("article.event-card").filter({
+          has: ui.getByRole("heading", {
+            name: "Inline task proof",
+            exact: true,
+          }),
+        });
+        await task
+          .getByRole("button", { name: "Add evidence link", exact: true })
+          .click();
+        await task
+          .getByLabel("Evidence URL", { exact: true })
+          .fill("https://example.com/task-issue");
+        await task
+          .getByLabel("Evidence purpose", { exact: true })
+          .selectOption("Issue");
+        await task
+          .getByLabel("Note (optional)", { exact: true })
+          .fill("Intermittent sensor issue");
+        await task
+          .getByRole("button", { name: "Save link", exact: true })
+          .click();
+        await task
+          .getByRole("link", { name: "Intermittent sensor issue", exact: true })
+          .waitFor();
+        assert.equal(await ui.getByRole("dialog").count(), 0);
+        assert.equal(
+          await task.getByRole("button", { name: /^Edit / }).count(),
+          0,
+        );
+        await ui.setViewportSize({ width: 390, height: 844 });
+        await layout(ui);
+        assert.deepEqual(await ui.evaluate(contrastAudit), []);
+        await task.screenshot({
+          path: path.join(out, "task-inline-evidence-mobile.png"),
+        });
+        await ui.setViewportSize({ width: 1440, height: 1000 });
+        const after = await ui.evaluate(() => LocalHub.load());
+        assert.equal(
+          after.tasks.find((row) => row["Task Title"] === "Inline task proof")
+            .Status,
+          "Pending",
+        );
+        await ui
+          .getByLabel("Local preview account")
+          .selectOption(db.team[2].Mail);
+        assert.equal(
+          await task
+            .getByRole("button", { name: "Add evidence link", exact: true })
+            .count(),
+          0,
+        );
+        await ui
+          .getByLabel("Local preview account")
+          .selectOption(db.team[0].Mail);
+        await nav(ui, "Meetings");
+        await ui
+          .getByRole("button", { name: "Create meeting", exact: true })
+          .click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Title", { exact: true })
+          .fill("Joinable online meeting");
+        await dialog
+          .getByLabel("Meeting date", { exact: true })
+          .fill("2099-01-01");
+        await dialog
+          .getByLabel("Meeting link or location", { exact: true })
+          .fill("https://meet.google.com/abc-defg-hij");
+        const toggle = dialog.getByRole("switch", {
+          name: "Attendance logging open",
+          exact: true,
+        });
+        await toggle.check();
+        const box = await toggle.boundingBox();
+        assert.ok(box.width >= 40 && box.height >= 24);
+        await ui.screenshot({
+          path: path.join(out, "meeting-logging-switch.png"),
+        });
+        await dialog
+          .getByRole("button", { name: "Save event", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden" });
+        await ui
+          .getByLabel("Local preview account")
+          .selectOption(db.team[1].Mail);
+        const meet = ui.locator("article.event-card").filter({
+          has: ui.getByRole("heading", {
+            name: "Joinable online meeting",
+            exact: true,
+          }),
+        });
+        assert.equal(
+          await meet
+            .getByRole("link", { name: "Join meeting", exact: true })
+            .getAttribute("href"),
+          "https://meet.google.com/abc-defg-hij",
+        );
+        assert.equal(
+          await meet.getByRole("button", { name: /^Edit / }).count(),
+          0,
+        );
+        const denied = await ui.evaluate(async () => {
+          const data = await LocalHub.load();
+          const meeting = HubModel.events(data).find(
+            (event) => event.title === "Joinable online meeting",
+          );
+          try {
+            await LocalHub.command("saveEvent", {
+              key: meeting.key,
+              type: "Meet",
+              title: meeting.title,
+              date: "2099-01-01",
+              members: data.team.map(HubModel.memberKey),
+              loggingEnabled: false,
+            });
+            return "allowed";
+          } catch (error) {
+            return error.message;
+          }
+        });
+        assert.ok(denied.includes("Admins sheet"));
+        await meet
+          .getByRole("button", { name: "Log attendance", exact: true })
+          .click();
+        await submitReview(ui, "Meet");
+        await ui
+          .getByLabel("Local preview account")
+          .selectOption(db.team[0].Mail);
+        await nav(ui, "Learning");
+        await ui
+          .getByRole("button", { name: "Create learning", exact: true })
+          .click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Title", { exact: true })
+          .fill("Course without evidence file");
+        await dialog
+          .getByRole("button", { name: "Save event", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden" });
+        const course = ui.locator("article.event-card").filter({
+          has: ui.getByRole("heading", {
+            name: "Course without evidence file",
+            exact: true,
+          }),
+        });
+        await course
+          .getByRole("button", { name: "Request completion", exact: true })
+          .click();
+        dialog = ui.getByRole("dialog");
+        assert.equal(
+          await dialog.locator('input[type="file"]').getAttribute("required"),
+          null,
+        );
+        await dialog
+          .getByRole("button", { name: "Submit for review", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden" });
+        await course
+          .getByRole("button", {
+            name: "Review completions for Course without evidence file",
+            exact: true,
+          })
+          .click();
+        await ui
+          .getByRole("dialog")
+          .getByRole("button", { name: "Approve completion", exact: true })
+          .click();
+        await ui.getByRole("dialog").waitFor({ state: "hidden" });
+        await course.getByText("Completed by you", { exact: true }).waitFor();
+        const record = await ui.evaluate(() =>
+          LocalHub.load().then((data) => data.completions.at(-1)),
+        );
+        assert.equal(record["Evidence Filename"], "");
+        await nav(ui, "Activity");
+        await ui.getByLabel("Activity category").selectOption("evidence");
+        await ui.getByText("Added task evidence", { exact: false }).waitFor();
+        await ui.screenshot({
+          path: path.join(out, "activity-task-evidence.png"),
+          fullPage: true,
+        });
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "Telegram previews require explicit admin confirmation and deliver the exact approved message in the background",
+    async () => {
+      const e = backendEnvironment();
+      const privateToken = "123456:" + "private_browser_test_token".repeat(2);
+      e.scriptProperties.set("TELEGRAM_BOT_TOKEN", privateToken);
+      e.scriptProperties.set("TELEGRAM_CHAT_ID", "-4488318175");
+      e.context.setupTelegramNotifications();
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      const externalRequests = [];
+      ui.on("request", (request) => {
+        if (request.url().includes("api.telegram.org"))
+          externalRequests.push(request.url());
+      });
+      try {
+        await ui.exposeFunction("testHubRpc", (name, args) => {
+          assert.ok(
+            ["getTeamData", "getTelegramPreview", "executeHubCommand"].includes(
+              name,
+            ),
+          );
+          return JSON.parse(JSON.stringify(e.context[name](...args)));
+        });
+        await ui.addInitScript(() => {
+          window.google = { script: {} };
+          Object.defineProperty(window.google.script, "run", {
+            get() {
+              let success, failure;
+              const rpc = new Proxy(
+                {},
+                {
+                  get(_, name) {
+                    if (name === "withSuccessHandler")
+                      return (fn) => {
+                        success = fn;
+                        return rpc;
+                      };
+                    if (name === "withFailureHandler")
+                      return (fn) => {
+                        failure = fn;
+                        return rpc;
+                      };
+                    return (...args) =>
+                      window
+                        .testHubRpc(name, args)
+                        .then((data) => success(data))
+                        .catch((error) => failure({ message: error.message }));
+                  },
+                },
+              );
+              return rpc;
+            },
+          });
+        });
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        await nav(ui, "Meetings");
+        await ui
+          .getByRole("button", { name: "Create meeting", exact: true })
+          .click();
+        let dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Title", { exact: true })
+          .fill("Telegram preview meeting");
+        await dialog
+          .getByLabel("Meeting date", { exact: true })
+          .fill("2099-02-12");
+        await dialog
+          .getByLabel("Meeting link or location", { exact: true })
+          .fill("https://meet.example.com/asar");
+        await dialog
+          .getByRole("button", { name: "Save event", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden" });
+        const card = ui.locator(".event-card").filter({
+          has: ui.getByRole("heading", {
+            name: "Telegram preview meeting",
+            exact: true,
+          }),
+        });
+        const preview = () =>
+          card.getByRole("button", {
+            name: "Preview Telegram for Telegram preview meeting",
+            exact: true,
+          });
+        await preview().waitFor();
+        await ui
+          .locator(".event-saves")
+          .getByRole("button", { name: "Preview Telegram", exact: true })
+          .click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByRole("button", { name: "Send to Telegram", exact: true })
+          .waitFor();
+        assert.match(
+          await dialog.locator("pre").innerText(),
+          /Join meeting: https:\/\/meet.example.com\/asar/,
+        );
+        assert.equal(
+          e.requests.filter((r) => r.method === "sendMessage").length,
+          0,
+        );
+        await dialog.screenshot({
+          path: path.join(out, "telegram-admin-preview.png"),
+        });
+        await dialog
+          .getByRole("button", { name: "Close preview", exact: true })
+          .click();
+        e.setEmail("member@example.com");
+        await ui.reload();
+        await nav(ui, "Meetings");
+        await preview().click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByText("Only an admin can send this announcement.", {
+            exact: true,
+          })
+          .waitFor();
+        assert.equal(
+          await dialog
+            .getByRole("button", { name: "Send to Telegram", exact: true })
+            .count(),
+          0,
+        );
+        await ui.setViewportSize({ width: 390, height: 844 });
+        await layout(ui);
+        assert.deepEqual(await ui.evaluate(contrastAudit), []);
+        await dialog.screenshot({
+          path: path.join(out, "telegram-member-preview-mobile.png"),
+        });
+        await dialog
+          .getByRole("button", { name: "Close preview", exact: true })
+          .click();
+        e.setEmail("head@example.com");
+        await ui.reload();
+        await nav(ui, "Meetings");
+        await ui
+          .getByRole("button", { name: "Switch to dark theme", exact: true })
+          .click();
+        await preview().click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByRole("button", { name: "Send to Telegram", exact: true })
+          .waitFor();
+        const approved = await dialog.locator("pre").innerText();
+        await ui.waitForTimeout(300);
+        assert.deepEqual(await ui.evaluate(contrastAudit), []);
+        await dialog.screenshot({
+          path: path.join(out, "telegram-admin-preview-mobile-dark.png"),
+        });
+        await dialog
+          .getByRole("button", { name: "Send to Telegram", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden" });
+        await card.getByText("Telegram: Queued", { exact: true }).waitFor();
+        assert.equal(
+          e.requests.filter((r) => r.method === "sendMessage").length,
+          0,
+        );
+        e.context.hubTelegramWorker_();
+        assert.equal(
+          e.requests.filter((r) => r.method === "sendMessage")[0].payload.text,
+          approved,
+        );
+        await ui.getByTitle("Refresh sheet data", { exact: true }).click();
+        await card.getByText("Telegram: Sent", { exact: true }).waitFor();
+        await preview().click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByText("This announcement has already been sent.", {
+            exact: true,
+          })
+          .waitFor();
+        assert.equal(
+          await dialog
+            .getByRole("button", { name: "Send to Telegram", exact: true })
+            .count(),
+          0,
+        );
+        await dialog
+          .getByRole("button", { name: "Close preview", exact: true })
+          .click();
+        await nav(ui, "Activity");
+        await ui.getByLabel("Activity category").selectOption("telegram");
+        await ui
+          .getByText("Telegram announcement · Sent", { exact: false })
+          .waitFor();
+        assert.equal((await ui.content()).includes(privateToken), false);
+        assert.deepEqual(externalRequests, []);
+        assert.equal(
+          e.requests.filter((r) => r.method === "sendMessage").length,
+          1,
+        );
+        e.context.executeHubCommand("saveTask", {
+          title: "Telegram permission failure",
+          members: ["1"],
+          newId: "telegram-failure",
+          status: "Pending",
+        });
+        const retryKey = "Task:task-telegram-failure";
+        const retryPreview = e.context.getTelegramPreview(retryKey);
+        e.context.executeHubCommand("queueTelegramNotification", {
+          key: retryKey,
+          receipt: retryPreview.receipt,
+        });
+        e.fetch(() => ({ code: 403, body: { ok: false, error_code: 403 } }));
+        e.context.hubTelegramWorker_();
+        await ui.getByTitle("Refresh sheet data", { exact: true }).click();
+        await ui
+          .getByText("Telegram announcement · Failed", { exact: false })
+          .waitFor();
+        assert.equal(await ui.locator(".activity-entry").count(), 2);
+        await ui.getByLabel("Activity category").selectOption("errors");
+        await ui
+          .getByText(
+            "The bot cannot post in this group. Check its membership and permissions.",
+            { exact: true },
+          )
+          .waitFor();
+        assert.equal(await ui.locator(".activity-entry").count(), 1);
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
     "production frontend uses authenticated RPC adapter and contains no local member switcher",
     async () => {
       const db = await page.evaluate(() => LocalHub.load());
@@ -1883,6 +2580,33 @@ function contrastAudit() {
       db.team[0].Personality = JSON.stringify([
         { category: "Recorded working style", items: ["Collaborative"] },
       ]);
+      db.activity.push(
+        ...Array.from({ length: 2000 }, (_, index) => ({
+          Timestamp: new Date(
+            Date.UTC(2026, 9, 18, 10, 0, index),
+          ).toISOString(),
+          Email: db.team[index % 2].Mail,
+          Action: index % 11 === 0 ? "completeEvent" : "moveTask",
+          Target: "Activity trace " + index,
+          Details:
+            index === 1999
+              ? "null"
+              : JSON.stringify(
+                  index % 25 === 0
+                    ? {
+                        outcome: "Failed",
+                        error: "Test permission error",
+                        event: "Task:trace",
+                        requestId: "trace-" + index,
+                      }
+                    : {
+                        type: "Task",
+                        previousStatus: "Pending",
+                        status: "InProgress",
+                      },
+                ),
+        })),
+      );
       const prod = await context.newPage();
       prod.on("pageerror", (e) => pageErrors.push(e.message));
       await prod.addInitScript((data) => {
@@ -1940,6 +2664,31 @@ function contrastAudit() {
         .waitFor();
       await nav(prod, "Meetings");
       await layout(prod);
+      await nav(prod, "Activity");
+      assert.equal(await prod.locator(".activity-entry").count(), 40);
+      await prod
+        .getByRole("button", { name: "Show more activity", exact: true })
+        .click();
+      assert.equal(await prod.locator(".activity-entry").count(), 80);
+      await prod.getByLabel("Search activity").fill("Activity trace 1999");
+      assert.equal(await prod.locator(".activity-entry").count(), 1);
+      await prod.getByLabel("Activity member").selectOption(db.team[1].Mail);
+      assert.equal(await prod.locator(".activity-entry").count(), 1);
+      await prod.getByLabel("Search activity").fill("");
+      await prod.getByLabel("Activity category").selectOption("errors");
+      assert.equal(await prod.locator(".activity-entry").count(), 40);
+      await prod.locator(".activity-entry").first().locator("summary").click();
+      await prod
+        .locator(".activity-entry")
+        .first()
+        .getByText("Request", { exact: true })
+        .waitFor();
+      await prod.setViewportSize({ width: 390, height: 844 });
+      await layout(prod);
+      await prod.screenshot({
+        path: path.join(out, "reviewer-activity-mobile.png"),
+        fullPage: true,
+      });
       await prod.close();
     },
   );

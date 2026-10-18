@@ -1,3 +1,37 @@
+.telegram-card-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 8px;
+}
+.telegram-card-action small {
+  font-size: 11px;
+}
+.telegram-preview > p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.telegram-message {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 18px 18px 18px 5px;
+  background: var(--subtle);
+  box-shadow: 0 8px 24px var(--accent-soft);
+  min-width: 0;
+}
+.telegram-message pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.85;
+  margin: 0 0 14px;
+}
 .review-queue {
   margin-bottom: 24px;
   border-top: 3px solid var(--accent);
@@ -83,6 +117,216 @@
   color: var(--accent);
   font-size: 12px;
   font-weight: 600;
+}
+.event-saves {
+  margin-bottom: 24px;
+  border-left: 3px solid var(--accent);
+}
+.event-saves h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.event-saves [role="status"] {
+  color: var(--muted);
+  font-size: 12px;
+}
+.event-save-list {
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 12px;
+}
+.event-save-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.event-save-item .grow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.event-save-item strong {
+  font-size: 12px;
+  margin-right: 10px;
+}
+.event-save-item .row {
+  flex-shrink: 0;
+}
+.save-error {
+  color: var(--warning);
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+.event-sync-hint {
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .event-save-item {
+    align-items: start;
+    flex-direction: column;
+  }
+}
+.meeting-logging-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--subtle);
+  cursor: pointer;
+}
+.meeting-logging-toggle span {
+  display: grid;
+  gap: 5px;
+}
+.meeting-logging-toggle strong {
+  font-size: 12px;
+}
+.meeting-logging-toggle small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.meeting-logging-toggle input {
+  appearance: none;
+  position: relative;
+  width: 42px;
+  height: 25px;
+  flex: 0 0 42px;
+  padding: 0;
+  border: 1px solid var(--muted);
+  border-radius: 30px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.meeting-logging-toggle input::after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s;
+}
+.meeting-logging-toggle input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.meeting-logging-toggle input:checked::after {
+  background: #fff;
+  transform: translateX(17px);
+}
+.meeting-logging-toggle:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.task-evidence {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.task-evidence h4 {
+  margin: 0;
+  font-size: 11px;
+}
+.task-evidence ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+.task-evidence li {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 9px;
+  background: var(--subtle);
+  overflow-wrap: anywhere;
+}
+.task-evidence li > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.task-evidence li small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.task-link-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px 0;
+}
+.activity-count {
+  font-size: 12px;
+}
+.activity-list {
+  display: grid;
+}
+.activity-entry {
+  display: flex;
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+}
+.activity-entry > .grow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activity-entry strong {
+  font-size: 13px;
+}
+.activity-entry p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 6px 0;
+}
+.activity-entry time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.activity-target {
+  font-weight: 600;
+}
+.activity-failed {
+  border-left: 3px solid var(--warning);
+  padding-left: 12px;
+}
+.activity-debug {
+  margin-top: 10px;
+  font-size: 11px;
+}
+.activity-debug summary {
+  color: var(--accent);
+  cursor: pointer;
+}
+.activity-debug dl {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 7px;
+}
+.activity-debug dt {
+  color: var(--muted);
+}
+.activity-debug dd {
+  margin: 0;
+}
+.activity-debug pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--subtle);
 }
 .record-review-action {
   margin-top: 10px;

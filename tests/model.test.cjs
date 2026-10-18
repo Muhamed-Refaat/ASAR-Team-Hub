@@ -912,17 +912,87 @@ test("member undo overrides imported meeting completions without altering other 
   });
   assert.equal(M.events(db)[0].completed.has("2"), true);
 });
-test("course evidence must be an actual supported file within the limit; meeting files are optional", () => {
-  const db = create(base(), "Learning"),
-    key = M.events(db)[0].key;
+test("task assignees attach and remove their own evidence without changing status or granting event management", () => {
+  const db = create(base(), "Task");
+  const event = M.events(db)[0];
+  let next = apply(db, "member@example.com", "addTaskLink", {
+    key: event.key,
+    url: "https://example.com/issue",
+    kind: "Issue",
+    note: "Sensor trace",
+    newId: "link-one",
+    memberId: "1",
+  });
+  assert.equal(next.tasks[0].Status, db.tasks[0].Status);
+  let links = M.events(next)[0].links;
+  assert.equal(links.length, 1);
+  assert.equal(links[0].memberId, "2");
+  assert.equal(next.completions.length, 0);
+  const retry = M.transition(
+    next,
+    "member@example.com",
+    "addTaskLink",
+    {
+      key: event.key,
+      url: "https://example.com/issue",
+      kind: "Issue",
+      newId: "link-one",
+    },
+    now,
+  );
+  assert.equal(retry.unchanged, true);
   assert.throws(
     () =>
-      apply(db, "member@example.com", "completeEvent", {
-        key,
-        evidence: "https://certificate.example",
+      apply(next, "leader@example.com", "addTaskLink", {
+        key: event.key,
+        url: "https://example.com",
+        kind: "Completion",
       }),
-    /Upload course evidence/,
+    /assignees/,
   );
+  assert.throws(
+    () =>
+      apply(next, "head@example.com", "addTaskLink", {
+        key: event.key,
+        url: "javascript:alert(1)",
+        kind: "Issue",
+      }),
+    /valid/,
+  );
+  next = apply(next, "head@example.com", "addTaskLink", {
+    key: event.key,
+    url: "https://example.com/result",
+    kind: "Completion",
+    newId: "link-two",
+  });
+  links = M.events(next)[0].links;
+  assert.throws(
+    () =>
+      apply(next, "member@example.com", "removeTaskLink", {
+        key: event.key,
+        linkId: links[1].id,
+      }),
+    /author/,
+  );
+  next = apply(next, "member@example.com", "removeTaskLink", {
+    key: event.key,
+    linkId: links[0].id,
+  });
+  assert.equal(M.events(next)[0].links.length, 1);
+  assert.equal(JSON.parse(next.tasks[0]["Evidence Links"]).length, 2);
+  assert.equal(next.tasks[0].Status, db.tasks[0].Status);
+});
+
+test("course and meeting files are optional, while supplied evidence must be a supported file within the limit", () => {
+  const db = create(base(), "Learning"),
+    key = M.events(db)[0].key;
+  const withoutFile = apply(db, "member@example.com", "completeEvent", {
+    key,
+    evidence: "https://certificate.example",
+  });
+  assert.equal(withoutFile.completions[0].Status, "Pending");
+  assert.equal(withoutFile.completions[0]["Evidence Filename"], "");
+  assert.equal(M.progress(withoutFile, withoutFile.team[1]).completed, 0);
   for (const invalid of [
     { ...upload, mimeType: "text/html" },
     { ...upload, base64: "PHNjcmlwdD4=" },
