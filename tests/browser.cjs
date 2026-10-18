@@ -226,6 +226,333 @@ function contrastAudit() {
     },
   );
   await check(
+    "listed admins keep Admin badges alongside their team roles across the hub",
+    async () => {
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const tags = await scope.newPage();
+      tags.on("pageerror", (error) => pageErrors.push(error.message));
+      try {
+        const db = await page.evaluate(() => LocalHub.load());
+        await tags.route("**/spreedsheet-copy/Admins.csv", (route) =>
+          route.fulfill({
+            contentType: "text/csv",
+            body: `Email,Enabled\n${db.team[0].Mail},TRUE\n${db.team[1].Mail},TRUE\n${db.team[2].Mail},FALSE\n`,
+          }),
+        );
+        await tags.goto(url + "/local_test_dashboard.html");
+        await tags
+          .getByRole("heading", { name: "Welcome, Abdallah" })
+          .waitFor();
+        assert.equal(
+          await tags.locator(".landing-role-tags .admin-badge").count(),
+          1,
+        );
+        assert.ok(
+          (await tags.locator(".account-tags").innerText()).includes(
+            "Team Leader",
+          ),
+        );
+        await nav(tags, "Team Intelligence");
+        const directory = tags.getByRole("region", {
+          name: "Team directory",
+          exact: true,
+        });
+        for (const index of [0, 1, 2]) {
+          const person = directory.getByRole("button", {
+            name: "View " + db.team[index].Name,
+            exact: true,
+          });
+          assert.equal(
+            await person.locator(".admin-badge").count(),
+            index < 2 ? 1 : 0,
+          );
+        }
+        await directory
+          .getByRole("button", { name: "View " + db.team[1].Name, exact: true })
+          .click();
+        assert.equal(
+          await tags.locator(".member-profile-header .admin-badge").count(),
+          1,
+        );
+        assert.ok(
+          (await tags.locator(".member-profile-identity").innerText()).includes(
+            "Team member",
+          ),
+        );
+        await tags
+          .getByRole("button", { name: "Team hierarchy", exact: true })
+          .click();
+        assert.equal(
+          await tags.locator(".structure-root .admin-badge").count(),
+          1,
+        );
+        assert.equal(
+          await tags
+            .locator(".structure-root")
+            .getByText("Team Leader", { exact: true })
+            .count(),
+          1,
+        );
+        const roster = tags.locator(".subteam-person").filter({
+          has: tags.getByRole("button", {
+            name: `View profile for ${db.team[1].Name}`,
+            exact: true,
+          }),
+        });
+        assert.equal(await roster.locator(".admin-badge").count(), 1);
+        assert.equal(
+          await roster.getByText("Member", { exact: true }).count(),
+          1,
+        );
+        await tags
+          .getByRole("button", { name: "Edit distribution", exact: true })
+          .click();
+        const memberRow = tags
+          .getByRole("row")
+          .filter({ has: tags.getByText(db.team[1].Name, { exact: true }) });
+        assert.equal(await memberRow.locator(".admin-badge").count(), 1);
+        await tags
+          .getByRole("button", { name: "Close editor", exact: true })
+          .click();
+        await tags
+          .getByLabel("Local preview account")
+          .selectOption(db.team[1].Mail);
+        assert.equal(
+          await tags.locator(".account-tags .admin-badge").count(),
+          1,
+        );
+        assert.ok(
+          (await tags.locator(".account-tags").innerText()).includes(
+            "Team member",
+          ),
+        );
+        await tags
+          .getByRole("button", { name: "Switch to dark theme", exact: true })
+          .click();
+        await tags.setViewportSize({ width: 390, height: 844 });
+        await layout(tags);
+        await tags.waitForTimeout(300);
+        assert.deepEqual(await tags.evaluate(contrastAudit), []);
+        await tags.evaluate(() => window.scrollTo(0, 0));
+        await tags.screenshot({
+          path: path.join(out, "hierarchy-admin-tags-mobile.png"),
+          fullPage: true,
+        });
+        await tags
+          .getByLabel("Local preview account")
+          .selectOption(db.team[2].Mail);
+        assert.equal(
+          await tags.locator(".account-tags .admin-badge").count(),
+          0,
+        );
+        assert.equal(
+          await tags
+            .getByRole("button", { name: "Edit distribution", exact: true })
+            .count(),
+          0,
+        );
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "admins find and approve their own meeting attendance from cards and Completion logs",
+    async () => {
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const attendance = await scope.newPage();
+      attendance.on("pageerror", (error) => pageErrors.push(error.message));
+      try {
+        await attendance.goto(url + "/local_test_dashboard.html");
+        await attendance
+          .getByRole("heading", { name: "Welcome, Abdallah" })
+          .waitFor();
+        const db = await attendance.evaluate(() => LocalHub.load());
+        const M = require("../web/model.js");
+        const title = "Admin attendance check";
+        await nav(attendance, "Meetings");
+        await attendance
+          .getByRole("button", { name: "Create meeting", exact: true })
+          .click();
+        const form = attendance.getByRole("dialog");
+        await form.getByLabel("Title", { exact: true }).fill(title);
+        await form.getByLabel("Meeting date", { exact: true }).fill(
+          new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Africa/Cairo",
+          }).format(new Date()),
+        );
+        await form.getByLabel("Attendance logging open").check();
+        await form
+          .getByRole("button", { name: "Save event", exact: true })
+          .click();
+        await form.waitFor({ state: "hidden" });
+        await attendance.getByLabel("Search Meetings").fill(title);
+        const card = attendance.locator("article").filter({
+          has: attendance.getByRole("heading", { name: title, exact: true }),
+        });
+        const submit = async () => {
+          await card
+            .getByRole("button", { name: "Log attendance", exact: true })
+            .click();
+          await submitReview(attendance, "Meet");
+        };
+        const approve = async () => {
+          await attendance
+            .getByRole("dialog")
+            .getByRole("button", { name: "Approve completion", exact: true })
+            .click();
+          await attendance.getByRole("dialog").waitFor({ state: "hidden" });
+        };
+        const reviewCard = () =>
+          card
+            .getByRole("button", {
+              name: `Review attendance for ${title}`,
+              exact: true,
+            })
+            .click();
+        const baseline = M.progress(
+          await attendance.evaluate(() => LocalHub.load()),
+          db.team[0],
+        ).byType.Meet.completed;
+        await submit();
+        assert.equal(
+          await attendance
+            .getByRole("navigation")
+            .getByRole("button", { name: "Meetings", exact: true })
+            .locator(".nav-review-count")
+            .innerText(),
+          "1",
+        );
+        await reviewCard();
+        assert.ok(
+          (await attendance.getByRole("dialog").innerText()).includes(
+            db.team[0].Name,
+          ),
+        );
+        await approve();
+        await card.getByText("Completed by you", { exact: true }).waitFor();
+        const approved = await attendance.evaluate(() => LocalHub.load());
+        assert.equal(
+          M.progress(approved, db.team[0]).byType.Meet.completed,
+          baseline + 1,
+        );
+        assert.equal(
+          approved.completions.at(-1)["Reviewer Email"],
+          db.team[0].Mail.toLowerCase(),
+        );
+        await card
+          .getByRole("button", { name: "Undo completion", exact: true })
+          .click();
+        await submit();
+        await nav(attendance, "Completion logs");
+        await attendance.getByLabel("Record filter").selectOption("pending");
+        const pendingRow = attendance.getByRole("row").filter({
+          has: attendance.getByRole("cell", { name: title, exact: true }),
+        });
+        assert.equal(await pendingRow.count(), 1);
+        await pendingRow
+          .getByRole("button", { name: /^Review attendance for / })
+          .click();
+        await approve();
+        assert.equal(await pendingRow.count(), 0);
+        await nav(attendance, "Meetings");
+        await attendance.getByLabel("Search Meetings").fill(title);
+        await card
+          .getByRole("button", { name: "Undo completion", exact: true })
+          .click();
+        await attendance
+          .getByLabel("Local preview account")
+          .selectOption(db.team[1].Mail);
+        await submit();
+        assert.equal(
+          await card
+            .getByRole("button", { name: /^Review attendance for / })
+            .count(),
+          0,
+        );
+        assert.equal(
+          await attendance
+            .getByRole("region", { name: "Admin review queue", exact: true })
+            .count(),
+          0,
+        );
+        await attendance
+          .getByLabel("Local preview account")
+          .selectOption(db.team[0].Mail);
+        await attendance.getByLabel("Event filter").selectOption("pending");
+        assert.equal(await card.count(), 1);
+        await reviewCard();
+        assert.ok(
+          (await attendance.getByRole("dialog").innerText()).includes(
+            db.team[1].Name,
+          ),
+        );
+        await approve();
+        assert.equal(await card.count(), 0);
+        await attendance.getByLabel("Event filter").selectOption("all");
+        await attendance
+          .getByLabel("Local preview account")
+          .selectOption(db.team[2].Mail);
+        await submit();
+        await attendance
+          .getByLabel("Local preview account")
+          .selectOption(db.team[0].Mail);
+        await submit();
+        await attendance
+          .getByRole("button", { name: "Switch to dark theme", exact: true })
+          .click();
+        await attendance.setViewportSize({ width: 390, height: 844 });
+        await reviewCard();
+        const choices = attendance.getByRole("dialog");
+        assert.equal(
+          await choices
+            .getByRole("button", {
+              name: /^Review Admin attendance check for /,
+            })
+            .count(),
+          2,
+        );
+        await layout(attendance);
+        await attendance.waitForTimeout(300);
+        assert.deepEqual(await attendance.evaluate(contrastAudit), []);
+        await attendance.screenshot({
+          path: path.join(out, "admin-attendance-review-mobile.png"),
+          fullPage: false,
+        });
+        await choices
+          .getByRole("button", {
+            name: `Review ${title} for ${db.team[0].Name}`,
+            exact: true,
+          })
+          .click();
+        await approve();
+        await reviewCard();
+        await approve();
+        assert.equal(
+          await attendance
+            .getByRole("navigation")
+            .getByRole("button", { name: "Meetings", exact: true })
+            .locator(".nav-review-count")
+            .count(),
+          0,
+        );
+        await card.getByText("Completed by you", { exact: true }).waitFor();
+        await attendance.setViewportSize({ width: 1440, height: 1000 });
+        await attendance.evaluate(() => window.scrollTo(0, 0));
+        await attendance.screenshot({
+          path: path.join(out, "admin-attendance-completed.png"),
+          fullPage: true,
+        });
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
     "dashboard landing reveals real progress visuals while scrolling and supports reduced motion",
     async () => {
       await nav(page, "Overview");

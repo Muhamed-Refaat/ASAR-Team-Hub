@@ -81,6 +81,18 @@ function Button({ children, icon, className = "", ...props }) {
     </button>
   );
 }
+function AdminBadge({ db, member }) {
+  return M.isAdmin(db, member) ? (
+    <span
+      className="badge accent admin-badge"
+      data-member-id={M.memberKey(member)}
+      title="Can manage events and approve submissions"
+    >
+      <Icon name="shield-check" size={12} />
+      Admin
+    </span>
+  ) : null;
+}
 function Progress({ value, label, success = false }) {
   return (
     <div
@@ -727,6 +739,11 @@ function ReviewEditor({ submission, onSave, onClose, busy, error }) {
           </small>
         </div>
         <EvidenceLink row={submission} />
+        <p className="muted">
+          Approve completion to set this record to Completed and update the
+          member's progress. Return for changes sends it back with your
+          feedback.
+        </p>
         {submission.Evidence && (
           <p className="submission-note" dir="auto">
             {submission.Evidence}
@@ -768,18 +785,23 @@ function ReviewEditor({ submission, onSave, onClose, busy, error }) {
     </Modal>
   );
 }
-function ReviewQueue({ db, type, onReview, busy }) {
-  const rows = M.events(db)
-    .filter((e) => e.type === type)
-    .flatMap((e) => [...e.submissions.values()])
-    .filter((r) => M.completionStatus(r) === "Pending")
-    .sort((a, b) => a.Timestamp.localeCompare(b.Timestamp));
+function ReviewQueue({ db, type, eventId = "", onReview, busy }) {
+  const rows = M.pendingReviews(db).filter(
+    (row) =>
+      row["Event Type"] === type && (!eventId || row["Event ID"] === eventId),
+  );
   return (
     <section className="panel review-queue" aria-label="Admin review queue">
       <div className="row spread">
         <div>
           <span className="eyebrow">Admin review</span>
-          <h2>Awaiting your review</h2>
+          <h2>
+            {type === "Meet" ? "Attendance approvals" : "Course approvals"}
+          </h2>
+          <p className="muted">
+            Open a submission, then approve completion or return it with
+            feedback. You can also review your own submissions.
+          </p>
         </div>
         <span className="badge warning">{rows.length} pending</span>
       </div>
@@ -826,6 +848,7 @@ function EventCard({
   rating,
   requirementTarget = null,
   allowCompletion = true,
+  onReview,
   busy,
 }) {
   const state = M.eventState(event, member, today());
@@ -835,6 +858,12 @@ function EventCard({
       ? M.status(event.row.Status) === "Completed"
       : state.completed;
   const link = safeUrl(event.row.Link || event.row.Attachments);
+  const pending =
+    admin && M.REVIEW_TYPES.includes(event.type)
+      ? [...event.submissions.values()].filter(
+          (row) => M.completionStatus(row) === "Pending",
+        )
+      : [];
   return (
     <article
       className={
@@ -924,6 +953,24 @@ function EventCard({
         <p className="review-hint">
           Submitted for admin review. Progress updates after approval.
         </p>
+      )}
+      {pending.length > 0 && onReview && (
+        <div className="event-review-action">
+          <span>
+            {pending.length}{" "}
+            {pending.length === 1 ? "submission needs" : "submissions need"}{" "}
+            your approval
+          </span>
+          <Button
+            className="small primary"
+            icon="clipboard-check"
+            disabled={busy}
+            onClick={() => onReview(event)}
+            aria-label={`Review ${event.type === "Meet" ? "attendance" : "completions"} for ${event.title}`}
+          >
+            {event.type === "Meet" ? "Review attendance" : "Review completions"}
+          </Button>
+        </div>
       )}
       {state.submission?.["Review Note"] && (
         <p className="review-hint" dir="auto">
@@ -1114,6 +1161,7 @@ function EventTab({
   onComplete,
   onRevert,
   onReview,
+  onReviewEvent,
   onArchive,
   onMove,
   busy,
@@ -1130,7 +1178,8 @@ function EventTab({
       (filter === "archived" ? e.archived : !e.archived) &&
       (filter !== "mine" || s.eligible) &&
       (filter !== "completed" || s.completed) &&
-      (filter !== "pending" || s.pending) &&
+      (filter !== "pending" ||
+        (admin ? M.pendingReviews(db, [e]).length > 0 : s.pending)) &&
       (filter !== "open" || s.canComplete) &&
       M.norm(
         e.title +
@@ -1152,6 +1201,7 @@ function EventTab({
       onEdit={onEdit}
       onComplete={onComplete}
       onRevert={onRevert}
+      onReview={onReviewEvent}
       onArchive={onArchive}
       onMove={onMove}
       onDrag={setDragKey}
@@ -1459,6 +1509,10 @@ function Overview({ db, member, onNavigate }) {
               ? `Welcome, ${M.clean(member.Name).split(/\s/)[0]}`
               : "Welcome to ASAR"}
           </h1>
+          <div className="row landing-role-tags">
+            {member && <span className="badge">{M.role(member)}</span>}
+            <AdminBadge db={db} member={member} />
+          </div>
           <h2>
             Build what’s next.
             <br />
@@ -1952,6 +2006,7 @@ function SkillsPage({
             {db.team.map((m) => (
               <option key={M.memberKey(m)} value={M.memberKey(m)}>
                 {m.Name}
+                {M.isAdmin(db, m) ? " · Admin" : ""}
               </option>
             ))}
           </select>
@@ -2380,6 +2435,7 @@ function MemberProfile({ db, member, theme, analysis, onExport, onPrint }) {
               {M.role(member)}
               {member.Department ? " | " + member.Department : ""}
             </p>
+            <AdminBadge db={db} member={member} />
             <small>ID: {M.memberKey(member)}</small>
           </div>
         </div>
@@ -2583,7 +2639,10 @@ function Intelligence({
                   <span className="directory-member-info">
                     <strong dir="auto">{m.Name}</strong>
                     <small>{m.Department || M.role(m)}</small>
-                    {isMe && <span className="badge accent">You</span>}
+                    <span className="row member-tags">
+                      {isMe && <span className="badge accent">You</span>}
+                      <AdminBadge db={db} member={m} />
+                    </span>
                   </span>
                   <span className="directory-member-progress">
                     <strong>
@@ -2696,6 +2755,7 @@ function Hierarchy({
               {r.role === "Leader" && <Icon name="crown" size={12} />}
               {r.role}
             </span>
+            <AdminBadge db={db} member={m} />
             {memberId === r.memberId && (
               <small className="you-label">You</small>
             )}
@@ -2843,6 +2903,7 @@ function Hierarchy({
             </h3>
           </div>
           <div className="row">
+            <AdminBadge db={db} member={member} />
             {mine.map((r) => (
               <button
                 className="button small"
@@ -2894,10 +2955,13 @@ function Hierarchy({
       </div>
       {head && (
         <div className="structure-root">
-          <span className="badge accent">
-            <Icon name="crown" size={14} />
-            Team Leader
-          </span>
+          <div className="row member-tags">
+            <span className="badge accent">
+              <Icon name="crown" size={14} />
+              Team Leader
+            </span>
+            <AdminBadge db={db} member={head} />
+          </div>
           <div className="row">
             <div className="avatar large">{initials(head.Name)}</div>
             <div>
@@ -3031,6 +3095,7 @@ function Hierarchy({
               {db.team.map((m) => (
                 <option key={M.memberKey(m)} value={M.memberKey(m)}>
                   {m.Name}
+                  {M.isAdmin(db, m) ? " · Admin" : ""}
                 </option>
               ))}
             </select>
@@ -3165,6 +3230,7 @@ function Hierarchy({
                           <tr key={M.memberKey(m)}>
                             <td>
                               <strong dir="auto">{m.Name}</strong>
+                              <AdminBadge db={db} member={m} />
                               <small className="record-reviewer">
                                 {m.Mail}
                               </small>
@@ -3236,9 +3302,12 @@ function Hierarchy({
     </>
   );
 }
-function History({ kind, db, member }) {
+function History({ kind, db, member, admin, onReview, busy }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const pendingIds = new Set(
+    M.pendingReviews(db).map((row) => row["Submission ID"]),
+  );
   const legacy = M.events(db)
     .filter(
       (e) =>
@@ -3286,6 +3355,7 @@ function History({ kind, db, member }) {
     (r) =>
       (filter !== "mine" ||
         (member && M.norm(r.Email) === M.norm(member.Mail))) &&
+      (filter !== "pending" || pendingIds.has(r["Submission ID"])) &&
       M.norm(Object.values(r).join(" ")).includes(M.norm(search)),
   );
   return (
@@ -3316,6 +3386,9 @@ function History({ kind, db, member }) {
           >
             <option value="all">All members</option>
             <option value="mine">My records</option>
+            {kind === "logs" && admin && (
+              <option value="pending">Pending review</option>
+            )}
           </select>
           <small>{rows.length} records</small>
         </div>
@@ -3378,6 +3451,19 @@ function History({ kind, db, member }) {
                         >
                           {M.completionStatus(r)}
                         </span>
+                        {admin && pendingIds.has(r["Submission ID"]) && (
+                          <Button
+                            className="small primary record-review-action"
+                            icon="clipboard-check"
+                            disabled={busy}
+                            onClick={() => onReview(r)}
+                            aria-label={`Review ${r["Event Type"] === "Meet" ? "attendance" : "completion"} for ${r.Name || r.Email} — ${r["Event Name"]}`}
+                          >
+                            {r["Event Type"] === "Meet"
+                              ? "Review attendance"
+                              : "Review completion"}
+                          </Button>
+                        )}
                         {r["Reviewer Email"] && (
                           <small className="record-reviewer">
                             Reviewed by{" "}
@@ -3540,6 +3626,19 @@ function App() {
     );
   const member = M.actor(db, db.activeUserSession?.email);
   const admin = M.isAdmin(db, member);
+  const pendingReviews = admin ? M.pendingReviews(db) : [];
+  const review = (submission) => {
+    setError("");
+    setModal({ kind: "review", submission });
+  };
+  const reviewEvent = (event) => {
+    const pending = M.pendingReviews(db, [event]);
+    if (pending.length === 1) review(pending[0]);
+    else if (pending.length) {
+      setError("");
+      setModal({ kind: "review-list", event });
+    }
+  };
   const tabs = [
     ["overview", "Overview", "layout-dashboard"],
     ["Task", "Tasks", "check-square"],
@@ -3642,10 +3741,11 @@ function App() {
               <div className="account-email">
                 {db.activeUserSession.email || "Sign in through Google"}
               </div>
+              <div className="row account-tags">
+                {member && <span className="badge">{M.role(member)}</span>}
+                <AdminBadge db={db} member={member} />
+              </div>
             </div>
-            <span className={"badge " + (admin ? "accent" : "")}>
-              {admin ? "Admin" : "Member"}
-            </span>
           </div>
         </div>
         <nav className="tabs" aria-label="Main navigation">
@@ -3658,6 +3758,22 @@ function App() {
             >
               <Icon name={icon} size={16} />
               {label}
+              {admin &&
+                pendingReviews.some(
+                  (row) => id === "logs" || row["Event Type"] === id,
+                ) && (
+                  <span
+                    className="badge warning nav-review-count"
+                    aria-hidden="true"
+                    title="Pending submissions to review"
+                  >
+                    {
+                      pendingReviews.filter(
+                        (row) => id === "logs" || row["Event Type"] === id,
+                      ).length
+                    }
+                  </span>
+                )}
             </button>
           ))}
         </nav>
@@ -3695,10 +3811,8 @@ function App() {
                 submissionId: submission?.["Submission ID"] || "",
               })
             }
-            onReview={(submission) => {
-              setError("");
-              setModal({ kind: "review", submission });
-            }}
+            onReview={review}
+            onReviewEvent={reviewEvent}
             onArchive={(e) =>
               command("archiveEvent", { key: e.key, archived: !e.archived })
             }
@@ -3752,7 +3866,15 @@ function App() {
           />
         )}
         {["logs", "activity"].includes(tab) && (
-          <History key={tab} kind={tab} db={db} member={member} />
+          <History
+            key={tab}
+            kind={tab}
+            db={db}
+            member={member}
+            admin={admin}
+            onReview={review}
+            busy={busy}
+          />
         )}
         {unmatched.length > 0 && ["logs", "intelligence"].includes(tab) && (
           <div style={{ marginTop: 20 }}>
@@ -3869,6 +3991,25 @@ function App() {
           busy={busy}
           error={error}
         />
+      )}
+      {modal?.kind === "review-list" && admin && (
+        <Modal
+          title={
+            modal.event.type === "Meet"
+              ? "Review attendance"
+              : "Review completions"
+          }
+          busy={busy}
+          onClose={() => setModal(null)}
+        >
+          <ReviewQueue
+            db={db}
+            type={modal.event.type}
+            eventId={modal.event.key}
+            onReview={review}
+            busy={busy}
+          />
+        </Modal>
       )}
       {toast && (
         <div className="toast" role="status">

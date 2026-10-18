@@ -458,6 +458,13 @@ const HubModel = (() => {
       ).filter((t) => !resolveMember(db, t)),
     };
   }
+  function pendingReviews(db, eventRows = events(db)) {
+    return eventRows
+      .filter((event) => REVIEW_TYPES.includes(event.type))
+      .flatMap((event) => [...event.submissions.values()])
+      .filter((row) => completionStatus(row) === "Pending")
+      .sort((a, b) => clean(a.Timestamp).localeCompare(clean(b.Timestamp)));
+  }
   function eventState(event, member, today) {
     const key = member && memberKey(member);
     const eligible = !!key && event.eligible.some((m) => memberKey(m) === key);
@@ -1311,6 +1318,7 @@ const HubModel = (() => {
     parseRatings,
     ratingCategory,
     events,
+    pendingReviews,
     eventState,
     progress,
     skillGroups,

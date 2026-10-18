@@ -71,6 +71,46 @@
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+.event-review-action {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.record-review-action {
+  margin-top: 10px;
+}
+.nav-review-count {
+  padding: 1px 6px;
+  min-width: 20px;
+  justify-content: center;
+}
+.member-tags,
+.account-tags {
+  gap: 5px;
+}
+.account-tags {
+  margin-top: 4px;
+}
+.account-tags .badge {
+  font-size: 9px;
+  padding: 1px 5px;
+}
+.landing-role-tags {
+  margin: 12px 0;
+}
+.landing-role-tags .badge {
+  background: #ffffff15;
+  border-color: #ffffff40;
+  color: #fff;
+}
 .evidence-upload {
   padding: 16px;
   background: var(--accent-soft);

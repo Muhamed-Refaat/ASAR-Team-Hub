@@ -367,6 +367,68 @@ test("production saves real evidence bytes and reviewer permissions, persists Pe
   assert.equal(updated.data.completions[1].Status, "Pending");
   assert.equal(e.locked(), false);
 });
+test("production admin can approve their own attendance and the inbox only exposes current pending attempts", () => {
+  const e = environment();
+  e.context.executeHubCommand("saveEvent", {
+    type: "Meet",
+    title: "Admin meeting",
+    members: ["1", "2"],
+    date: "2026-10-15",
+    loggingEnabled: true,
+  });
+  const event = M.events(e.context.getTeamData()).find(
+    (row) => row.type === "Meet",
+  );
+  let result = e.context.executeHubCommand("completeEvent", { key: event.key });
+  const first = result.data.completions.at(-1)["Submission ID"];
+  assert.equal(M.pendingReviews(result.data).length, 1);
+  assert.equal(
+    M.progress(result.data, result.data.team[0]).byType.Meet.completed,
+    0,
+  );
+  result = e.context.executeHubCommand("reviewSubmission", {
+    submissionId: first,
+    decision: "Completed",
+  });
+  assert.equal(M.pendingReviews(result.data).length, 0);
+  assert.equal(
+    result.data.completions.at(-1)["Reviewer Email"],
+    "head@example.com",
+  );
+  assert.equal(
+    M.progress(result.data, result.data.team[0]).byType.Meet.completed,
+    1,
+  );
+  e.context.executeHubCommand("revertCompletion", {
+    key: event.key,
+    submissionId: first,
+  });
+  result = e.context.executeHubCommand("completeEvent", { key: event.key });
+  const second = result.data.completions.at(-1)["Submission ID"];
+  assert.notEqual(second, first);
+  assert.equal(M.pendingReviews(result.data).length, 1);
+  assert.equal(M.pendingReviews(result.data)[0]["Submission ID"], second);
+  assert.throws(
+    () =>
+      e.context.executeHubCommand("reviewSubmission", {
+        submissionId: first,
+        decision: "Completed",
+      }),
+    /no longer pending/,
+  );
+  e.setEmail("member@example.com");
+  assert.throws(
+    () =>
+      e.context.executeHubCommand("reviewSubmission", {
+        submissionId: second,
+        decision: "Completed",
+        email: "head@example.com",
+      }),
+    /Admins sheet/,
+  );
+  assert.equal(e.locked(), false);
+});
+
 test("production refuses invalid evidence before upload and removes files on failed reviewer sharing or persistence", () => {
   const e = environment("member@example.com");
   const key = M.events(e.context.getTeamData()).find(
