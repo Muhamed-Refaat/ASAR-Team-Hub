@@ -33,6 +33,10 @@
   padding-top: 12px;
   margin-top: 8px;
 }
+.member-management {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
 .telegram-card-action small {
   font-size: 11px;
 }
@@ -3400,6 +3404,9 @@ const HubModel = (() => {
     new Date(v + "T00:00:00Z").toISOString().slice(0, 10) === v;
   const number = (v) =>
     clean(v) !== "" && Number.isFinite(Number(v)) ? Number(v) : null;
+  const activeMember = (member) =>
+    !!member && !["false", "no", "0", "removed"].includes(norm(member.Active));
+  const activeTeam = (db) => (db.team || []).filter(activeMember);
   const role = (m) => {
     const value = norm(m.Role || m.Rule);
     if (["team leader", "team lead"].includes(value)) return "Team Leader";
@@ -3410,7 +3417,7 @@ const HubModel = (() => {
   function resolveMember(db, token) {
     const wanted = norm(token);
     if (!wanted) return null;
-    const matches = (db.team || []).filter((m) =>
+    const matches = (db.allTeam || db.team || []).filter((m) =>
       [memberKey(m), m.Name, m.Mail, ...list(m.Aliases)].some(
         (v) => norm(v) === wanted,
       ),
@@ -3422,25 +3429,26 @@ const HubModel = (() => {
       ...new Map(
         list(value)
           .map((t) => resolveMember(db, t))
-          .filter(Boolean)
+          .filter(activeMember)
           .map((m) => [memberKey(m), m]),
       ).values(),
     ];
   }
   function actor(db, email) {
-    const matches = (db.team || []).filter(
+    const matches = activeTeam(db).filter(
       (m) => norm(m.Mail) === norm(email) && norm(email),
     );
     return matches.length === 1 ? matches[0] : null;
   }
   function isAdmin(db, member) {
-    if (!member) return false;
+    if (!activeMember(member)) return false;
     return (db.admins || []).some((a) => {
       if (["false", "no", "0"].includes(norm(a.Enabled))) return false;
       // A supplied email takes precedence over a name; a misspelled email cannot grant access by name.
       return clean(a.Email)
         ? norm(a.Email) === norm(member.Mail)
-        : clean(a.Name) && resolveMember(db, a.Name) === member;
+        : clean(a.Name) &&
+            memberKey(resolveMember(db, a.Name) || {}) === memberKey(member);
     });
   }
   function parseRatings(value) {
@@ -3478,7 +3486,7 @@ const HubModel = (() => {
     (db.skills || []).forEach((s) =>
       PROJECT_FIELDS.forEach((field) => add(field, s[field])),
     );
-    (db.team || []).forEach((m) =>
+    activeTeam(db).forEach((m) =>
       PROJECT_FIELDS.forEach((field) =>
         parseRatings(m[field]).forEach((i) => add(field, i.label)),
       ),
@@ -3546,7 +3554,7 @@ const HubModel = (() => {
       }),
     );
     const requirements = new Map();
-    (db.team || []).forEach((m) =>
+    activeTeam(db).forEach((m) =>
       requiredSkills(db, m).forEach((r) => {
         const key = skillKey(r.category, r.label);
         if (!requirements.has(key))
@@ -3634,7 +3642,7 @@ const HubModel = (() => {
       ? people(db, assigned)
       : type === "Task"
         ? []
-        : db.team || [];
+        : activeTeam(db);
     const key = `${type}:${eventId}`;
     const completions = (db.completions || []).filter(
       (c) => clean(c["Event ID"]) === key,
@@ -3648,13 +3656,19 @@ const HubModel = (() => {
       const m = resolveMember(db, token);
       return m ? memberKey(m) : "unmatched:" + norm(token);
     };
+    const currentIdentity = (token) => {
+      const member = resolveMember(db, token);
+      return !member || activeMember(member);
+    };
     const eligibleIdentities = new Set(
-      assigned ? list(assigned).map(identity) : eligible.map(memberKey),
+      assigned
+        ? list(assigned).filter(currentIdentity).map(identity)
+        : eligible.map(memberKey),
     );
     const completedIdentities = new Set(
-      list(logs.map((l) => clean(l["Attendees/Completed"])).join("\n")).map(
-        identity,
-      ),
+      list(logs.map((l) => clean(l["Attendees/Completed"])).join("\n"))
+        .filter(currentIdentity)
+        .map(identity),
     );
     const completed = new Set(legacyPeople.map(memberKey));
     const submissions = new Map();
@@ -3666,10 +3680,10 @@ const HubModel = (() => {
       completed.delete(identityKey);
       completedIdentities.delete(identityKey);
       if (completionStatus(c) !== "Completed") return;
-      if (m) {
+      if (activeMember(m)) {
         completed.add(memberKey(m));
         completedIdentities.add(memberKey(m));
-      } else if (c.Name) completedIdentities.add(identity(c.Name));
+      } else if (!m && c.Name) completedIdentities.add(identity(c.Name));
     });
     if (type === "Task") {
       // Kanban status is the sole current completion state. Preserve old personal logs as history.
@@ -3728,7 +3742,11 @@ const HubModel = (() => {
     return eventRows
       .filter((event) => REVIEW_TYPES.includes(event.type))
       .flatMap((event) => [...event.submissions.values()])
-      .filter((row) => completionStatus(row) === "Pending")
+      .filter(
+        (row) =>
+          completionStatus(row) === "Pending" &&
+          activeMember(resolveMember(db, row["Member ID"] || row.Email)),
+      )
       .sort((a, b) => clean(a.Timestamp).localeCompare(clean(b.Timestamp)));
   }
   function eventState(event, member, today) {
@@ -3962,7 +3980,7 @@ const HubModel = (() => {
   const TEAM_COLORS = ["purple", "teal", "blue", "amber", "rose"];
   const enabled = (row) => !["false", "no", "0"].includes(norm(row.Active));
   function teamStructure(db) {
-    const head = (db.team || []).find((m) => role(m) === "Team Leader");
+    const head = activeTeam(db).find((m) => role(m) === "Team Leader");
     let teams, memberships;
     if ((db.subteams || []).length) {
       teams = db.subteams.filter(enabled).map((t) => ({
@@ -3977,7 +3995,7 @@ const HubModel = (() => {
           (r) =>
             enabled(r) &&
             ids.has(id(r["Subteam ID"])) &&
-            (db.team || []).some((m) => memberKey(m) === id(r["Member ID"])),
+            activeTeam(db).some((m) => memberKey(m) === id(r["Member ID"])),
         )
         .map((r) => ({
           teamId: id(r["Subteam ID"]),
@@ -3988,7 +4006,9 @@ const HubModel = (() => {
       // Deterministic fallback for an older sheet, until the normalized sheets are migrated.
       const names = [
         ...new Set(
-          (db.team || []).map((m) => clean(m.Department)).filter(Boolean),
+          activeTeam(db)
+            .map((m) => clean(m.Department))
+            .filter(Boolean),
         ),
       ];
       teams = names.map((name, i) => ({
@@ -3997,7 +4017,7 @@ const HubModel = (() => {
         description: "",
         color: TEAM_COLORS[i % TEAM_COLORS.length],
       }));
-      memberships = (db.team || [])
+      memberships = activeTeam(db)
         .filter((m) => clean(m.Department))
         .map((m) => ({
           teamId: teams.find((t) => t.name === clean(m.Department)).id,
@@ -4012,7 +4032,7 @@ const HubModel = (() => {
       return ["Refresh the app to use subteam settings."];
     const { headId, teams = [], memberships = [] } = structure;
     const errors = [];
-    const ids = new Set((db.team || []).map(memberKey));
+    const ids = new Set(activeTeam(db).map(memberKey));
     if (!ids.has(headId)) errors.push("Choose exactly one Team Leader.");
     if (
       !Array.isArray(teams) ||
@@ -4084,12 +4104,32 @@ const HubModel = (() => {
       "moveTask",
       "saveSkillRequirements",
       "reviewSubmission",
+      "removeMember",
     ];
     if (adminActions.includes(action))
       assert(
         admin,
         "Only members explicitly listed in the Admins sheet may manage events or hierarchy.",
       );
+    // Stable command IDs make every background retry safe, including skill updates and reviews.
+    if (
+      clean(payload.commandId) &&
+      (db.activity || []).some((row) => {
+        if (row.Action !== action || norm(row.Email) !== norm(member.Mail))
+          return false;
+        try {
+          const data = JSON.parse(row.Details || "{}");
+          return (
+            data &&
+            data.outcome === "Succeeded" &&
+            data.requestId === clean(payload.commandId)
+          );
+        } catch (_) {
+          return false;
+        }
+      })
+    )
+      return { db: input, unchanged: true };
     db.completions = db.completions || [];
     db.activity = db.activity || [];
     db.logs = db.logs || [];
@@ -4152,6 +4192,17 @@ const HubModel = (() => {
         "Update task status using the Kanban board or status dropdown.",
       );
       target = e.title;
+      if (
+        clean(payload.commandId) &&
+        clean(payload.newId) &&
+        db.completions.some(
+          (row) =>
+            clean(row["Submission ID"]) === newId("submission") &&
+            row["Event ID"] === e.key &&
+            id(row["Member ID"]) === memberKey(member),
+        )
+      )
+        return { db: input, unchanged: true };
       const state = eventState(e, member, today);
       assert(state.eligible, "You are not eligible for this event.");
       const updatingSkill = action === "updateSkillCompletion";
@@ -4218,7 +4269,7 @@ const HubModel = (() => {
       );
       const person = resolveMember(db, submission["Member ID"]);
       assert(
-        person &&
+        activeMember(person) &&
           e.submissions.get(memberKey(person)) === submission &&
           completionStatus(submission) === "Pending",
         "This submission is no longer pending. Refresh before reviewing.",
@@ -4315,26 +4366,18 @@ const HubModel = (() => {
           url.length <= 2048 && /^https?:\/\/[^\s]+$/i.test(url),
           "Enter a valid https:// or http:// evidence link.",
         );
-        assert(
-          ["Completion", "Issue"].includes(payload.kind),
-          "Choose completion evidence or an issue.",
-        );
-        const note = safeText(payload.note);
-        assert(note.length <= 1000, "Keep the note within 1,000 characters.");
         const linkId = newId("task-link");
         if (links.some((link) => link.id === linkId))
           return { db: input, unchanged: true };
         links.push({
           id: linkId,
           url,
-          kind: payload.kind,
-          note,
           memberId: memberKey(member),
           name: clean(member.Name),
           timestamp: now,
           active: true,
         });
-        details = { link: linkId, url, kind: payload.kind };
+        details = { link: linkId, url };
       } else {
         const link = links.find((item) => item.id === payload.linkId);
         assert(link, "This link is no longer available.");
@@ -4344,7 +4387,7 @@ const HubModel = (() => {
         );
         if (link.active === false) return { db: input, unchanged: true };
         link.active = false;
-        details = { link: link.id, url: link.url, kind: link.kind };
+        details = { link: link.id, url: link.url };
       }
       const value = JSON.stringify(links);
       assert(
@@ -4494,8 +4537,50 @@ const HubModel = (() => {
       };
       e.row.Status = payload.status;
       target = e.title;
+    } else if (action === "removeMember") {
+      const selected = activeTeam(db).find(
+        (person) => memberKey(person) === id(payload.memberId),
+      );
+      assert(
+        selected,
+        "This member is no longer active. Refresh the team directory.",
+      );
+      assert(
+        role(selected) !== "Team Leader",
+        "Assign a new Team Leader before removing this member.",
+      );
+      assert(
+        activeTeam(db).some(
+          (person) =>
+            memberKey(person) !== memberKey(selected) && isAdmin(db, person),
+        ),
+        "Keep at least one enabled admin on the team.",
+      );
+      const structure = teamStructure(db);
+      const soleLeader = structure.teams.find((team) => {
+        const leaders = structure.memberships.filter(
+          (entry) => entry.teamId === team.id && entry.role === "Leader",
+        );
+        return (
+          leaders.length === 1 && leaders[0].memberId === memberKey(selected)
+        );
+      });
+      assert(
+        !soleLeader,
+        "Assign another leader for " +
+          (soleLeader?.name || "this subteam") +
+          " before removing this member.",
+      );
+      selected.Active = "FALSE";
+      (db.memberships || [])
+        .filter((entry) => id(entry["Member ID"]) === memberKey(selected))
+        .forEach((entry) => {
+          entry.Active = "FALSE";
+        });
+      target = selected.Name;
+      details = { memberId: memberKey(selected), name: selected.Name };
     } else if (action === "saveSkillRequirements") {
-      const selected = (db.team || []).find(
+      const selected = activeTeam(db).find(
         (m) => memberKey(m) === id(payload.memberId),
       );
       assert(selected, "Choose a valid member.");
@@ -4583,7 +4668,7 @@ const HubModel = (() => {
           Active: "TRUE",
         });
       });
-      db.team.forEach((m) => {
+      db.team.filter(activeMember).forEach((m) => {
         const own = structure.memberships.filter(
           (r) => r.memberId === memberKey(m),
         );
@@ -4635,7 +4720,7 @@ const HubModel = (() => {
             : action === "saveTask"
               ? "Task"
               : ""),
-        requestId: clean(payload.newId),
+        requestId: clean(payload.commandId || payload.newId),
         outcome: "Succeeded",
         ...(action === "completeEvent" ? { member: memberKey(member) } : {}),
         ...details,
@@ -4657,7 +4742,7 @@ const HubModel = (() => {
         outcome: "Failed",
         event: clean(payload.key),
         type: event?.type || clean(payload.type),
-        requestId: clean(payload.newId),
+        requestId: clean(payload.commandId || payload.newId),
         error: clean(error.message || error).slice(0, 1000),
       }),
     };
@@ -4690,6 +4775,8 @@ const HubModel = (() => {
     dateOnly,
     number,
     role,
+    activeMember,
+    activeTeam,
     resolveMember,
     people,
     actor,
@@ -5353,6 +5440,252 @@ if (typeof module !== "undefined" && module.exports) module.exports = HubSync;
 
     </script>
     <script>
+      /* Immediate local feedback for updates; only confirmed responses enter the source snapshot. */
+const HubActions = (() => {
+  function create({
+    model,
+    getData,
+    send,
+    schedule,
+    accept,
+    onView,
+    onChange,
+    onNotice,
+    makeId,
+    now = () => new Date().toISOString(),
+  }) {
+    let jobs = [];
+    const active = (job) => ["queued", "saving"].includes(job.state);
+    const owner = () => model.norm(getData()?.activeUserSession?.email);
+    function apply(data, job) {
+      if (job.action === "queueTelegramNotification") {
+        if (
+          !model.isAdmin(data, model.actor(data, job.owner)) ||
+          !job.payload.receipt
+        )
+          throw new Error(
+            "Open the Telegram preview as an admin before sending.",
+          );
+        return data;
+      }
+      const result = model.transition(
+        data,
+        job.owner,
+        job.action,
+        job.payload,
+        job.timestamp,
+      );
+      if (!result.unchanged) {
+        const row = result.db.activity[result.db.activity.length - 1];
+        const details = JSON.parse(row.Details || "{}");
+        row.Details = JSON.stringify({
+          ...details,
+          outcome: "Saving",
+          optimistic: true,
+        });
+      }
+      return result.db;
+    }
+    function view() {
+      let data = getData();
+      if (!data) return data;
+      for (const job of jobs) {
+        if (!active(job) || job.owner !== owner()) continue;
+        try {
+          data = apply(data, job);
+        } catch (_) {
+          /* A failed dependency is handled by dispatch, without displaying a false result. */
+        }
+      }
+      return { ...data, allTeam: data.team, team: model.activeTeam(data) };
+    }
+    function emit() {
+      onChange(jobs.map((job) => ({ ...job })));
+      onView(view());
+    }
+    function successMessage(job) {
+      if (job.action === "completeEvent")
+        return model.REVIEW_TYPES.includes(job.type)
+          ? "Submission saved for admin review. Status: Pending."
+          : "Completion saved.";
+      return (
+        {
+          moveTask: "Task status saved.",
+          updateSkillCompletion: "Skill result saved.",
+          revertCompletion: "Status reset saved.",
+          reviewSubmission: "Review saved.",
+          addTaskLink: "Evidence link saved.",
+          removeTaskLink: "Evidence link removed.",
+          queueTelegramNotification: "Announcement queued for Telegram.",
+          saveHierarchy: "Team distribution saved.",
+          saveSkillRequirements: "Required skills saved.",
+          removeMember: "Member removed from the active team.",
+        }[job.action] || "Changes saved."
+      );
+    }
+    function saved(job) {
+      if (job.state === "saved") return;
+      job.state = "saved";
+      job.error = "";
+      if (job.owner === owner()) onNotice?.(successMessage(job), "success");
+      const timer = setTimeout(() => {
+        jobs = jobs.filter((item) => item !== job);
+        emit();
+      }, 6000);
+      timer?.unref?.();
+    }
+    function recorded(data, job) {
+      return (data.activity || []).some((row) => {
+        if (model.norm(row.Email) !== job.owner || row.Action !== job.action)
+          return false;
+        try {
+          const details = JSON.parse(row.Details || "{}");
+          return (
+            details?.outcome === "Succeeded" && details.requestId === job.id
+          );
+        } catch (_) {
+          return false;
+        }
+      });
+    }
+    function confirmed(data) {
+      jobs.forEach((job) => {
+        if (active(job) && recorded(data, job)) saved(job);
+      });
+      emit();
+    }
+    function dispatch(job) {
+      schedule(async () => {
+        if (!active(job)) return;
+        try {
+          if (owner() !== job.owner)
+            throw new Error(
+              "Switch back to the account that made this update before retrying.",
+            );
+          if (recorded(getData(), job)) {
+            saved(job);
+            emit();
+            return;
+          }
+          apply(getData(), job); // Revalidate dependent updates against the latest confirmed snapshot.
+          job.state = "saving";
+          emit();
+          const result = await send(job.action, job.payload);
+          if (!result?.success)
+            throw new Error(
+              result?.error || "The update could not be confirmed.",
+            );
+          saved(job);
+          accept(result.data);
+        } catch (error) {
+          job.state = job.replacedBy ? "superseded" : "failed";
+          job.error = error.message || String(error);
+          if (job.owner === owner() && job.state === "failed")
+            onNotice?.(
+              `Couldn’t save “${job.title}”. The unconfirmed change was rolled back; retry from Event saves.`,
+              "error",
+            );
+          emit();
+        }
+      });
+    }
+    function mutate(action, payload) {
+      const data = view();
+      const currentOwner = owner();
+      const id = payload.newId || makeId();
+      const duplicate = jobs.find(
+        (job) => job.id === id && job.owner === currentOwner,
+      );
+      if (duplicate) return duplicate;
+      const key =
+        payload.key ||
+        (data.completions || []).find(
+          (row) => row["Submission ID"] === payload.submissionId,
+        )?.["Event ID"] ||
+        "";
+      const event = key
+        ? model.events(data).find((item) => item.key === key)
+        : null;
+      const job = {
+        id,
+        owner: currentOwner,
+        kind: "update",
+        action,
+        payload: { ...payload, newId: id, commandId: id },
+        timestamp: now(),
+        key,
+        type: event?.type || "intelligence",
+        title:
+          event?.title ||
+          payload.title ||
+          (action === "saveHierarchy"
+            ? "Team distribution"
+            : action === "saveSkillRequirements"
+              ? "Required skills"
+              : "Team update"),
+        state: "queued",
+        error: "",
+      };
+      const projected = apply(data, job); // Invalid input stays in its form; no request is queued.
+      if (projected === data && action !== "queueTelegramNotification")
+        return null;
+      if (
+        [
+          "moveTask",
+          "saveTask",
+          "saveEvent",
+          "updateSkillCompletion",
+          "saveHierarchy",
+          "saveSkillRequirements",
+        ].includes(action)
+      ) {
+        job.channel = `${action}:${key || payload.memberId || "team"}`;
+        jobs.forEach((older) => {
+          if (
+            older.owner === currentOwner &&
+            older.channel === job.channel &&
+            older.state !== "saved"
+          ) {
+            older.replacedBy = id;
+            if (older.state === "failed") older.state = "superseded";
+          }
+        });
+      }
+      jobs.push(job);
+      emit();
+      dispatch(job);
+      return job;
+    }
+    function retry(id) {
+      const job = jobs.find((item) => item.id === id && item.owner === owner());
+      if (!job || job.state !== "failed" || job.replacedBy) return;
+      try {
+        apply(view(), job);
+      } catch (error) {
+        job.error = error.message || String(error);
+        emit();
+        return;
+      }
+      job.state = "queued";
+      job.error = "";
+      emit();
+      dispatch(job);
+    }
+    function dismiss(id) {
+      jobs = jobs.filter(
+        (job) => job.id !== id || job.owner !== owner() || active(job),
+      );
+      emit();
+    }
+    return { mutate, accept: confirmed, retry, dismiss, view };
+  }
+  return { create };
+})();
+if (typeof module !== "undefined" && module.exports)
+  module.exports = HubActions;
+
+    </script>
+    <script>
       /* Public notification formatting only. Bot credentials belong in Script Properties. */
 const HubTelegram = (() => {
   const types = ["Task", "Meet", "Learning"];
@@ -5458,7 +5791,7 @@ if (typeof module !== "undefined" && module.exports)
 
     </script>
     <script>
-const LOCAL_SEED = {"sheets": {"supervisor": "Supervisor", "team": "Team", "skills": "Skill", "learning": "Learning", "meet": "Meet", "tasks": "Task", "logs": "Log", "activity": "Activity", "admins": "Admins", "skillEvents": "SkillEvents", "completions": "Completion", "skillRequirements": "SkillRequirements", "subteams": "Subteams", "memberships": "TeamMemberships"}, "csv": {"supervisor": "Name,phone\nDr Bassant,17352734\nhttps://youtu.be/E2olFc-th7A?si=hVvhglltlywirFsF,\nhttps://teracourses.com/ar/course/c-plus-plus-course6?utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/c-plus-plus-course20?utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=owCqVRbZlbg&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Algorithms+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+Data+Structures+Algorithms&utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/c-plus-plus-course6?utm_source=chatgpt.com,\nhttps://elzero.org/category/courses/git-and-github/?utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Linux+Command+Line+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Clean+Code+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Software+Engineering+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Computer+Architecture+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Operating+Systems+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Computer+Networks+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=SQL+Database+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nElectronic piller,\nhttps://www.youtube.com/watch?v=9payZya_FvI&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Digital+Logic+Design+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=bCSeXFRBhLg&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=tfvtvwaKiYQ&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=yHoRxeWSgPY&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Arduino+Sensors+Actuators+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=DC+Motor+Motor+Driver+PWM+Arduino+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=UART+I2C+SPI+CAN+Embedded+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://robojax.com/tutorial_view.php?courseID=3&id=619&lang=ar&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Power+Electronics+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=1T6lCwysl6s&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Electronics+Troubleshooting+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Advanced+Embedded+Systems+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=FreeRTOS+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+Embedded&utm_source=chatgpt.com,\nMechanical Pillar,\nhttps://www.youtube.com/watch?v=gHg8mgppTSQ&utm_source=chatgpt.com,\nhttps://t.me/s/EngineeringTutorials?after=142&utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/solidworks-course4?utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/solidworks-course4?utm_source=chatgpt.com,\nhttps://arbcours.blogspot.com/2017/06/Course-Solidworks-training-for-beginner.html?utm_source=chatgpt.com,\nhttps://arbcours.blogspot.com/2017/06/Course-Solidworks-training-for-beginner.html?utm_source=chatgpt.com,\nMahara-Tech,\nhttps://maharatech.gov.eg/course/view.php?id=2247&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=2271&lang=ar&utm_source=chatgpt.com,\nhttps://stagging.maharatech.gov.eg/course/view.php?id=2206&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=32&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=14&lang=ar&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=2368&lang=en&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/index.php?lang=ar&utm_source=chatgpt.com,\n", "team": "Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education,Role,Reports To,Department,Aliases,Knowledge,Skills\nAbdallah Refaat Allam,2520606,abdallahallam1550@gmail.com,1091157494,,\"First-year IT student passionate about Robotics and Embedded Systems. Currently working on an autonomous robot using Arduino and ESP32, with hands-on experience in sensors, motor control, and communication systems. Eager to learn and gain practical experience in robotics.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team Leader,,,\"Abdallah Allm\nAbdallah-Allam\nAbdallah Refaat\",,\n\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645,2521059,Nourazzam589@gmail.com,1277251600,,\u0646\u0639\u0645,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nMohamed hamada shabaan,2520780,mojo52830@gmail.com,1025844001,,\"A passion for embedded systems and learning, and contributing as much as I can ASAR Tim, I have a modest experience in programming languages and operating robotics, and I'm always trying to move forward, and I hope to introduce Tim's active.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 3}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 2}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Leader,2520606,Software & AI,,,\nAmany Bilal Abo zaid Deffalla,2520186,amanybilal36@gmail.com,1208185428,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nAbdelrhman Mohamed Abdelfttah Soliman,2520594,abdelrhmanalnagar18@gmail.com,1025031789,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Leader,2520606,Electronics & Embedded,,,\nEzzat Abdel Rafea Ahmed,2520622,ztbdalraf82@gmail.com,1226286900,,\u062a\u062e\u0635\u0635 \u062a\u0643\u0646\u0648\u0644\u0648\u062c\u064a\u0627 \u0648\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0648\u0634\u0628\u0643\u0627\u062a \u0644\u062f\u064a \u0634\u063a\u0641 \u0639\u0645\u0644 \u0641\u064a \u0627\u0646\u0638\u0645\u0647 \u0643\u0627\u0645\u064a\u0631\u0627\u062a ip cctv  \u0627\u0633\u0639\u064a \u0644\u062a\u0637\u0648\u064a\u0631 \u0648\u0627\u0644\u0648\u0635\u0648\u0644 \u0627\u0644\u0639\u0645\u0644 \u0641\u064a \u0634\u0631\u0643\u0647 Cisco,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nMohamed farhat nasr ali,2540213,mohamedfarahat555566@gmail.com,1095844217,,\"Motivated Information Technology student with a strong interest in programming and software development. Currently developing my skills in C, C++, Python, and computer networks. Eager to learn new technologies, gain practical experience, and contribute to real-world projects.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 2}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 2}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 3}\n{Gazebo / RViz2 / WebSockets Injection , 2}\",,,,Leader,2520606,Mechanics & Integration,,,\nAmal Mohamed Youssef Mahmoud,2520189,amlmhmdywsf7@gmail.com,1277166793,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nZiyadmohamed abd elrady,2520448,ziyadmohamed7689@gmail.com,1026484558,,..,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nFatma Magdy Issa Abdel Baqi,2560172,fm3192820@gmail.com,1067110418,,\"A 2nd-year Information Technology student at Borg El-Arab Technological University with hands-on experience in AI development. In my 1st year, I served as the AI Specialist for a Smart University Assistant project, where I developed an intelligent conversational AI integrated with a Telegram bot, web platform, and dedicated hardware device. The system automated student-faculty communication, real-time schedule updates, and instant query answering. I am eager to join a dedicated team for our 2nd-year graduation project to apply my AI skills, collaborate on innovative solutions, and build impactful technology together.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 3}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 3}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 3}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nAhmed Mohamed Abu El-Fadl Ramadan,2540004,ahmedcor90@gmail.com,1283920280,,\"Electrical Installation graduate from technical secondary school with 95.3%, moved to IT with Excellent grade and got Very Good in my second IT semester. Built and improved a university guide chatbot using Groq API on my own, made a simple backend under time pressure, and picked the best local AI model via Ollama that fits Raspberry Pi as an offline backup. Currently learning C, Git/GitHub and Linux basics. Ready to contribute and grow through hands on work.\",\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nMostafa Ahmed Sayed Ali Abou baker,2540244,mostafaabuobaker999@gmail.com,1032495429,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 3}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\n\u064a\u0648\u0633\u0641 \u0648\u062c\u062f\u064a \u0627\u0644\u0633\u064a\u062f \u0627\u062d\u0645\u062f,2540300,wagdeyyoussef@gmail.com,1200795169,,\u0627\u0646\u0627 \u062e\u0628\u0631\u062a\u064a \u0645\u062d\u062f\u0648\u062f\u0647 \u0628\u0633 \u0627\u0644\u064a \u0628\u064a\u062a\u0637\u0644\u0628 \u0645\u0646\u064a \u0628\u0639\u0645\u0644\u0647 \u0627\u064a\u0627 \u0643\u0627\u0646 \u062d\u062a\u0649 \u0644\u0648 \u0647\u062a\u0639\u0644\u0645\u0647 \u0639\u0627\u062f\u064a,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nShams Mohammed Abd-ELhakim Galal,2560129,shamsgalal69@gmail.com,1508195848,,\"I'm a student in the Department of Information Technology, and I am interested in programming, embedded systems, and robotics. I have experience with Arduino, ESP32, and Proteus, and a basic understanding of C/C++, Python, HTML, and JavaScript. I also have a foundational knowledge of networking and cybersecurity. I am eager to learn new technologies, develop my technical skills, and work as part of a team.\",\"{Embedded Systems & Firmware (C/C++) , 4}\n{High-Level Scripting & Middleware (Python) , 4}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 3}\n{Circuit Design & EDA Routing , 3}\n{Power Electronics & Circuit Protection , 4}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 3}\n{Sensor Fusion & State Estimation , 3}\n{Computer Vision & Spatial AI , 4}\n{SLM Fine tuning & Edge AI deployment , 3}\",\"{Systematic Root-Cause Isolatio , 4}\n{Critical Thinking & Architecture Trade-Off Analysis , 4}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 4}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 4}\n{KiCad EDA (v7.0+) / Proetus , 3}\n{PlatformIO / VS Code / Arduino IDE 2.x , 4}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}\n{ROS 2 (Humble Hawksbill) , 3}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 3}\n{FastAPI (Python) / Express & WebSockets , 4}\n{Gazebo / RViz2 / WebSockets Injection , 2}\",,,,Team member,2520594,Electronics & Embedded,,,\nMohamed Elhot,2520756,mohamed_elhot13@gmail.com,1282073791,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nShams Mohamed Gaber Eldeeb,2521242,shamseldeeb946@gmail.com,1021639139,,\"I am a motivated IT student with a strong interest in robotics and embedded systems. I have previous experience working on ASAR's project, where I was involved in the hardware team. This experience helped me develop my teamwork, problem-solving, and practical engineering skills. I am eager to continue learning, improve my technical abilities, and contribute to ASAR's robotics projects, especially in hardware integration and control systems.\",\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nOmnia Ahmed Samir,2520190,Omniasamir775@gmail.com,1144001142,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 3}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 3}\n{Critical Thinking & Architecture Trade-Off Analysis , 4}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 4}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 2}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nA\u2019laa Mohamed Elhafny,2520175,lolamoham2000@gmail.com,1143116077,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nAsmaa Aahraf,2550031,asmaaashraf1292007@gmail.com,1061672541,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nassem waleed khamis saleh,2560148,assemwaleed321@gmail.com,1021881710,,\"I am currently studing in information technology department\nI am a fullstack web developer\nI have been working on several large-scaled projects such as e-commerce websites\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 4}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nIbrahim farag abd elmawgoud,2520070,Iprahem30001@gmail.com,1228081024,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nAbdallah abass Mohamed gad,2520609,abdallahabass305@gmail.com,1015028240,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nRuqayya Abd  El Mawjood Hamed,2520406,ruqayyaabdelmawjwd@gmail.com,1145388901,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nAhmed Fathy ahmed laz,2520112,fathyumar3@gmail.com,1025601425,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nRahma Fayez,2520398,rahmefayze76@gmail.com,1040769179,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nAhlam Abdelbast Ebrhim,2560005,ahlamabdelbast525@gmail.com,1212337831,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 3}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 3}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 3}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 3}\",,,,Team member,2520594,Electronics & Embedded,,,\n", "skills": "Hard Skill,Technical Competency,Specific Technical Application,Soft Skill,Description,Engineering Layer,Technology,Function in Architecture\nEmbedded Systems & Firmware (C/C++),Low-Level Hardware Drivers & Real-Time Loops,\"Writing non-blocking C++ code, direct register manipulation, hardware timer interrupts, quadrature encoder decoding, and I2C/SPI/UART peripheral communication.\",Systematic Root-Cause Isolatio,The ability to evaluate engineering compromises objectively\u2014such as deciding whether to execute lightweight neural network inference locally on the Raspberry Pi for minimal latency versus invoking cloud APIs over WebSockets for higher model accuracy at the expense of network dependency.,Mechanical CAD,Autodesk Fusion 360 / SolidWorks,\"3D parametric chassis updates, component mounting layout, laser-cutting exports, and 3D printing STEP generation.\"\nHigh-Level Scripting & Middleware (Python),Computational Pipelines & ROS 2 Orchestration,\"Rapid prototyping of vision scripts, ROS 2 node creation, asynchronous API management, and binding computer vision algorithms.\",Critical Thinking & Architecture Trade-Off Analysis,\"Methodical troubleshooting across interconnected engineering layers. When a robot fails to navigate correctly, a engineer must systematically isolate whether the root cause is mechanical wheel slip, electromagnetic motor noise polluting sensor lines, ground loop voltage shifts, UART frame corruption, or a software deadlock in inter-thread communication.\",Electronic EDA,KiCad EDA (v7.0+),\"Schematic capture, custom component footprints, PCB layout routing, Design Rule Checking (DRC), and Gerber file export.\"\nVersion Control & Collaboration (Git/GitHub),Source Code Lifecycle Management,\"Branch management, atomic commits, pull request workflows, conflict resolution, version tagging, and automated rollback recovery.\",Safety-First Engineering Mindset (Fail-Safe Design),\"Anticipating hardware and environmental failure modes before physical deployment. This includes designing latching and non-latching emergency-stop protocols, setting up automatic software timeouts for lost control signals, and enforcing battery under-voltage cutoffs.\",Embedded Firmware,PlatformIO / VS Code / Arduino IDE 2.x,\"Multi-target C/C++ compilation, board package management for ESP32 and AVR Mega, and static code analysis.\"\nEmbedded Linux & SBC Administration,System Commissioning & POSIX Operations,\"Linux kernel configuration, GPIO access via libgpiod, multithreading, systemd service automation, and headless remote management.\",Adaptive Problem Solving & Agile Iteration,\"Embracing an iterative \"\"design-test-debug\"\" approach when dealing with physical unexpected real-world variables, such as varying floor friction, ambient light interference on camera vision, and unexpected structural chassis vibrations.\",SBC Operating System,Raspberry Pi OS (64-bit) / Ubuntu Server,\"Headless Linux operating system, system service configuration, and hardware bus management (I2C, SPI, UART, CSI).\"\nCircuit Design & EDA Routing,Schematic Capture & PCB Layout,\"KiCad EDA schematic design, multi-layer board stackup, trace sizing for high-current motor paths, and ground plane separation.\",Cross-Domain Systems Integration,\"Breaking down traditional engineering silos to integrate mechanical body design, electrical safety routing, low-level microcontrollers, and cloud/edge software into a unified functional system.\",Robotics Middleware,ROS 2 (Humble Hawksbill),\"Node pub/sub messaging, transform tree management (tf2), parameter management, and service orchestration.\"\nPower Electronics & Circuit Protection,Power Conditioning & Safety Isolation,\"Switching buck converter regulation (LM2596/MP2307), 3S Li-ion/LiPo BMS integration, optocoupler signal isolation, flyback diode protection, and TVS surge suppression.\",,,SLAM & Navigation,slam_toolbox & ROS 2 Nav2,\"Occupancy grid generation from LiDAR range vectors, global A* pathfinding, and local TEB trajectory optimization.\"\nMechanical Engineering & CAD,Parametric Modeling & Enclosures,\"2D/3D CAD in SolidWorks or Autodesk Fusion 360, enclosure design for 3D printing or laser cutting, center-of-gravity optimization, and chassis structural updates.\",,,Computer Vision & AI,OpenCV & ONNX Runtime / TFLite,\"Frame capture pipelines, camera calibration, object detection, and local execution of quantized AI models.\"\nKinematics & Motion Control,Dynamic Kinematics Modeling,\"Differential and 4-wheel Mecanum forward/inverse kinematics, PID loop tuning, and PWM duty-cycle mapping.\",,,Web & API Gateway,FastAPI (Python) / Express & WebSockets,\"Local and cloud RESTful JSON API endpoints, low-latency telemetry streaming, and web-based dashboard hosting.\"\nSensor Fusion & State Estimation,Mathematical Filtering,\"Complementary filtering, Extended Kalman Filters (EKF), Unscented Kalman Filters (UKF), and covariance matrix calculation.\",,,Simulation & Debugging,Gazebo / RViz2 / WebSockets Injection,\"3D physics simulation, spatial transform visualization, and manual WebSockets telemetry testing.\"\nComputer Vision & Spatial AI,Visual Perception & API Control,\"OpenCV video pipelines, camera calibration, local ONNX/TFLite model execution, and REST/WebSocket API integration.\",,,,,\nSLM Fine tuninig & Edge AI deployment,,Deploy and fine tune Small langauges models on microcontrollers,,,,,\n", "learning": "Topic name,Track ID,Track Name,Obligability,Skill,Platform,Link,Event ID,Invited/Assigned,Due to Date,Description,Archived\nComplete Git & GitHub Course from Zero to Professional,1,Git & DevOps Mastery,Mandatory,\"Branching, Commits, Pull Requests, Conflict Resolution, Rollback\",YouTube (Elzero Web School),https://www.youtube.com/watch?v=ACOiGZoqC8w,learning-61cd4da535264aa9,,,,\nLearn Git & GitHub Version Control System for Software,1,Git & DevOps Mastery,Mandatory,\"Local Repositories, Staging, Revert, Commit History\",YouTube (CloudKode),https://www.youtube.com/watch?v=fDkR0TDR9dI,learning-d728ae4de0374299,,,,\nTeam Workflow and Software Life Cycle: Git Flow Workflows,1,Git & DevOps Mastery,Optional,\"Remote Repos, Merge Requests, Team Code Reviews\",,https://www.youtube.com/watch?v=AkIpdnup6G4,learning-8fa70608505346e6,,,,\nBasics of C Programming for Microcontrollers,2,C & Embedded Systems,Mandatory,\"Pointers, Memory Allocation, Non-blocking millis() Loops\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247,learning-20731eab424048a3,,,,\nDevice Driver Development and C Code Generation for Microcontrollers (Embedded C Drivers),2,C & Embedded Systems,Mandatory,\"Hardware Registers, ISR Interrupts, Quadrature Encoders, PWM Loop Tuning\",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system,learning-bd48b5fdb0ca4cd1,,,,\nSoftware Interfacing for Microcontrollers via Protocols (I2C / SPI / UART),2,C & Embedded Systems,Mandatory,\"Serial Peripheral Drivers, Timer Hardware Interfacing\",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg,learning-99710067932a4fe6,,,,\nLinux System Administration and Software Components for Raspberry Pi,3,Embedded Linux & SBC Administration,Mandatory,\"Headless SSH Setup, Systemd Service Automation, POSIX Threads\",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg,learning-e75a58efec7645ac,,,,\nControlling SBC Inputs and Outputs using libgpiod and Python,3,Embedded Linux & SBC Administration,Mandatory,\"SBC GPIO Bus Control, Linux Hardware Kernel Drivers\",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system,learning-152b09f6e59241e3,,,,\nBuilding IoT Gateways & Networks Track,3,Embedded Linux & SBC Administration,Optional,\"Linux Networking, Data Telemetry Buffering, System Services\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145,learning-bd393d83c3144934,,,,\nPCB Design and Manufacturing using KiCad (In Lab),4,Electronics & PCB Design,Mandatory,\"KiCad Schematic Capture, Footprint Design, Design Rule Checks (DRC)\",YouTube (Dr. Walid Issa),https://www.youtube.com/watch?v=tKy9v-bi25U,learning-179013836b924ef7,,,,\nMulti-Layer PCB Routing,4,Electronics & PCB Design,Mandatory,\"High-Current Motor Traces, Ground Plane Separation, Gerber Export\",YouTube (Specialized Electronics),https://www.youtube.com/watch?v=tt9BgSrsqPg,learning-5df13a6035f5448f,,,,\n\"Design of Protection Circuits, Power Supply, and Signal Isolation (Electro-Safety)\",4,Electronics & PCB Design,Mandatory,\"Buck Regulators (LM2596), BMS 3S, Optocouplers, TVS Diodes\",YouTube,https://www.youtube.com/watch?v=W0y5D223NJ4,learning-fbbeffdc594f42a9,,,,\nParametric Mechanical Design using Autodesk Fusion 360,5,Mechanical CAD & Structure,Mandatory,\"3D Parametric Modeling, Mounting Brackets, (.STL) 3D Printing\",YouTube,https://www.youtube.com/watch?v=RDiI3K4rias,learning-278d6a978f1742e0,,,,\nRobot Chassis Design and Load Distribution from Scratch in SolidWorks,5,Mechanical CAD & Structure,Mandatory,\"Center of Gravity Optimization, Sheet Metal Laser Cutting (.DXF)\",YouTube,https://www.youtube.com/watch?v=XE9PlUljcyc,learning-e33d2a8284ab46af,,,,\nChassis Assembly and Mechanical Interference Calculation (CAD Assemblies),5,Mechanical CAD & Structure,Optional,\"Mechanical Assembly Interference Checks, Chassis Tolerances\",YouTube,https://www.youtube.com/watch?v=ISf3moboQB0,learning-84ad5b6fd68e4e56,,,,\nBasics of Robot Operating System ROS 2 (Humble) in Arabic,6,Robotics & ROS 2 Navigation,Mandatory,\"ROS 2 Nodes, Topic Pub/Sub, Service Orchestration\",YouTube,https://www.youtube.com/watch?v=T-k9t3QsoT4,learning-8466e498d49f4a51,,,,\nMechanical Kinematics Calculations for Robots and Navigation Application (slam_toolbox & Nav2),6,Robotics & ROS 2 Navigation,Mandatory,\"Mecanum Inverse Kinematics, PID Tuning, TEB Local Planner\",YouTube / MaharaTech,https://www.youtube.com/watch?v=hMTxb8Y2cxI,learning-db047271a1614338,,,,\nDeveloping Web-Based Robot Control Interfaces (WebSockets & FastAPI),6,Robotics & ROS 2 Navigation,Optional,\"Async WebSockets Telemetry, REST JSON API Gateways\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=16,learning-6ddef19e4a8a4e55,,,,\nKalman Filter Mechanics and Sensor Fusion Application,7,Sensor Fusion & State Estimation,Mandatory,\"Complementary Filtering, MPU-6050 IMU, Gyro Angle Estimation\",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA,learning-628379172b294d65,,,,\nExtended Kalman Filter (EKF) for Pose Estimation,7,Sensor Fusion & State Estimation,Mandatory,\"EKF Matrix Calculations, Noise Covariance Tuning (Q & R)\",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA,learning-5a3ea5566fcf4066,,,,\nComputer Vision and Image Processing using OpenCV and Python,8,Computer Vision & Spatial AI,Mandatory,\"Camera Calibration, Frame Capture Pipelines, Object Tracking\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145,learning-8c461a237b064865,,,,\nApplying AI Models on Edge Devices (ONNX / TFLite Edge AI),8,Computer Vision & Spatial AI,Mandatory,\"Quantized Model Execution, OpenCV Pipeline Integration\",Amideast / MaharaTech,https://www.amideast.org/tunisia/advancing-development-goals/experience-ai,learning-2c9ac95746d94280,,,,\nIBM IoT Developer Track (AI and IoT),8,Computer Vision & Spatial AI,Optional,\"Telemetry Pipelines, Dynamic API AI Model Triggers\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=1265,learning-d2599406fb064997,,,,\nBasics of TinyML and Model Deployment on Microcontrollers,9,SLM Fine-Tuning & Edge AI Deployment,Mandatory,\"Microcontroller Machine Learning Deployment, TinyML\",MaharaTech,https://maharatech.gov.eg/course/index.php?categoryid=8,learning-74f2ffa832834894,,,,\nSLM Fine-Tuning & Quantization (Small Language Models),9,SLM Fine-Tuning & Edge AI Deployment,Mandatory,\"SLM Optimization, INT8 Model Quantization, Local Edge Inference\",MaharaTech / YouTube,https://maharatech.gov.eg/course/view.php?id=1265,learning-17b059a9bd9f4deb,,,,\nLocal AI Applications based on Rapid Processing (Edge AI Control),9,SLM Fine-Tuning & Edge AI Deployment,Optional,\"Microcontroller AI Latency Tuning, Fallback Controller Logic\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=7075,learning-81177979e4504874,,,,\n\"Fault Analysis, Correction, and Effective Engineering Risk Management (FMEA)\",10,Engineering Practice & Soft Skills,Mandatory,\"Failure Mode & Effects Analysis, Root-Cause Fault Isolation\",Edraak / MaharaTech,https://courses.edraak.org/courses/course-v1:edraak+RM101+T2_2020/course/,learning-e2020ffcccf741f2,,,,\nCritical Thinking and Trade-off Analysis of Advanced Engineering Solutions,10,Engineering Practice & Soft Skills,Mandatory,\"Critical Thinking, Architecture System Trade-off Evaluation\",Edraak,https://courses.edraak.org/courses/course-v1:Edraak+CT100+2018_T2/course/,learning-78594a1b98ff4c5f,,,,\nFail-Safe Engineering Design and Emergency Systems Management,10,Engineering Practice & Soft Skills,Mandatory,\"Safety-First Mindset, Emergency Stop Protocols, Hardware Redundancy\",Edraak,https://www.edraak.org/programs/specialization/project-management-1/,learning-6156197ebc96478a,,,,\n", "meet": "Meeting title,Meeting Type,Date,Description,Attachments,Event ID,Invited/Assigned,Due to Date,Archived,Logging Enabled\nProject overview,online,2026-07-30,overview about the project asfasf,,meet-cc33802661d4412a,,,,\nRoobt,offline,2026-08-30,afsasfafs,,meet-be1fd4b61bfe41d1,,,,\n", "tasks": "Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale,Archived,Event ID,Due to Date,Evidence Links\naa,aaaa,,Abdallah Refaat,Backlog,,,,,day,,task-5c73d54129a14534,,\na,aff,af,Mohamed hamada shabaan,Completed,,,2,,week,TRUE,task-ffaf31b0ac334d0e,,\nhard,a,ad,\"Abdallah Refaat,\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645\",Blocked,,,1,,week,TRUE,task-fa4ac6cda0d745cb,,\n", "logs": "Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date,Source ID,Archived\nSkill,1,Python,\"Abdallah-Allam\nAbdelrahman M. Abdel-Fattah\nMohamed H. Shaban\nYoussef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\nAhmed Fathy Ahmed\nNour Yasser Zakaria\nAmani Bilal Abu Zeid\nShams Mohamed Abdel-Hakim\nManar Moussa Saeed\nMalak Ahmed Mohamed\nAlaa Mohamed El-Hefny\nSamah Mahdy Salah\nYasmin Samir Abdessalam\nAsmaa Ashraf Attia\nShams Mohamed Jaber\nShaymaa Emad Mohamed\",\"Youssef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\",2026-07-30,,TRUE\nMeet,2,bbb,Abdallah-Allam,Abdallah-Allam,2026-07-30,,\n", "activity": "Timestamp,Email,Action,Target,Details\n2026-09-12 14:11:37,muhamedrefaat777@gmail.com,createTask,aa,\"{\"\"assignees\"\":[\"\"Abdallah Refaat \"\"]}\"\n2026-09-12 18:49:34,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:36,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:41,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:41,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:43,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:53,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:50:00,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:50:15,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:51:24,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-13 00:11:30,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:37,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:38,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:38,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:39,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:45:47,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:45:49,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:23,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:27,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:36,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:44,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:50,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:52:13,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:53:24,test.user@azar.com,createTask,a,\"{\"\"assignees\"\":[\"\"Mohamed hamada shabaan\"\"]}\"\n2026-09-14 11:53:32,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 12:00:00,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 20:49:52,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:28,test.user@azar.com,createTask,hard,\"{\"\"assignees\"\":[\"\"Abdallah Refaat\"\",\"\"\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645\"\"]}\"\n2026-10-01 21:12:36,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:38,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:40,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:49,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:56,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:59,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:13:18,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n", "admins": "Email,Name,Enabled\nabdallahallam1550@gmail.com,Abdallah Refaat Allam,TRUE\n", "skillEvents": "Event Name,Target Skill,Description,Date,Event ID,Invited/Assigned,Due to Date,Archived,Skill Category\n", "completions": "Timestamp,Event Type,Event ID,Event Name,Member ID,Name,Email,Evidence,Score,Submission ID,Status,Evidence File ID,Evidence URL,Evidence Filename,Evidence MIME Type,Evidence Size,Reviewer Email,Reviewer Name,Reviewed At,Review Note,Status Changed At,Status Changed By\n", "skillRequirements": "Member ID,Skill,Category,Required,Target Score\n", "subteams": "Subteam ID,Name,Description,Color,Active\nlegacy-1,Electronics & Embedded,,purple,TRUE\nlegacy-2,Software & AI,,teal,TRUE\nlegacy-3,Mechanics & Integration,,blue,TRUE\n", "memberships": "Subteam ID,Member ID,Role,Active\nlegacy-1,2521059,Member,TRUE\nlegacy-2,2520780,Leader,TRUE\nlegacy-2,2520186,Member,TRUE\nlegacy-1,2520594,Leader,TRUE\nlegacy-3,2520622,Member,TRUE\nlegacy-3,2540213,Leader,TRUE\nlegacy-1,2520189,Member,TRUE\nlegacy-3,2520448,Member,TRUE\nlegacy-2,2560172,Member,TRUE\nlegacy-1,2540004,Member,TRUE\nlegacy-3,2540244,Member,TRUE\nlegacy-2,2540300,Member,TRUE\nlegacy-1,2560129,Member,TRUE\nlegacy-3,2520756,Member,TRUE\nlegacy-2,2521242,Member,TRUE\nlegacy-1,2520190,Member,TRUE\nlegacy-3,2520175,Member,TRUE\nlegacy-2,2550031,Member,TRUE\nlegacy-1,2560148,Member,TRUE\nlegacy-3,2520070,Member,TRUE\nlegacy-2,2520609,Member,TRUE\nlegacy-1,2520406,Member,TRUE\nlegacy-3,2520112,Member,TRUE\nlegacy-2,2520398,Member,TRUE\nlegacy-1,2560005,Member,TRUE\n"}};
+const LOCAL_SEED = {"sheets": {"supervisor": "Supervisor", "team": "Team", "skills": "Skill", "learning": "Learning", "meet": "Meet", "tasks": "Task", "logs": "Log", "activity": "Activity", "admins": "Admins", "skillEvents": "SkillEvents", "completions": "Completion", "skillRequirements": "SkillRequirements", "subteams": "Subteams", "memberships": "TeamMemberships"}, "csv": {"supervisor": "Name,phone\nDr Bassant,17352734\nhttps://youtu.be/E2olFc-th7A?si=hVvhglltlywirFsF,\nhttps://teracourses.com/ar/course/c-plus-plus-course6?utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/c-plus-plus-course20?utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=owCqVRbZlbg&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Algorithms+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+Data+Structures+Algorithms&utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/c-plus-plus-course6?utm_source=chatgpt.com,\nhttps://elzero.org/category/courses/git-and-github/?utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Linux+Command+Line+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Clean+Code+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Software+Engineering+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Computer+Architecture+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Operating+Systems+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Computer+Networks+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=SQL+Database+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nElectronic piller,\nhttps://www.youtube.com/watch?v=9payZya_FvI&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Digital+Logic+Design+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=bCSeXFRBhLg&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=tfvtvwaKiYQ&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=yHoRxeWSgPY&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Arduino+Sensors+Actuators+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=DC+Motor+Motor+Driver+PWM+Arduino+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=UART+I2C+SPI+CAN+Embedded+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://robojax.com/tutorial_view.php?courseID=3&id=619&lang=ar&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Power+Electronics+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=1T6lCwysl6s&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Electronics+Troubleshooting+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Advanced+Embedded+Systems+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=FreeRTOS+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+Embedded&utm_source=chatgpt.com,\nMechanical Pillar,\nhttps://www.youtube.com/watch?v=gHg8mgppTSQ&utm_source=chatgpt.com,\nhttps://t.me/s/EngineeringTutorials?after=142&utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/solidworks-course4?utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/solidworks-course4?utm_source=chatgpt.com,\nhttps://arbcours.blogspot.com/2017/06/Course-Solidworks-training-for-beginner.html?utm_source=chatgpt.com,\nhttps://arbcours.blogspot.com/2017/06/Course-Solidworks-training-for-beginner.html?utm_source=chatgpt.com,\nMahara-Tech,\nhttps://maharatech.gov.eg/course/view.php?id=2247&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=2271&lang=ar&utm_source=chatgpt.com,\nhttps://stagging.maharatech.gov.eg/course/view.php?id=2206&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=32&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=14&lang=ar&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=2368&lang=en&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/index.php?lang=ar&utm_source=chatgpt.com,\n", "team": "Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education,Role,Reports To,Department,Aliases,Knowledge,Skills,Active\nAbdallah Refaat Allam,2520606,abdallahallam1550@gmail.com,1091157494,,\"First-year IT student passionate about Robotics and Embedded Systems. Currently working on an autonomous robot using Arduino and ESP32, with hands-on experience in sensors, motor control, and communication systems. Eager to learn and gain practical experience in robotics.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team Leader,,,\"Abdallah Allm\nAbdallah-Allam\nAbdallah Refaat\",,,TRUE\n\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645,2521059,Nourazzam589@gmail.com,1277251600,,\u0646\u0639\u0645,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nMohamed hamada shabaan,2520780,mojo52830@gmail.com,1025844001,,\"A passion for embedded systems and learning, and contributing as much as I can ASAR Tim, I have a modest experience in programming languages and operating robotics, and I'm always trying to move forward, and I hope to introduce Tim's active.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 3}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 2}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Leader,2520606,Software & AI,,,,TRUE\nAmany Bilal Abo zaid Deffalla,2520186,amanybilal36@gmail.com,1208185428,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nAbdelrhman Mohamed Abdelfttah Soliman,2520594,abdelrhmanalnagar18@gmail.com,1025031789,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Leader,2520606,Electronics & Embedded,,,,TRUE\nEzzat Abdel Rafea Ahmed,2520622,ztbdalraf82@gmail.com,1226286900,,\u062a\u062e\u0635\u0635 \u062a\u0643\u0646\u0648\u0644\u0648\u062c\u064a\u0627 \u0648\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0648\u0634\u0628\u0643\u0627\u062a \u0644\u062f\u064a \u0634\u063a\u0641 \u0639\u0645\u0644 \u0641\u064a \u0627\u0646\u0638\u0645\u0647 \u0643\u0627\u0645\u064a\u0631\u0627\u062a ip cctv  \u0627\u0633\u0639\u064a \u0644\u062a\u0637\u0648\u064a\u0631 \u0648\u0627\u0644\u0648\u0635\u0648\u0644 \u0627\u0644\u0639\u0645\u0644 \u0641\u064a \u0634\u0631\u0643\u0647 Cisco,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\nMohamed farhat nasr ali,2540213,mohamedfarahat555566@gmail.com,1095844217,,\"Motivated Information Technology student with a strong interest in programming and software development. Currently developing my skills in C, C++, Python, and computer networks. Eager to learn new technologies, gain practical experience, and contribute to real-world projects.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 2}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 2}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 3}\n{Gazebo / RViz2 / WebSockets Injection , 2}\",,,,Leader,2520606,Mechanics & Integration,,,,TRUE\nAmal Mohamed Youssef Mahmoud,2520189,amlmhmdywsf7@gmail.com,1277166793,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nZiyadmohamed abd elrady,2520448,ziyadmohamed7689@gmail.com,1026484558,,..,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\nFatma Magdy Issa Abdel Baqi,2560172,fm3192820@gmail.com,1067110418,,\"A 2nd-year Information Technology student at Borg El-Arab Technological University with hands-on experience in AI development. In my 1st year, I served as the AI Specialist for a Smart University Assistant project, where I developed an intelligent conversational AI integrated with a Telegram bot, web platform, and dedicated hardware device. The system automated student-faculty communication, real-time schedule updates, and instant query answering. I am eager to join a dedicated team for our 2nd-year graduation project to apply my AI skills, collaborate on innovative solutions, and build impactful technology together.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 3}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 3}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 3}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nAhmed Mohamed Abu El-Fadl Ramadan,2540004,ahmedcor90@gmail.com,1283920280,,\"Electrical Installation graduate from technical secondary school with 95.3%, moved to IT with Excellent grade and got Very Good in my second IT semester. Built and improved a university guide chatbot using Groq API on my own, made a simple backend under time pressure, and picked the best local AI model via Ollama that fits Raspberry Pi as an offline backup. Currently learning C, Git/GitHub and Linux basics. Ready to contribute and grow through hands on work.\",\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nMostafa Ahmed Sayed Ali Abou baker,2540244,mostafaabuobaker999@gmail.com,1032495429,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 3}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\n\u064a\u0648\u0633\u0641 \u0648\u062c\u062f\u064a \u0627\u0644\u0633\u064a\u062f \u0627\u062d\u0645\u062f,2540300,wagdeyyoussef@gmail.com,1200795169,,\u0627\u0646\u0627 \u062e\u0628\u0631\u062a\u064a \u0645\u062d\u062f\u0648\u062f\u0647 \u0628\u0633 \u0627\u0644\u064a \u0628\u064a\u062a\u0637\u0644\u0628 \u0645\u0646\u064a \u0628\u0639\u0645\u0644\u0647 \u0627\u064a\u0627 \u0643\u0627\u0646 \u062d\u062a\u0649 \u0644\u0648 \u0647\u062a\u0639\u0644\u0645\u0647 \u0639\u0627\u062f\u064a,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nShams Mohammed Abd-ELhakim Galal,2560129,shamsgalal69@gmail.com,1508195848,,\"I'm a student in the Department of Information Technology, and I am interested in programming, embedded systems, and robotics. I have experience with Arduino, ESP32, and Proteus, and a basic understanding of C/C++, Python, HTML, and JavaScript. I also have a foundational knowledge of networking and cybersecurity. I am eager to learn new technologies, develop my technical skills, and work as part of a team.\",\"{Embedded Systems & Firmware (C/C++) , 4}\n{High-Level Scripting & Middleware (Python) , 4}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 3}\n{Circuit Design & EDA Routing , 3}\n{Power Electronics & Circuit Protection , 4}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 3}\n{Sensor Fusion & State Estimation , 3}\n{Computer Vision & Spatial AI , 4}\n{SLM Fine tuning & Edge AI deployment , 3}\",\"{Systematic Root-Cause Isolatio , 4}\n{Critical Thinking & Architecture Trade-Off Analysis , 4}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 4}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 4}\n{KiCad EDA (v7.0+) / Proetus , 3}\n{PlatformIO / VS Code / Arduino IDE 2.x , 4}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}\n{ROS 2 (Humble Hawksbill) , 3}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 3}\n{FastAPI (Python) / Express & WebSockets , 4}\n{Gazebo / RViz2 / WebSockets Injection , 2}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nMohamed Elhot,2520756,mohamed_elhot13@gmail.com,1282073791,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\nShams Mohamed Gaber Eldeeb,2521242,shamseldeeb946@gmail.com,1021639139,,\"I am a motivated IT student with a strong interest in robotics and embedded systems. I have previous experience working on ASAR's project, where I was involved in the hardware team. This experience helped me develop my teamwork, problem-solving, and practical engineering skills. I am eager to continue learning, improve my technical abilities, and contribute to ASAR's robotics projects, especially in hardware integration and control systems.\",\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nOmnia Ahmed Samir,2520190,Omniasamir775@gmail.com,1144001142,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 3}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 3}\n{Critical Thinking & Architecture Trade-Off Analysis , 4}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 4}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 2}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nA\u2019laa Mohamed Elhafny,2520175,lolamoham2000@gmail.com,1143116077,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\nAsmaa Aahraf,2550031,asmaaashraf1292007@gmail.com,1061672541,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nassem waleed khamis saleh,2560148,assemwaleed321@gmail.com,1021881710,,\"I am currently studing in information technology department\nI am a fullstack web developer\nI have been working on several large-scaled projects such as e-commerce websites\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 4}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nIbrahim farag abd elmawgoud,2520070,Iprahem30001@gmail.com,1228081024,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\nAbdallah abass Mohamed gad,2520609,abdallahabass305@gmail.com,1015028240,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nRuqayya Abd  El Mawjood Hamed,2520406,ruqayyaabdelmawjwd@gmail.com,1145388901,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\nAhmed Fathy ahmed laz,2520112,fathyumar3@gmail.com,1025601425,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,,TRUE\nRahma Fayez,2520398,rahmefayze76@gmail.com,1040769179,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,,TRUE\nAhlam Abdelbast Ebrhim,2560005,ahlamabdelbast525@gmail.com,1212337831,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 3}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 3}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 3}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 3}\",,,,Team member,2520594,Electronics & Embedded,,,,TRUE\n", "skills": "Hard Skill,Technical Competency,Specific Technical Application,Soft Skill,Description,Engineering Layer,Technology,Function in Architecture\nEmbedded Systems & Firmware (C/C++),Low-Level Hardware Drivers & Real-Time Loops,\"Writing non-blocking C++ code, direct register manipulation, hardware timer interrupts, quadrature encoder decoding, and I2C/SPI/UART peripheral communication.\",Systematic Root-Cause Isolatio,The ability to evaluate engineering compromises objectively\u2014such as deciding whether to execute lightweight neural network inference locally on the Raspberry Pi for minimal latency versus invoking cloud APIs over WebSockets for higher model accuracy at the expense of network dependency.,Mechanical CAD,Autodesk Fusion 360 / SolidWorks,\"3D parametric chassis updates, component mounting layout, laser-cutting exports, and 3D printing STEP generation.\"\nHigh-Level Scripting & Middleware (Python),Computational Pipelines & ROS 2 Orchestration,\"Rapid prototyping of vision scripts, ROS 2 node creation, asynchronous API management, and binding computer vision algorithms.\",Critical Thinking & Architecture Trade-Off Analysis,\"Methodical troubleshooting across interconnected engineering layers. When a robot fails to navigate correctly, a engineer must systematically isolate whether the root cause is mechanical wheel slip, electromagnetic motor noise polluting sensor lines, ground loop voltage shifts, UART frame corruption, or a software deadlock in inter-thread communication.\",Electronic EDA,KiCad EDA (v7.0+),\"Schematic capture, custom component footprints, PCB layout routing, Design Rule Checking (DRC), and Gerber file export.\"\nVersion Control & Collaboration (Git/GitHub),Source Code Lifecycle Management,\"Branch management, atomic commits, pull request workflows, conflict resolution, version tagging, and automated rollback recovery.\",Safety-First Engineering Mindset (Fail-Safe Design),\"Anticipating hardware and environmental failure modes before physical deployment. This includes designing latching and non-latching emergency-stop protocols, setting up automatic software timeouts for lost control signals, and enforcing battery under-voltage cutoffs.\",Embedded Firmware,PlatformIO / VS Code / Arduino IDE 2.x,\"Multi-target C/C++ compilation, board package management for ESP32 and AVR Mega, and static code analysis.\"\nEmbedded Linux & SBC Administration,System Commissioning & POSIX Operations,\"Linux kernel configuration, GPIO access via libgpiod, multithreading, systemd service automation, and headless remote management.\",Adaptive Problem Solving & Agile Iteration,\"Embracing an iterative \"\"design-test-debug\"\" approach when dealing with physical unexpected real-world variables, such as varying floor friction, ambient light interference on camera vision, and unexpected structural chassis vibrations.\",SBC Operating System,Raspberry Pi OS (64-bit) / Ubuntu Server,\"Headless Linux operating system, system service configuration, and hardware bus management (I2C, SPI, UART, CSI).\"\nCircuit Design & EDA Routing,Schematic Capture & PCB Layout,\"KiCad EDA schematic design, multi-layer board stackup, trace sizing for high-current motor paths, and ground plane separation.\",Cross-Domain Systems Integration,\"Breaking down traditional engineering silos to integrate mechanical body design, electrical safety routing, low-level microcontrollers, and cloud/edge software into a unified functional system.\",Robotics Middleware,ROS 2 (Humble Hawksbill),\"Node pub/sub messaging, transform tree management (tf2), parameter management, and service orchestration.\"\nPower Electronics & Circuit Protection,Power Conditioning & Safety Isolation,\"Switching buck converter regulation (LM2596/MP2307), 3S Li-ion/LiPo BMS integration, optocoupler signal isolation, flyback diode protection, and TVS surge suppression.\",,,SLAM & Navigation,slam_toolbox & ROS 2 Nav2,\"Occupancy grid generation from LiDAR range vectors, global A* pathfinding, and local TEB trajectory optimization.\"\nMechanical Engineering & CAD,Parametric Modeling & Enclosures,\"2D/3D CAD in SolidWorks or Autodesk Fusion 360, enclosure design for 3D printing or laser cutting, center-of-gravity optimization, and chassis structural updates.\",,,Computer Vision & AI,OpenCV & ONNX Runtime / TFLite,\"Frame capture pipelines, camera calibration, object detection, and local execution of quantized AI models.\"\nKinematics & Motion Control,Dynamic Kinematics Modeling,\"Differential and 4-wheel Mecanum forward/inverse kinematics, PID loop tuning, and PWM duty-cycle mapping.\",,,Web & API Gateway,FastAPI (Python) / Express & WebSockets,\"Local and cloud RESTful JSON API endpoints, low-latency telemetry streaming, and web-based dashboard hosting.\"\nSensor Fusion & State Estimation,Mathematical Filtering,\"Complementary filtering, Extended Kalman Filters (EKF), Unscented Kalman Filters (UKF), and covariance matrix calculation.\",,,Simulation & Debugging,Gazebo / RViz2 / WebSockets Injection,\"3D physics simulation, spatial transform visualization, and manual WebSockets telemetry testing.\"\nComputer Vision & Spatial AI,Visual Perception & API Control,\"OpenCV video pipelines, camera calibration, local ONNX/TFLite model execution, and REST/WebSocket API integration.\",,,,,\nSLM Fine tuninig & Edge AI deployment,,Deploy and fine tune Small langauges models on microcontrollers,,,,,\n", "learning": "Topic name,Track ID,Track Name,Obligability,Skill,Platform,Link,Event ID,Invited/Assigned,Due to Date,Description,Archived\nComplete Git & GitHub Course from Zero to Professional,1,Git & DevOps Mastery,Mandatory,\"Branching, Commits, Pull Requests, Conflict Resolution, Rollback\",YouTube (Elzero Web School),https://www.youtube.com/watch?v=ACOiGZoqC8w,learning-61cd4da535264aa9,,,,\nLearn Git & GitHub Version Control System for Software,1,Git & DevOps Mastery,Mandatory,\"Local Repositories, Staging, Revert, Commit History\",YouTube (CloudKode),https://www.youtube.com/watch?v=fDkR0TDR9dI,learning-d728ae4de0374299,,,,\nTeam Workflow and Software Life Cycle: Git Flow Workflows,1,Git & DevOps Mastery,Optional,\"Remote Repos, Merge Requests, Team Code Reviews\",,https://www.youtube.com/watch?v=AkIpdnup6G4,learning-8fa70608505346e6,,,,\nBasics of C Programming for Microcontrollers,2,C & Embedded Systems,Mandatory,\"Pointers, Memory Allocation, Non-blocking millis() Loops\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247,learning-20731eab424048a3,,,,\nDevice Driver Development and C Code Generation for Microcontrollers (Embedded C Drivers),2,C & Embedded Systems,Mandatory,\"Hardware Registers, ISR Interrupts, Quadrature Encoders, PWM Loop Tuning\",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system,learning-bd48b5fdb0ca4cd1,,,,\nSoftware Interfacing for Microcontrollers via Protocols (I2C / SPI / UART),2,C & Embedded Systems,Mandatory,\"Serial Peripheral Drivers, Timer Hardware Interfacing\",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg,learning-99710067932a4fe6,,,,\nLinux System Administration and Software Components for Raspberry Pi,3,Embedded Linux & SBC Administration,Mandatory,\"Headless SSH Setup, Systemd Service Automation, POSIX Threads\",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg,learning-e75a58efec7645ac,,,,\nControlling SBC Inputs and Outputs using libgpiod and Python,3,Embedded Linux & SBC Administration,Mandatory,\"SBC GPIO Bus Control, Linux Hardware Kernel Drivers\",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system,learning-152b09f6e59241e3,,,,\nBuilding IoT Gateways & Networks Track,3,Embedded Linux & SBC Administration,Optional,\"Linux Networking, Data Telemetry Buffering, System Services\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145,learning-bd393d83c3144934,,,,\nPCB Design and Manufacturing using KiCad (In Lab),4,Electronics & PCB Design,Mandatory,\"KiCad Schematic Capture, Footprint Design, Design Rule Checks (DRC)\",YouTube (Dr. Walid Issa),https://www.youtube.com/watch?v=tKy9v-bi25U,learning-179013836b924ef7,,,,\nMulti-Layer PCB Routing,4,Electronics & PCB Design,Mandatory,\"High-Current Motor Traces, Ground Plane Separation, Gerber Export\",YouTube (Specialized Electronics),https://www.youtube.com/watch?v=tt9BgSrsqPg,learning-5df13a6035f5448f,,,,\n\"Design of Protection Circuits, Power Supply, and Signal Isolation (Electro-Safety)\",4,Electronics & PCB Design,Mandatory,\"Buck Regulators (LM2596), BMS 3S, Optocouplers, TVS Diodes\",YouTube,https://www.youtube.com/watch?v=W0y5D223NJ4,learning-fbbeffdc594f42a9,,,,\nParametric Mechanical Design using Autodesk Fusion 360,5,Mechanical CAD & Structure,Mandatory,\"3D Parametric Modeling, Mounting Brackets, (.STL) 3D Printing\",YouTube,https://www.youtube.com/watch?v=RDiI3K4rias,learning-278d6a978f1742e0,,,,\nRobot Chassis Design and Load Distribution from Scratch in SolidWorks,5,Mechanical CAD & Structure,Mandatory,\"Center of Gravity Optimization, Sheet Metal Laser Cutting (.DXF)\",YouTube,https://www.youtube.com/watch?v=XE9PlUljcyc,learning-e33d2a8284ab46af,,,,\nChassis Assembly and Mechanical Interference Calculation (CAD Assemblies),5,Mechanical CAD & Structure,Optional,\"Mechanical Assembly Interference Checks, Chassis Tolerances\",YouTube,https://www.youtube.com/watch?v=ISf3moboQB0,learning-84ad5b6fd68e4e56,,,,\nBasics of Robot Operating System ROS 2 (Humble) in Arabic,6,Robotics & ROS 2 Navigation,Mandatory,\"ROS 2 Nodes, Topic Pub/Sub, Service Orchestration\",YouTube,https://www.youtube.com/watch?v=T-k9t3QsoT4,learning-8466e498d49f4a51,,,,\nMechanical Kinematics Calculations for Robots and Navigation Application (slam_toolbox & Nav2),6,Robotics & ROS 2 Navigation,Mandatory,\"Mecanum Inverse Kinematics, PID Tuning, TEB Local Planner\",YouTube / MaharaTech,https://www.youtube.com/watch?v=hMTxb8Y2cxI,learning-db047271a1614338,,,,\nDeveloping Web-Based Robot Control Interfaces (WebSockets & FastAPI),6,Robotics & ROS 2 Navigation,Optional,\"Async WebSockets Telemetry, REST JSON API Gateways\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=16,learning-6ddef19e4a8a4e55,,,,\nKalman Filter Mechanics and Sensor Fusion Application,7,Sensor Fusion & State Estimation,Mandatory,\"Complementary Filtering, MPU-6050 IMU, Gyro Angle Estimation\",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA,learning-628379172b294d65,,,,\nExtended Kalman Filter (EKF) for Pose Estimation,7,Sensor Fusion & State Estimation,Mandatory,\"EKF Matrix Calculations, Noise Covariance Tuning (Q & R)\",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA,learning-5a3ea5566fcf4066,,,,\nComputer Vision and Image Processing using OpenCV and Python,8,Computer Vision & Spatial AI,Mandatory,\"Camera Calibration, Frame Capture Pipelines, Object Tracking\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145,learning-8c461a237b064865,,,,\nApplying AI Models on Edge Devices (ONNX / TFLite Edge AI),8,Computer Vision & Spatial AI,Mandatory,\"Quantized Model Execution, OpenCV Pipeline Integration\",Amideast / MaharaTech,https://www.amideast.org/tunisia/advancing-development-goals/experience-ai,learning-2c9ac95746d94280,,,,\nIBM IoT Developer Track (AI and IoT),8,Computer Vision & Spatial AI,Optional,\"Telemetry Pipelines, Dynamic API AI Model Triggers\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=1265,learning-d2599406fb064997,,,,\nBasics of TinyML and Model Deployment on Microcontrollers,9,SLM Fine-Tuning & Edge AI Deployment,Mandatory,\"Microcontroller Machine Learning Deployment, TinyML\",MaharaTech,https://maharatech.gov.eg/course/index.php?categoryid=8,learning-74f2ffa832834894,,,,\nSLM Fine-Tuning & Quantization (Small Language Models),9,SLM Fine-Tuning & Edge AI Deployment,Mandatory,\"SLM Optimization, INT8 Model Quantization, Local Edge Inference\",MaharaTech / YouTube,https://maharatech.gov.eg/course/view.php?id=1265,learning-17b059a9bd9f4deb,,,,\nLocal AI Applications based on Rapid Processing (Edge AI Control),9,SLM Fine-Tuning & Edge AI Deployment,Optional,\"Microcontroller AI Latency Tuning, Fallback Controller Logic\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=7075,learning-81177979e4504874,,,,\n\"Fault Analysis, Correction, and Effective Engineering Risk Management (FMEA)\",10,Engineering Practice & Soft Skills,Mandatory,\"Failure Mode & Effects Analysis, Root-Cause Fault Isolation\",Edraak / MaharaTech,https://courses.edraak.org/courses/course-v1:edraak+RM101+T2_2020/course/,learning-e2020ffcccf741f2,,,,\nCritical Thinking and Trade-off Analysis of Advanced Engineering Solutions,10,Engineering Practice & Soft Skills,Mandatory,\"Critical Thinking, Architecture System Trade-off Evaluation\",Edraak,https://courses.edraak.org/courses/course-v1:Edraak+CT100+2018_T2/course/,learning-78594a1b98ff4c5f,,,,\nFail-Safe Engineering Design and Emergency Systems Management,10,Engineering Practice & Soft Skills,Mandatory,\"Safety-First Mindset, Emergency Stop Protocols, Hardware Redundancy\",Edraak,https://www.edraak.org/programs/specialization/project-management-1/,learning-6156197ebc96478a,,,,\n", "meet": "Meeting title,Meeting Type,Date,Description,Attachments,Event ID,Invited/Assigned,Due to Date,Archived,Logging Enabled\nProject overview,online,2026-07-30,overview about the project asfasf,,meet-cc33802661d4412a,,,,\nRoobt,offline,2026-08-30,afsasfafs,,meet-be1fd4b61bfe41d1,,,,\n", "tasks": "Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale,Archived,Event ID,Due to Date,Evidence Links\naa,aaaa,,Abdallah Refaat,Backlog,,,,,day,,task-5c73d54129a14534,,\na,aff,af,Mohamed hamada shabaan,Completed,,,2,,week,TRUE,task-ffaf31b0ac334d0e,,\nhard,a,ad,\"Abdallah Refaat,\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645\",Blocked,,,1,,week,TRUE,task-fa4ac6cda0d745cb,,\n", "logs": "Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date,Source ID,Archived\nSkill,1,Python,\"Abdallah-Allam\nAbdelrahman M. Abdel-Fattah\nMohamed H. Shaban\nYoussef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\nAhmed Fathy Ahmed\nNour Yasser Zakaria\nAmani Bilal Abu Zeid\nShams Mohamed Abdel-Hakim\nManar Moussa Saeed\nMalak Ahmed Mohamed\nAlaa Mohamed El-Hefny\nSamah Mahdy Salah\nYasmin Samir Abdessalam\nAsmaa Ashraf Attia\nShams Mohamed Jaber\nShaymaa Emad Mohamed\",\"Youssef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\",2026-07-30,,TRUE\nMeet,2,bbb,Abdallah-Allam,Abdallah-Allam,2026-07-30,,\n", "activity": "Timestamp,Email,Action,Target,Details\n2026-09-12 14:11:37,muhamedrefaat777@gmail.com,createTask,aa,\"{\"\"assignees\"\":[\"\"Abdallah Refaat \"\"]}\"\n2026-09-12 18:49:34,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:36,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:41,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:41,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:43,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:53,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:50:00,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:50:15,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:51:24,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-13 00:11:30,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:37,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:38,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:38,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:39,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:45:47,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:45:49,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:23,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:27,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:36,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:44,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:50,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:52:13,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:53:24,test.user@azar.com,createTask,a,\"{\"\"assignees\"\":[\"\"Mohamed hamada shabaan\"\"]}\"\n2026-09-14 11:53:32,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 12:00:00,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 20:49:52,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:28,test.user@azar.com,createTask,hard,\"{\"\"assignees\"\":[\"\"Abdallah Refaat\"\",\"\"\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645\"\"]}\"\n2026-10-01 21:12:36,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:38,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:40,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:49,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:56,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:59,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:13:18,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n", "admins": "Email,Name,Enabled\nabdallahallam1550@gmail.com,Abdallah Refaat Allam,TRUE\n", "skillEvents": "Event Name,Target Skill,Description,Date,Event ID,Invited/Assigned,Due to Date,Archived,Skill Category\n", "completions": "Timestamp,Event Type,Event ID,Event Name,Member ID,Name,Email,Evidence,Score,Submission ID,Status,Evidence File ID,Evidence URL,Evidence Filename,Evidence MIME Type,Evidence Size,Reviewer Email,Reviewer Name,Reviewed At,Review Note,Status Changed At,Status Changed By\n", "skillRequirements": "Member ID,Skill,Category,Required,Target Score\n", "subteams": "Subteam ID,Name,Description,Color,Active\nlegacy-1,Electronics & Embedded,,purple,TRUE\nlegacy-2,Software & AI,,teal,TRUE\nlegacy-3,Mechanics & Integration,,blue,TRUE\n", "memberships": "Subteam ID,Member ID,Role,Active\nlegacy-1,2521059,Member,TRUE\nlegacy-2,2520780,Leader,TRUE\nlegacy-2,2520186,Member,TRUE\nlegacy-1,2520594,Leader,TRUE\nlegacy-3,2520622,Member,TRUE\nlegacy-3,2540213,Leader,TRUE\nlegacy-1,2520189,Member,TRUE\nlegacy-3,2520448,Member,TRUE\nlegacy-2,2560172,Member,TRUE\nlegacy-1,2540004,Member,TRUE\nlegacy-3,2540244,Member,TRUE\nlegacy-2,2540300,Member,TRUE\nlegacy-1,2560129,Member,TRUE\nlegacy-3,2520756,Member,TRUE\nlegacy-2,2521242,Member,TRUE\nlegacy-1,2520190,Member,TRUE\nlegacy-3,2520175,Member,TRUE\nlegacy-2,2550031,Member,TRUE\nlegacy-1,2560148,Member,TRUE\nlegacy-3,2520070,Member,TRUE\nlegacy-2,2520609,Member,TRUE\nlegacy-1,2520406,Member,TRUE\nlegacy-3,2520112,Member,TRUE\nlegacy-2,2520398,Member,TRUE\nlegacy-1,2560005,Member,TRUE\n"}};
 /* Local-only adapter. The production page does not contain preview identities or database exports. */
 const LocalHub = (() => {
   let db;
@@ -5624,6 +5957,8 @@ const LocalHub = (() => {
       const { useState, useEffect, useRef, useMemo } = React;
 const M = HubModel;
 const IS_LOCAL = typeof LocalHub !== "undefined";
+const APPLICATION_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSclQb-3UAbKnRMVAmCxFr1gMiJ36KNIXpUnDx4-1vkJB7d55A/viewform?usp=dialog";
 const today = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Cairo",
@@ -6184,6 +6519,7 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
   const [fileError, setFileError] = useState("");
   const [reading, setReading] = useState(false);
   const fileInput = useRef();
+  const requestId = useRef(newRequestId());
   const reviewed = M.REVIEW_TYPES.includes(event.type);
   return (
     <Modal
@@ -6203,6 +6539,7 @@ function CompletionEditor({ event, member, onSave, onClose, busy, error }) {
           if (reading || fileError) return;
           onSave(updatingSkill ? "updateSkillCompletion" : "completeEvent", {
             key: event.key,
+            newId: requestId.current,
             evidence,
             score,
             ...(upload ? { upload } : {}),
@@ -6502,8 +6839,6 @@ function ReviewQueue({ db, type, eventId = "", onReview, busy }) {
 function TaskEvidence({ event, member, admin, onSave, busy }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
-  const [kind, setKind] = useState("Completion");
-  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const requestId = useRef(newRequestId());
@@ -6519,13 +6854,9 @@ function TaskEvidence({ event, member, admin, onSave, busy }) {
     <li key={link.id}>
       <a href={safeUrl(link.url)} target="_blank" rel="noopener noreferrer">
         <Icon name="external-link" size={13} />
-        {link.note ||
-          (safeUrl(link.url) ? new URL(link.url).hostname : link.url)}
+        {link.url}
       </a>
       <div className="row spread">
-        <small>
-          {link.kind} · {link.name} · {dateLabel(M.dateOnly(link.timestamp))}
-        </small>
         {member && (admin || link.memberId === M.memberKey(member)) && (
           <Button
             className="small icon-button ghost"
@@ -6551,7 +6882,7 @@ function TaskEvidence({ event, member, admin, onSave, busy }) {
       aria-label={`Evidence for ${event.title}`}
     >
       <div className="row spread">
-        <h4>Evidence & issues</h4>
+        <h4>Evidence links</h4>
         {canAdd && !open && (
           <Button
             className="small"
@@ -6582,13 +6913,10 @@ function TaskEvidence({ event, member, admin, onSave, busy }) {
               await onSave("addTaskLink", {
                 key: event.key,
                 url,
-                kind,
-                note,
                 newId: requestId.current,
               })
             ) {
               setUrl("");
-              setNote("");
               setOpen(false);
               requestId.current = newRequestId();
             } else
@@ -6608,28 +6936,6 @@ function TaskEvidence({ event, member, admin, onSave, busy }) {
               placeholder="https://…"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              disabled={saving}
-            />
-          </label>
-          <label className="field">
-            Purpose
-            <select
-              aria-label="Evidence purpose"
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-              disabled={saving}
-            >
-              <option value="Completion">Completion evidence</option>
-              <option value="Issue">Issue evidence</option>
-            </select>
-          </label>
-          <label className="field">
-            Note (optional)
-            <input
-              className="input"
-              maxLength={1000}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
               disabled={saving}
             />
           </label>
@@ -6773,6 +7079,7 @@ function EventCard({
   telegramStatus = "",
   busy: pageBusy,
   syncJob = null,
+  pendingUpdate = false,
 }) {
   const busy = pageBusy || !!syncJob;
   const state = M.eventState(event, member, today());
@@ -6870,6 +7177,12 @@ function EventCard({
                 : event.type}
         </span>
         {event.archived && <span className="badge">Archived</span>}
+        {pendingUpdate && (
+          <span className="badge accent" role="status">
+            <Icon name="cloud-upload" size={13} />
+            Saving changes
+          </span>
+        )}
       </div>
       <h3 dir="auto">{event.title}</h3>
       {syncJob && (
@@ -7208,6 +7521,12 @@ function EventTab({
       onDrag={setDragKey}
       busy={busy}
       syncJob={drafts.find((job) => job.event.key === e.key)}
+      pendingUpdate={jobs.some(
+        (job) =>
+          job.kind === "update" &&
+          job.key === e.key &&
+          ["queued", "saving"].includes(job.state),
+      )}
     />
   );
   const tracks = [
@@ -7546,6 +7865,15 @@ function Overview({ db, member, onNavigate }) {
             >
               My subteams
             </Button>
+            <a
+              className="button landing-secondary"
+              href={APPLICATION_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon name="user-plus" />
+              Apply to join
+            </a>
           </div>
           <button
             className="scroll-cue"
@@ -7946,6 +8274,7 @@ function SkillsPage({
   onRevert,
   onManage,
   busy,
+  updates = [],
 }) {
   const [selected, setSelected] = useState(
     member ? M.memberKey(member) : M.memberKey(db.team[0] || {}),
@@ -7986,6 +8315,10 @@ function SkillsPage({
           onComplete={onComplete}
           onRevert={onRevert}
           busy={busy}
+          pendingUpdate={updates.some(
+            (job) =>
+              job.key === event.key && ["queued", "saving"].includes(job.state),
+          )}
         />
       )
     );
@@ -8568,6 +8901,7 @@ function Intelligence({
   onExport,
   onPrint,
   initialMemberId,
+  onRemove,
 }) {
   const analysis = useMemo(() => {
     const eventRows = M.events(db);
@@ -8600,6 +8934,15 @@ function Intelligence({
         title="Team Intelligence"
         description="Select a member to see their strengths and assigned-event progress."
       >
+        <a
+          className="button"
+          href={APPLICATION_FORM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="user-plus" />
+          Apply to join
+        </a>
         <Button icon="git-branch" onClick={() => onNavigate("hierarchy")}>
           Team hierarchy
         </Button>
@@ -8665,6 +9008,23 @@ function Intelligence({
           </div>
         </aside>
         <div className="intelligence-stage">
+          {active && onRemove && (
+            <div className="row member-management">
+              <Button
+                className="small danger"
+                icon="user-minus"
+                disabled={M.role(active) === "Team Leader"}
+                title={
+                  M.role(active) === "Team Leader"
+                    ? "Assign a new Team Leader before removing this member"
+                    : "Remove this member from the active team"
+                }
+                onClick={() => onRemove(active)}
+              >
+                Remove member
+              </Button>
+            </div>
+          )}
           {active ? (
             <MemberProfile
               db={db}
@@ -8676,7 +9036,7 @@ function Intelligence({
             />
           ) : (
             <Empty title="No team members yet">
-              Add members to the Team sheet.
+              New members can apply using the team application form.
             </Empty>
           )}
         </div>
@@ -9310,6 +9670,7 @@ function Activity({ db, member, admin, refreshing }) {
   const [category, setCategory] = useState("all");
   const [limit, setLimit] = useState(40);
   const actionLabels = {
+    removeMember: "Removed team member",
     telegramNotification: "Telegram announcement",
     queueTelegramNotification: "Telegram send request",
     saveTask: "Saved task",
@@ -9334,7 +9695,7 @@ function Activity({ db, member, admin, refreshing }) {
           } catch (_) {}
           if (!details || typeof details !== "object" || Array.isArray(details))
             details = {};
-          const actor = M.actor(db, row.Email);
+          const actor = M.resolveMember(db, row.Email);
           const failed = ["Failed", "Unconfirmed"].includes(details?.outcome);
           const group = failed
             ? "errors"
@@ -9378,6 +9739,7 @@ function Activity({ db, member, admin, refreshing }) {
                 reviewSubmission: "Review failed",
                 addTaskLink: "Evidence link save failed",
               }[row.Action] || "Request failed";
+          if (details.optimistic) summary += " · Saving";
           return {
             ...row,
             details,
@@ -9438,9 +9800,10 @@ function Activity({ db, member, admin, refreshing }) {
             onChange={(event) => setPerson(event.target.value)}
           >
             <option value="all">All members</option>
-            {db.team.map((person) => (
+            {(db.allTeam || db.team).map((person) => (
               <option value={person.Mail} key={M.memberKey(person)}>
                 {person.Name}
+                {M.activeMember(person) ? "" : " (removed)"}
               </option>
             ))}
           </select>
@@ -9785,14 +10148,14 @@ function EventSaves({
             ? `${pending} saving in the background`
             : failed
               ? `${failed} need attention`
-              : "All events saved"}
+              : "All changes saved"}
         </span>
       </div>
       <div className="event-save-list">
         {jobs.map((job) => (
           <div className="event-save-item" key={job.id}>
             <div className="grow">
-              <strong dir="auto">{job.payload.title}</strong>
+              <strong dir="auto">{job.title || job.payload.title}</strong>
               <span
                 className={
                   "badge " +
@@ -9805,11 +10168,13 @@ function EventSaves({
               >
                 {job.state === "saved"
                   ? "Saved"
-                  : job.state === "failed"
-                    ? "Save unconfirmed"
-                    : job.state === "queued"
-                      ? "Waiting to save"
-                      : "Saving…"}
+                  : job.state === "superseded"
+                    ? "Replaced by a newer update"
+                    : job.state === "failed"
+                      ? "Save unconfirmed"
+                      : job.state === "queued"
+                        ? "Waiting to save"
+                        : "Saving…"}
               </span>
               {job.error && (
                 <p className="save-error" dir="auto">
@@ -9818,36 +10183,38 @@ function EventSaves({
               )}
             </div>
             <div className="row">
-              {job.state === "saved" && onTelegramPreview && (
-                <Button
-                  className="small"
-                  icon="send"
-                  onClick={() =>
-                    onTelegramPreview(
-                      job.event?.key ||
-                        `${job.type}:${job.type.toLowerCase()}-${job.payload.newId}`,
-                    )
-                  }
-                >
-                  Preview Telegram
-                </Button>
-              )}
+              {job.state === "saved" &&
+                job.kind !== "update" &&
+                onTelegramPreview && (
+                  <Button
+                    className="small"
+                    icon="send"
+                    onClick={() =>
+                      onTelegramPreview(
+                        job.event?.key ||
+                          `${job.type}:${job.type.toLowerCase()}-${job.payload.newId}`,
+                      )
+                    }
+                  >
+                    Preview Telegram
+                  </Button>
+                )}
               {job.state === "failed" && (
                 <Button
                   className="small primary"
                   onClick={() => onRetry(job.id)}
                 >
-                  Retry save
+                  {job.kind === "update" ? "Retry update" : "Retry save"}
                 </Button>
               )}
               <Button className="small" onClick={() => onNavigate(job.type)}>
                 View
               </Button>
-              {["saved", "failed"].includes(job.state) && (
+              {["saved", "failed", "superseded"].includes(job.state) && (
                 <Button
                   className="small icon-button"
                   icon="x"
-                  aria-label={`Dismiss save notice for ${job.payload.title}`}
+                  aria-label={`Dismiss save notice for ${job.title || job.payload.title}`}
                   onClick={() => onDismiss(job.id)}
                 />
               )}
@@ -9861,11 +10228,14 @@ function EventSaves({
 function App() {
   const [db, setDb] = useState(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const busy = false;
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState([]);
+  const [updates, setUpdates] = useState([]);
   const dbRef = useRef(null);
   const syncRef = useRef(null);
+  const actionsRef = useRef(null);
+  const loadingRef = useRef(false);
   const [tab, setTab] = useState("overview");
   const [modal, setModal] = useState(null);
   const [profileId, setProfileId] = useState("");
@@ -9889,11 +10259,27 @@ function App() {
           : rpc("executeHubCommand", action, payload),
       onData: (data) => {
         dbRef.current = data;
-        setDb(data);
+        if (actionsRef.current) actionsRef.current.accept(data);
+        else setDb(data);
       },
       onChange: setJobs,
       onNotice: notify,
       storage: sessionStore(),
+      makeId: newRequestId,
+    });
+  if (!actionsRef.current)
+    actionsRef.current = HubActions.create({
+      model: M,
+      getData: () => dbRef.current,
+      send: (action, payload) =>
+        IS_LOCAL
+          ? LocalHub.command(action, payload)
+          : rpc("executeHubCommand", action, payload),
+      schedule: (task) => syncRef.current.run(task),
+      accept: (data) => syncRef.current.accept(data),
+      onView: setDb,
+      onChange: setUpdates,
+      onNotice: notify,
       makeId: newRequestId,
     });
   useEffect(() => {
@@ -9901,6 +10287,8 @@ function App() {
     localStorage.setItem("azar_theme", theme);
   }, [theme]);
   const load = async (reset = false) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError("");
     try {
@@ -9912,12 +10300,22 @@ function App() {
     } catch (e) {
       setError(e.message || String(e));
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
   useEffect(() => {
     load();
-    return () => clearTimeout(toastTimer.current);
+    const refreshOnReturn = () => {
+      if (!document.hidden && dbRef.current) load();
+    };
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      clearTimeout(toastTimer.current);
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
   }, []);
   const navigate = (id, selectedMemberId = "") => {
     if (id === "intelligence") setProfileId(selectedMemberId);
@@ -9939,58 +10337,38 @@ function App() {
         return false;
       }
     }
-    const inline = ["addTaskLink", "removeTaskLink"].includes(action);
-    if (!inline) setBusy(true);
-    setError("");
     try {
-      const email = dbRef.current.activeUserSession?.email;
-      const result = await syncRef.current.run(async () => {
-        if (email !== dbRef.current.activeUserSession?.email)
-          throw new Error("Your account changed. Please try again.");
-        const response = IS_LOCAL
-          ? await LocalHub.command(action, payload)
-          : await rpc("executeHubCommand", action, payload);
-        if (!response.success)
-          throw new Error(response.error || "Update failed.");
-        syncRef.current.accept(response.data);
-        return response;
-      });
-      if (!inline) setModal(null);
+      const job = actionsRef.current.mutate(action, payload);
+      setError("");
+      if (
+        ![
+          "addTaskLink",
+          "removeTaskLink",
+          "moveTask",
+          "archiveEvent",
+          "revertCompletion",
+        ].includes(action)
+      )
+        setModal(null);
       notify(
-        result.unchanged
-          ? inline
-            ? "This evidence link update is already saved."
-            : "Your completion or submission is already recorded."
-          : action === "completeEvent"
-            ? M.REVIEW_TYPES.some((type) => payload.key.startsWith(type + ":"))
-              ? "Submitted for admin review. Status: Pending."
-              : "Completion recorded. Your progress is updated."
-            : action === "revertCompletion"
-              ? "Status reset to Uncompleted. You can submit an update."
-              : action === "reviewSubmission"
-                ? payload.decision === "Completed"
-                  ? "Approved. Member progress is updated."
-                  : "Returned to the member with your feedback."
-                : action === "addTaskLink"
-                  ? "Evidence link added."
-                  : action === "removeTaskLink"
-                    ? "Evidence link removed."
-                    : action === "queueTelegramNotification"
-                      ? "Announcement queued for Telegram. Delivery runs in the background."
-                      : "Changes saved.",
+        job
+          ? "Saving changes in the background."
+          : "This change is already saved or queued.",
       );
       return true;
     } catch (e) {
-      if (inline) notify(e.message || String(e));
+      if (["addTaskLink", "removeTaskLink"].includes(action))
+        notify(e.message || String(e));
       else setError(e.message || String(e));
       return false;
-    } finally {
-      if (!inline) setBusy(false);
     }
   };
   const doExport = async (m) => {
     try {
-      await exportCV(db, m);
+      const confirmedMember = dbRef.current.team.find(
+        (person) => M.memberKey(person) === M.memberKey(m),
+      );
+      await exportCV(dbRef.current, confirmedMember);
       notify("Word CV exported from recorded sheet data.");
     } catch (e) {
       notify(e.message);
@@ -9998,7 +10376,10 @@ function App() {
   };
   const doPrint = (m) => {
     try {
-      printCV(db, m);
+      const confirmedMember = dbRef.current.team.find(
+        (person) => M.memberKey(person) === M.memberKey(m),
+      );
+      printCV(dbRef.current, confirmedMember);
     } catch (e) {
       notify(e.message);
     }
@@ -10016,7 +10397,7 @@ function App() {
     );
   const member = M.actor(db, db.activeUserSession?.email);
   const admin = M.isAdmin(db, member);
-  const myJobs = jobs.filter(
+  const myJobs = [...jobs, ...updates].filter(
     (job) => job.owner === M.norm(db.activeUserSession?.email),
   );
   const pendingSaves = myJobs.some((job) =>
@@ -10135,12 +10516,15 @@ function App() {
           </a>
           <div className="header-tools">
             <Button
-              icon="refresh-cw"
+              icon={loading ? "loader-circle" : "refresh-cw"}
+              aria-busy={loading}
               onClick={() => load(false)}
               disabled={busy || loading}
               title="Refresh sheet data"
             >
-              <span className="button-label">Refresh</span>
+              <span className="button-label">
+                {loading ? "Refreshing…" : "Refresh"}
+              </span>
             </Button>
             <Button
               icon={theme === "light" ? "moon" : "sun"}
@@ -10196,8 +10580,16 @@ function App() {
       <main className="main" id="main">
         <EventSaves
           jobs={myJobs}
-          onRetry={(id) => syncRef.current.retry(id)}
-          onDismiss={(id) => syncRef.current.dismiss(id)}
+          onRetry={(id) => {
+            if (updates.some((job) => job.id === id))
+              actionsRef.current.retry(id);
+            else syncRef.current.retry(id);
+          }}
+          onDismiss={(id) => {
+            if (updates.some((job) => job.id === id))
+              actionsRef.current.dismiss(id);
+            else syncRef.current.dismiss(id);
+          }}
           onNavigate={navigate}
           onTelegramPreview={openTelegram}
         />
@@ -10263,6 +10655,7 @@ function App() {
               setModal({ kind: "requirements", member: m });
             }}
             busy={busy}
+            updates={updates}
           />
         )}
         {tab === "intelligence" && (
@@ -10274,6 +10667,14 @@ function App() {
             onNavigate={navigate}
             onExport={doExport}
             onPrint={doPrint}
+            onRemove={
+              admin
+                ? (person) => {
+                    setError("");
+                    setModal({ kind: "remove-member", member: person });
+                  }
+                : undefined
+            }
           />
         )}
         {tab === "hierarchy" && (
@@ -10386,6 +10787,42 @@ function App() {
           busy={busy}
           error={error}
         />
+      )}
+      {modal?.kind === "remove-member" && admin && (
+        <Modal
+          title="Remove team member"
+          onClose={() => {
+            setModal(null);
+            setError("");
+          }}
+        >
+          <div className="stack">
+            <p>
+              Remove <strong dir="auto">{modal.member.Name}</strong> from the
+              active team? Their profile and past activity stay recorded, and
+              their ability to update the hub will stop.
+            </p>
+            <p className="muted">
+              Assign another leader first if they lead a subteam alone.
+            </p>
+            {error && <Notice kind="error">{error}</Notice>}
+            <div className="row modal-actions">
+              <Button onClick={() => setModal(null)}>Cancel</Button>
+              <Button
+                className="danger"
+                icon="user-minus"
+                onClick={() =>
+                  command("removeMember", {
+                    memberId: M.memberKey(modal.member),
+                    title: modal.member.Name,
+                  })
+                }
+              >
+                Confirm removal
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
       {modal?.kind === "edit" && (
         <EventEditor

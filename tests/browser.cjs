@@ -55,6 +55,40 @@ async function nav(page, label) {
     .getByRole("button", { name: label, exact: true })
     .click();
 }
+async function wireProductionRpc(page, handler) {
+  await page.exposeFunction("testActionRpc", handler);
+  await page.addInitScript(() => {
+    window.google = { script: {} };
+    Object.defineProperty(window.google.script, "run", {
+      get() {
+        let success, failure;
+        const rpc = new Proxy(
+          {},
+          {
+            get(_, name) {
+              if (name === "withSuccessHandler")
+                return (fn) => {
+                  success = fn;
+                  return rpc;
+                };
+              if (name === "withFailureHandler")
+                return (fn) => {
+                  failure = fn;
+                  return rpc;
+                };
+              return (...args) =>
+                window
+                  .testActionRpc(name, args)
+                  .then((data) => success(data))
+                  .catch((error) => failure({ message: error.message }));
+            },
+          },
+        );
+        return rpc;
+      },
+    });
+  });
+}
 const evidenceBytes = Buffer.from("%PDF-1.4\nASAR test certificate\n%%EOF");
 async function submitReview(page, type) {
   const dialog = page.getByRole("dialog");
@@ -2166,17 +2200,21 @@ function contrastAudit() {
         await task
           .getByLabel("Evidence URL", { exact: true })
           .fill("https://example.com/task-issue");
-        await task
-          .getByLabel("Evidence purpose", { exact: true })
-          .selectOption("Issue");
-        await task
-          .getByLabel("Note (optional)", { exact: true })
-          .fill("Intermittent sensor issue");
+        assert.equal(await task.locator(".task-link-form input").count(), 1);
+        assert.equal(
+          await task
+            .locator(".task-link-form select, .task-link-form textarea")
+            .count(),
+          0,
+        );
         await task
           .getByRole("button", { name: "Save link", exact: true })
           .click();
         await task
-          .getByRole("link", { name: "Intermittent sensor issue", exact: true })
+          .getByRole("link", {
+            name: "https://example.com/task-issue",
+            exact: true,
+          })
           .waitFor();
         assert.equal(await ui.getByRole("dialog").count(), 0);
         assert.equal(
@@ -2335,6 +2373,305 @@ function contrastAudit() {
           path: path.join(out, "activity-task-evidence.png"),
           fullPage: true,
         });
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "all actions respond immediately while task moves, URL evidence, learning submissions and reviews save in the background",
+    async () => {
+      const e = backendEnvironment();
+      e.context.executeHubCommand("saveTask", {
+        title: "Realtime task",
+        newId: "realtime",
+        members: ["1"],
+        status: "Pending",
+      });
+      e.context.executeHubCommand("saveEvent", {
+        type: "Learning",
+        title: "Realtime course",
+        newId: "realtime",
+        members: ["1"],
+      });
+      const pending = [];
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      const release = (failure = false) => {
+        const request = pending.shift();
+        assert.ok(request, "A background request must be pending");
+        if (failure) request.reject(new Error("Test network unavailable"));
+        else {
+          try {
+            request.resolve(
+              JSON.parse(
+                JSON.stringify(e.context.executeHubCommand(...request.args)),
+              ),
+            );
+          } catch (error) {
+            request.reject(error);
+          }
+        }
+      };
+      try {
+        await wireProductionRpc(ui, (name, args) =>
+          name === "executeHubCommand"
+            ? new Promise((resolve, reject) =>
+                pending.push({ args, resolve, reject }),
+              )
+            : JSON.parse(JSON.stringify(e.context[name](...args))),
+        );
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        await nav(ui, "Tasks");
+        const task = ui
+          .locator(".event-card")
+          .filter({
+            has: ui.getByRole("heading", {
+              name: "Realtime task",
+              exact: true,
+            }),
+          });
+        await task
+          .getByLabel("Move Realtime task", { exact: true })
+          .selectOption("Completed");
+        await ui
+          .locator('[data-task-status="Completed"]')
+          .getByRole("heading", { name: "Realtime task", exact: true })
+          .waitFor({ timeout: 1500 });
+        assert.equal(e.context.getTeamData().tasks.at(-1).Status, "Pending");
+        await task
+          .getByLabel("Move Realtime task", { exact: true })
+          .selectOption("InProgress");
+        await ui
+          .locator('[data-task-status="InProgress"]')
+          .getByRole("heading", { name: "Realtime task", exact: true })
+          .waitFor({ timeout: 1500 });
+        await task
+          .getByRole("button", { name: "Edit Realtime task", exact: true })
+          .click();
+        let dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Description", { exact: true })
+          .fill("Keep this newer form open");
+        release();
+        await ui.waitForTimeout(100);
+        assert.equal(
+          await dialog.getByLabel("Description", { exact: true }).inputValue(),
+          "Keep this newer form open",
+        );
+        assert.equal(
+          await task
+            .getByLabel("Move Realtime task", { exact: true })
+            .inputValue(),
+          "InProgress",
+        );
+        release();
+        await dialog
+          .getByRole("button", { name: "Save task", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden", timeout: 1500 });
+        await task
+          .getByText("Keep this newer form open", { exact: true })
+          .waitFor({ timeout: 1500 });
+        await ui.waitForTimeout(100);
+        release();
+        await task
+          .getByRole("button", { name: "Add evidence link", exact: true })
+          .click();
+        assert.equal(await task.locator(".task-link-form input").count(), 1);
+        assert.equal(
+          await task
+            .locator(".task-link-form select, .task-link-form textarea")
+            .count(),
+          0,
+        );
+        await task
+          .getByLabel("Evidence URL", { exact: true })
+          .fill("https://example.com/realtime-proof");
+        await task
+          .getByRole("button", { name: "Save link", exact: true })
+          .click();
+        await task
+          .getByRole("link", {
+            name: "https://example.com/realtime-proof",
+            exact: true,
+          })
+          .waitFor({ timeout: 1500 });
+        await ui.waitForTimeout(100);
+        release(true);
+        await task
+          .getByRole("link", {
+            name: "https://example.com/realtime-proof",
+            exact: true,
+          })
+          .waitFor({ state: "hidden" });
+        await ui
+          .getByRole("button", { name: "Retry update", exact: true })
+          .click();
+        await task
+          .getByRole("link", {
+            name: "https://example.com/realtime-proof",
+            exact: true,
+          })
+          .waitFor({ timeout: 1500 });
+        await ui.waitForTimeout(100);
+        release();
+        await nav(ui, "Learning");
+        const course = ui
+          .locator(".event-card")
+          .filter({
+            has: ui.getByRole("heading", {
+              name: "Realtime course",
+              exact: true,
+            }),
+          });
+        await course
+          .getByRole("button", { name: "Request completion", exact: true })
+          .click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByRole("button", { name: "Submit for review", exact: true })
+          .click();
+        await dialog.waitFor({ state: "hidden", timeout: 1500 });
+        await course
+          .getByText("Pending review", { exact: true })
+          .waitFor({ timeout: 1500 });
+        await course.getByText("Saving changes", { exact: true }).waitFor();
+        assert.equal(e.context.getTeamData().completions.length, 0);
+        await nav(ui, "Tasks");
+        await ui
+          .getByRole("button", { name: "Create task", exact: true })
+          .click();
+        dialog = ui.getByRole("dialog");
+        await dialog
+          .getByLabel("Title", { exact: true })
+          .fill("Keep this dialog through the reply");
+        release();
+        await ui.waitForTimeout(100);
+        assert.equal(
+          await dialog.getByLabel("Title", { exact: true }).inputValue(),
+          "Keep this dialog through the reply",
+        );
+        await dialog
+          .getByRole("button", { name: "Cancel", exact: true })
+          .click();
+        await nav(ui, "Learning");
+        await course
+          .getByRole("button", {
+            name: "Review completions for Realtime course",
+            exact: true,
+          })
+          .click();
+        await ui
+          .getByRole("dialog")
+          .getByRole("button", { name: "Approve completion", exact: true })
+          .click();
+        await ui
+          .getByRole("dialog")
+          .waitFor({ state: "hidden", timeout: 1500 });
+        await course
+          .getByText("Completed by you", { exact: true })
+          .waitFor({ timeout: 1500 });
+        assert.equal(e.context.getTeamData().completions[0].Status, "Pending");
+        await ui.setViewportSize({ width: 390, height: 844 });
+        await layout(ui);
+        await ui.waitForTimeout(300);
+        assert.deepEqual(await ui.evaluate(contrastAudit), []);
+        await ui.screenshot({
+          path: path.join(out, "realtime-updates-mobile.png"),
+          fullPage: true,
+        });
+        release();
+        await ui.waitForTimeout(100);
+        assert.equal(
+          e.context.getTeamData().completions[0].Status,
+          "Completed",
+        );
+        assert.equal(pending.length, 0);
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "members apply through the Google Form and admins remove members without deleting their history",
+    async () => {
+      const e = backendEnvironment(),
+        scope = await browser.newContext({
+          viewport: { width: 1440, height: 1000 },
+        }),
+        ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      try {
+        await wireProductionRpc(ui, (name, args) =>
+          JSON.parse(JSON.stringify(e.context[name](...args))),
+        );
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        const href = await ui
+          .getByRole("link", { name: "Apply to join", exact: true })
+          .getAttribute("href");
+        assert.equal(
+          href,
+          "https://docs.google.com/forms/d/e/1FAIpQLSclQb-3UAbKnRMVAmCxFr1gMiJ36KNIXpUnDx4-1vkJB7d55A/viewform?usp=dialog",
+        );
+        await nav(ui, "Team Intelligence");
+        await ui
+          .getByRole("button", { name: "View Member", exact: true })
+          .click();
+        await ui
+          .getByRole("button", { name: "Remove member", exact: true })
+          .click();
+        await ui
+          .getByRole("dialog")
+          .getByRole("button", { name: "Cancel", exact: true })
+          .click();
+        assert.equal(
+          await ui
+            .getByRole("button", { name: "View Member", exact: true })
+            .count(),
+          1,
+        );
+        await ui
+          .getByRole("button", { name: "Remove member", exact: true })
+          .click();
+        await ui
+          .getByRole("dialog")
+          .getByRole("button", { name: "Confirm removal", exact: true })
+          .click();
+        await ui
+          .getByRole("dialog")
+          .waitFor({ state: "hidden", timeout: 1500 });
+        await ui
+          .getByRole("button", { name: "View Member", exact: true })
+          .waitFor({ state: "hidden" });
+        assert.equal(e.context.getTeamData().team.length, 2);
+        assert.equal(e.context.getTeamData().team[1].Active, "FALSE");
+        await ui.setViewportSize({ width: 390, height: 844 });
+        await layout(ui);
+        await ui.screenshot({
+          path: path.join(out, "member-removal-mobile.png"),
+          fullPage: true,
+        });
+        e.setEmail("member@example.com");
+        await ui.reload();
+        await nav(ui, "Team Intelligence");
+        assert.equal(
+          await ui
+            .getByRole("button", { name: "Remove member", exact: true })
+            .count(),
+          0,
+        );
+        assert.equal(
+          await ui
+            .getByRole("link", { name: "Apply to join", exact: true })
+            .getAttribute("href"),
+          href,
+        );
       } finally {
         await scope.close();
       }

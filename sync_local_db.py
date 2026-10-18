@@ -35,7 +35,7 @@ def upgrade(wb):
                     sheet.cell(1, last, column)
                     existing[column] = last
     for name, columns in {
-        'Team': ['Role', 'Reports To', 'Department', 'Aliases', 'Knowledge', 'Skills'],
+        'Team': ['Role', 'Reports To', 'Department', 'Aliases', 'Knowledge', 'Skills', 'Active'],
         'Task': ['Event ID', 'Due to Date', 'Evidence Links'],
         'Meet': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Logging Enabled'],
         'Exam': ['Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived'],
@@ -58,6 +58,8 @@ def upgrade(wb):
             for r in range(2, sheet.max_row + 1):
                 if sheet.cell(r, 1).value and not sheet.cell(r, headers['Role']).value:
                     sheet.cell(r, headers['Role'], 'Team member')
+                if sheet.cell(r, 1).value and sheet.cell(r, headers['Active']).value is None:
+                    sheet.cell(r, headers['Active'], True)
     # Migrate the existing provisional departments once. IDs match the shared model fallback.
     if wb['Subteams'].max_row == 1 and wb['TeamMemberships'].max_row == 1:
         sheet = wb['Team']

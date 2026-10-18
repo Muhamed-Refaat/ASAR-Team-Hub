@@ -16,6 +16,8 @@ Word and PDF CVs share a professional A4 layout with a prominent name and contac
 
 Preview the workbook-based example: [PDF](deliverables/cv-preview/Abdallah-Refaat-Allam-CV.pdf) or [editable Word document](deliverables/cv-preview/Abdallah-Refaat-Allam-CV.docx). These samples use the source workbook, without browser-test assignments.
 
+All other actions respond immediately too: task moves, edits, completion requests, reviews, undo, evidence links, required skills, hierarchy and member removal. The UI projects changes with **Saving changes**, then reconciles the server reply. Failures roll back unconfirmed changes and retain **Retry update** in Event saves; newer choices remain visible while older requests finish. Stable command IDs prevent retries from duplicating submissions or assessment attempts. Uploads remain in memory for retry while the page stays open; in-progress update requests are not persisted across a full reload. CV exports use confirmed data. The app refreshes in the background when you return to its tab/window.
+
 ## Run locally
 
 ```powershell
@@ -44,6 +46,10 @@ An admin can change the distribution from **Team Intelligence -> Team hierarchy 
 Enabled admins have an additional **Admin** badge beside their team roles in the hierarchy, directory, profile, dashboard and account header. The badge reflects the `Admins` sheet, including admins whose team role is Member or Support; disabled admins and leaders without explicit permission do not receive it.
 
 `Subteams` stores ID, Name, Description, Color and Active. `TeamMemberships` stores Subteam ID, Member ID, Role (Leader/Member/Support) and Active. Team Role/Department/Reports To are compatibility summaries; normalized membership rows hold all relationships. Edits upsert rows and disable removed memberships or subteams so source rows remain stable. The importer migrates the current provisional departments once. Put exact historical names in Team `Aliases`, separated by newlines, to connect imported completions without guessing names.
+
+New members use **Apply to join**, linked to the existing [ASAR Team Application form](https://docs.google.com/forms/d/e/1FAIpQLSclQb-3UAbKnRMVAmCxFr1gMiJ36KNIXpUnDx4-1vkJB7d55A/viewform?usp=dialog). Its separate [form-bound Apps Script and installation guide](forms/README.md) are included in the repo. Profile updates preserve roles, hierarchy and removal flags. Enable verified email collection and install the Form submission trigger as described in that guide.
+
+Admins remove a selected member from **Team Intelligence → Remove member → Confirm removal**. This sets `Team.Active` to `FALSE` and disables their memberships, preserving their rows, completions, evidence and activity. Inactive members lose write access and are excluded from current assignments and progress denominators. Transfer the overall leadership or a sole subteam leadership first, and keep at least one enabled admin. Missing/blank Active flags remain compatible with existing sheets; the backend adds the column on the first removal. A later form submission cannot reactivate a removed member.
 
 ## Data model
 
@@ -85,7 +91,7 @@ Admins can drag tasks between Kanban columns or use the status selector. Both ac
 
 Meeting `Date` is the scheduled date. `Logging Enabled` must be `TRUE` for attendance logging; admins can open or close it in the meeting editor. A scheduled date alone does not close logging. An explicit `Due to Date` remains the completion deadline. Upcoming meetings have a separate section and a highlighted date card. Exams have been removed from the app, progress, and exports; the original workbook data remains preserved.
 
-Meeting URLs have a direct **Join meeting** hyperlink, and the attendance switch stays in admin settings. Task assignees and admins can use **Add evidence link** on a task card for completion or issue evidence, with an optional note. Authors can remove their own links and admins can remove any; removal preserves history. The app-managed `Task.Evidence Links` column stores the metadata without adding another sheet. These actions never change task status.
+Meeting URLs have a direct **Join meeting** hyperlink, and the attendance switch stays in admin settings. Task assignees and admins can use **Add evidence link** on a task card with a single URL field. Purpose and note fields are removed; older stored metadata stays intact. Authors can remove their own links and admins can remove any; removal preserves history. The app-managed `Task.Evidence Links` column stores attribution without adding another sheet. These actions never change task status. Learning and meeting submissions retain their optional evidence fields.
 
 Activity opens from cached data and refreshes in the background. It shows 40 entries at a time with Show more, searches cached text, and filters by member or by submissions, reviews, task evidence, management changes and errors. Expand View details for account, action, event and request IDs. Error auditing records the authenticated actor and a short error, excluding uploads and full payloads.
 
@@ -99,7 +105,7 @@ The Skills page has no standalone assessment section or creation control; admins
 
 ## Edit and verify
 
-Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/cv.js`, `web/sync.js`, `web/telegram.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, CV layouts, notification formatter, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
+Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/cv.js`, `web/sync.js`, `web/actions.js`, `web/telegram.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, CV layouts, notification formatter, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
 
 ```powershell
 python tools/build_dashboard.py
@@ -114,7 +120,7 @@ Browser checks use installed Chrome (override with `PLAYWRIGHT_CHANNEL`), start 
 
 Verification covers model/server transitions, evidence storage and failures, the full review/undo UI, scroll visuals and reduced motion, all eight tabs at 1440/768/390 pixels in both themes, text contrast, Word/PDF exports, source-cell preservation, lookup/schema integrity and delivery-workbook parity. Reports and artifacts are written to `test-results/`.
 
-Verified on 2026-10-18: all 53 model/server/background-save/Telegram tests, 24 browser workflows and 8 data/workbook/CV audits passed. Telegram coverage includes member previews, admin confirmation, exact approved message delivery, duplicate prevention, stale previews, destination changes, bot setup, token privacy, retries, ambiguous responses and Activity status/error filters. Tests use a fake Telegram API; live activation requires the owner's bot setup. Existing responsive event creation, optional course evidence, inline task links, meeting permissions, review/undo, required skills, hierarchy, contrast and professional CV checks also pass. Browser reports show no failures or script errors.
+Verified on 2026-10-18: all 66 model/server/background-update/form/Telegram tests, 26 browser workflows and 8 data/workbook/CV audits passed. New coverage holds server replies to verify immediate task moves, URL evidence, learning submissions, reviews, failure rollback, safe retries and preservation of newer forms. Member removal tests preserve source rows/history, deny inactive accounts, update denominators and protect required leaders/admins. Form tests cover verified identities, sparse headers, profile aliases and preserved roles/removal flags. Existing Telegram, completion/undo, hierarchy, responsive themes, contrast and professional CV checks pass. Browser reports show no failures or script errors. Live deployment and Google Form trigger installation remain separate setup steps.
 
 ## Apps Script deployment
 

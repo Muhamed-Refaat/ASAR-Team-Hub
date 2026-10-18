@@ -155,7 +155,10 @@ function executeHubCommand(action, payload) {
         Object.keys(HUB_SHEETS_)
           .filter(
             (key) =>
-              key !== "skills" && key !== "supervisor" && key !== "admins",
+              key !== "skills" &&
+              key !== "supervisor" &&
+              key !== "admins" &&
+              key !== "activity",
           )
           .forEach((key) => {
             if (JSON.stringify(before[key]) !== JSON.stringify(result.db[key]))
@@ -166,6 +169,16 @@ function executeHubCommand(action, payload) {
                 result.db[key],
               );
           });
+        // Record success only after every affected source table has been written.
+        if (
+          JSON.stringify(before.activity) !== JSON.stringify(result.db.activity)
+        )
+          writeHubChanges_(
+            ss,
+            HUB_SHEETS_.activity,
+            before.activity,
+            result.db.activity,
+          );
         SpreadsheetApp.flush();
       } catch (error) {
         // Never remove a file already referenced by a successfully written row.

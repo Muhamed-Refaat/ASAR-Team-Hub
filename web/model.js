@@ -153,6 +153,9 @@ const HubModel = (() => {
     new Date(v + "T00:00:00Z").toISOString().slice(0, 10) === v;
   const number = (v) =>
     clean(v) !== "" && Number.isFinite(Number(v)) ? Number(v) : null;
+  const activeMember = (member) =>
+    !!member && !["false", "no", "0", "removed"].includes(norm(member.Active));
+  const activeTeam = (db) => (db.team || []).filter(activeMember);
   const role = (m) => {
     const value = norm(m.Role || m.Rule);
     if (["team leader", "team lead"].includes(value)) return "Team Leader";
@@ -163,7 +166,7 @@ const HubModel = (() => {
   function resolveMember(db, token) {
     const wanted = norm(token);
     if (!wanted) return null;
-    const matches = (db.team || []).filter((m) =>
+    const matches = (db.allTeam || db.team || []).filter((m) =>
       [memberKey(m), m.Name, m.Mail, ...list(m.Aliases)].some(
         (v) => norm(v) === wanted,
       ),
@@ -175,25 +178,26 @@ const HubModel = (() => {
       ...new Map(
         list(value)
           .map((t) => resolveMember(db, t))
-          .filter(Boolean)
+          .filter(activeMember)
           .map((m) => [memberKey(m), m]),
       ).values(),
     ];
   }
   function actor(db, email) {
-    const matches = (db.team || []).filter(
+    const matches = activeTeam(db).filter(
       (m) => norm(m.Mail) === norm(email) && norm(email),
     );
     return matches.length === 1 ? matches[0] : null;
   }
   function isAdmin(db, member) {
-    if (!member) return false;
+    if (!activeMember(member)) return false;
     return (db.admins || []).some((a) => {
       if (["false", "no", "0"].includes(norm(a.Enabled))) return false;
       // A supplied email takes precedence over a name; a misspelled email cannot grant access by name.
       return clean(a.Email)
         ? norm(a.Email) === norm(member.Mail)
-        : clean(a.Name) && resolveMember(db, a.Name) === member;
+        : clean(a.Name) &&
+            memberKey(resolveMember(db, a.Name) || {}) === memberKey(member);
     });
   }
   function parseRatings(value) {
@@ -231,7 +235,7 @@ const HubModel = (() => {
     (db.skills || []).forEach((s) =>
       PROJECT_FIELDS.forEach((field) => add(field, s[field])),
     );
-    (db.team || []).forEach((m) =>
+    activeTeam(db).forEach((m) =>
       PROJECT_FIELDS.forEach((field) =>
         parseRatings(m[field]).forEach((i) => add(field, i.label)),
       ),
@@ -299,7 +303,7 @@ const HubModel = (() => {
       }),
     );
     const requirements = new Map();
-    (db.team || []).forEach((m) =>
+    activeTeam(db).forEach((m) =>
       requiredSkills(db, m).forEach((r) => {
         const key = skillKey(r.category, r.label);
         if (!requirements.has(key))
@@ -387,7 +391,7 @@ const HubModel = (() => {
       ? people(db, assigned)
       : type === "Task"
         ? []
-        : db.team || [];
+        : activeTeam(db);
     const key = `${type}:${eventId}`;
     const completions = (db.completions || []).filter(
       (c) => clean(c["Event ID"]) === key,
@@ -401,13 +405,19 @@ const HubModel = (() => {
       const m = resolveMember(db, token);
       return m ? memberKey(m) : "unmatched:" + norm(token);
     };
+    const currentIdentity = (token) => {
+      const member = resolveMember(db, token);
+      return !member || activeMember(member);
+    };
     const eligibleIdentities = new Set(
-      assigned ? list(assigned).map(identity) : eligible.map(memberKey),
+      assigned
+        ? list(assigned).filter(currentIdentity).map(identity)
+        : eligible.map(memberKey),
     );
     const completedIdentities = new Set(
-      list(logs.map((l) => clean(l["Attendees/Completed"])).join("\n")).map(
-        identity,
-      ),
+      list(logs.map((l) => clean(l["Attendees/Completed"])).join("\n"))
+        .filter(currentIdentity)
+        .map(identity),
     );
     const completed = new Set(legacyPeople.map(memberKey));
     const submissions = new Map();
@@ -419,10 +429,10 @@ const HubModel = (() => {
       completed.delete(identityKey);
       completedIdentities.delete(identityKey);
       if (completionStatus(c) !== "Completed") return;
-      if (m) {
+      if (activeMember(m)) {
         completed.add(memberKey(m));
         completedIdentities.add(memberKey(m));
-      } else if (c.Name) completedIdentities.add(identity(c.Name));
+      } else if (!m && c.Name) completedIdentities.add(identity(c.Name));
     });
     if (type === "Task") {
       // Kanban status is the sole current completion state. Preserve old personal logs as history.
@@ -481,7 +491,11 @@ const HubModel = (() => {
     return eventRows
       .filter((event) => REVIEW_TYPES.includes(event.type))
       .flatMap((event) => [...event.submissions.values()])
-      .filter((row) => completionStatus(row) === "Pending")
+      .filter(
+        (row) =>
+          completionStatus(row) === "Pending" &&
+          activeMember(resolveMember(db, row["Member ID"] || row.Email)),
+      )
       .sort((a, b) => clean(a.Timestamp).localeCompare(clean(b.Timestamp)));
   }
   function eventState(event, member, today) {
@@ -715,7 +729,7 @@ const HubModel = (() => {
   const TEAM_COLORS = ["purple", "teal", "blue", "amber", "rose"];
   const enabled = (row) => !["false", "no", "0"].includes(norm(row.Active));
   function teamStructure(db) {
-    const head = (db.team || []).find((m) => role(m) === "Team Leader");
+    const head = activeTeam(db).find((m) => role(m) === "Team Leader");
     let teams, memberships;
     if ((db.subteams || []).length) {
       teams = db.subteams.filter(enabled).map((t) => ({
@@ -730,7 +744,7 @@ const HubModel = (() => {
           (r) =>
             enabled(r) &&
             ids.has(id(r["Subteam ID"])) &&
-            (db.team || []).some((m) => memberKey(m) === id(r["Member ID"])),
+            activeTeam(db).some((m) => memberKey(m) === id(r["Member ID"])),
         )
         .map((r) => ({
           teamId: id(r["Subteam ID"]),
@@ -741,7 +755,9 @@ const HubModel = (() => {
       // Deterministic fallback for an older sheet, until the normalized sheets are migrated.
       const names = [
         ...new Set(
-          (db.team || []).map((m) => clean(m.Department)).filter(Boolean),
+          activeTeam(db)
+            .map((m) => clean(m.Department))
+            .filter(Boolean),
         ),
       ];
       teams = names.map((name, i) => ({
@@ -750,7 +766,7 @@ const HubModel = (() => {
         description: "",
         color: TEAM_COLORS[i % TEAM_COLORS.length],
       }));
-      memberships = (db.team || [])
+      memberships = activeTeam(db)
         .filter((m) => clean(m.Department))
         .map((m) => ({
           teamId: teams.find((t) => t.name === clean(m.Department)).id,
@@ -765,7 +781,7 @@ const HubModel = (() => {
       return ["Refresh the app to use subteam settings."];
     const { headId, teams = [], memberships = [] } = structure;
     const errors = [];
-    const ids = new Set((db.team || []).map(memberKey));
+    const ids = new Set(activeTeam(db).map(memberKey));
     if (!ids.has(headId)) errors.push("Choose exactly one Team Leader.");
     if (
       !Array.isArray(teams) ||
@@ -837,12 +853,32 @@ const HubModel = (() => {
       "moveTask",
       "saveSkillRequirements",
       "reviewSubmission",
+      "removeMember",
     ];
     if (adminActions.includes(action))
       assert(
         admin,
         "Only members explicitly listed in the Admins sheet may manage events or hierarchy.",
       );
+    // Stable command IDs make every background retry safe, including skill updates and reviews.
+    if (
+      clean(payload.commandId) &&
+      (db.activity || []).some((row) => {
+        if (row.Action !== action || norm(row.Email) !== norm(member.Mail))
+          return false;
+        try {
+          const data = JSON.parse(row.Details || "{}");
+          return (
+            data &&
+            data.outcome === "Succeeded" &&
+            data.requestId === clean(payload.commandId)
+          );
+        } catch (_) {
+          return false;
+        }
+      })
+    )
+      return { db: input, unchanged: true };
     db.completions = db.completions || [];
     db.activity = db.activity || [];
     db.logs = db.logs || [];
@@ -905,6 +941,17 @@ const HubModel = (() => {
         "Update task status using the Kanban board or status dropdown.",
       );
       target = e.title;
+      if (
+        clean(payload.commandId) &&
+        clean(payload.newId) &&
+        db.completions.some(
+          (row) =>
+            clean(row["Submission ID"]) === newId("submission") &&
+            row["Event ID"] === e.key &&
+            id(row["Member ID"]) === memberKey(member),
+        )
+      )
+        return { db: input, unchanged: true };
       const state = eventState(e, member, today);
       assert(state.eligible, "You are not eligible for this event.");
       const updatingSkill = action === "updateSkillCompletion";
@@ -971,7 +1018,7 @@ const HubModel = (() => {
       );
       const person = resolveMember(db, submission["Member ID"]);
       assert(
-        person &&
+        activeMember(person) &&
           e.submissions.get(memberKey(person)) === submission &&
           completionStatus(submission) === "Pending",
         "This submission is no longer pending. Refresh before reviewing.",
@@ -1068,26 +1115,18 @@ const HubModel = (() => {
           url.length <= 2048 && /^https?:\/\/[^\s]+$/i.test(url),
           "Enter a valid https:// or http:// evidence link.",
         );
-        assert(
-          ["Completion", "Issue"].includes(payload.kind),
-          "Choose completion evidence or an issue.",
-        );
-        const note = safeText(payload.note);
-        assert(note.length <= 1000, "Keep the note within 1,000 characters.");
         const linkId = newId("task-link");
         if (links.some((link) => link.id === linkId))
           return { db: input, unchanged: true };
         links.push({
           id: linkId,
           url,
-          kind: payload.kind,
-          note,
           memberId: memberKey(member),
           name: clean(member.Name),
           timestamp: now,
           active: true,
         });
-        details = { link: linkId, url, kind: payload.kind };
+        details = { link: linkId, url };
       } else {
         const link = links.find((item) => item.id === payload.linkId);
         assert(link, "This link is no longer available.");
@@ -1097,7 +1136,7 @@ const HubModel = (() => {
         );
         if (link.active === false) return { db: input, unchanged: true };
         link.active = false;
-        details = { link: link.id, url: link.url, kind: link.kind };
+        details = { link: link.id, url: link.url };
       }
       const value = JSON.stringify(links);
       assert(
@@ -1247,8 +1286,50 @@ const HubModel = (() => {
       };
       e.row.Status = payload.status;
       target = e.title;
+    } else if (action === "removeMember") {
+      const selected = activeTeam(db).find(
+        (person) => memberKey(person) === id(payload.memberId),
+      );
+      assert(
+        selected,
+        "This member is no longer active. Refresh the team directory.",
+      );
+      assert(
+        role(selected) !== "Team Leader",
+        "Assign a new Team Leader before removing this member.",
+      );
+      assert(
+        activeTeam(db).some(
+          (person) =>
+            memberKey(person) !== memberKey(selected) && isAdmin(db, person),
+        ),
+        "Keep at least one enabled admin on the team.",
+      );
+      const structure = teamStructure(db);
+      const soleLeader = structure.teams.find((team) => {
+        const leaders = structure.memberships.filter(
+          (entry) => entry.teamId === team.id && entry.role === "Leader",
+        );
+        return (
+          leaders.length === 1 && leaders[0].memberId === memberKey(selected)
+        );
+      });
+      assert(
+        !soleLeader,
+        "Assign another leader for " +
+          (soleLeader?.name || "this subteam") +
+          " before removing this member.",
+      );
+      selected.Active = "FALSE";
+      (db.memberships || [])
+        .filter((entry) => id(entry["Member ID"]) === memberKey(selected))
+        .forEach((entry) => {
+          entry.Active = "FALSE";
+        });
+      target = selected.Name;
+      details = { memberId: memberKey(selected), name: selected.Name };
     } else if (action === "saveSkillRequirements") {
-      const selected = (db.team || []).find(
+      const selected = activeTeam(db).find(
         (m) => memberKey(m) === id(payload.memberId),
       );
       assert(selected, "Choose a valid member.");
@@ -1336,7 +1417,7 @@ const HubModel = (() => {
           Active: "TRUE",
         });
       });
-      db.team.forEach((m) => {
+      db.team.filter(activeMember).forEach((m) => {
         const own = structure.memberships.filter(
           (r) => r.memberId === memberKey(m),
         );
@@ -1388,7 +1469,7 @@ const HubModel = (() => {
             : action === "saveTask"
               ? "Task"
               : ""),
-        requestId: clean(payload.newId),
+        requestId: clean(payload.commandId || payload.newId),
         outcome: "Succeeded",
         ...(action === "completeEvent" ? { member: memberKey(member) } : {}),
         ...details,
@@ -1410,7 +1491,7 @@ const HubModel = (() => {
         outcome: "Failed",
         event: clean(payload.key),
         type: event?.type || clean(payload.type),
-        requestId: clean(payload.newId),
+        requestId: clean(payload.commandId || payload.newId),
         error: clean(error.message || error).slice(0, 1000),
       }),
     };
@@ -1443,6 +1524,8 @@ const HubModel = (() => {
     dateOnly,
     number,
     role,
+    activeMember,
+    activeTeam,
     resolveMember,
     people,
     actor,

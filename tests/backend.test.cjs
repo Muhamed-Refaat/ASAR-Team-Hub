@@ -2,6 +2,133 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const M = require("../web/model.js");
 const { environment, Sheet } = require("./backend-fixture.cjs");
+test("a failed completion write cannot leave a successful command receipt that suppresses its retry", () => {
+  const e = environment("member@example.com");
+  const payload = {
+    key: "Learning:learning-row-2",
+    newId: "retry-submission",
+    commandId: "retry-command",
+  };
+  e.sheets.Completion = new Sheet("Completion", [
+    ["Submission ID", "Event ID", "Status"],
+  ]);
+  const append = e.sheets.Completion.appendRow.bind(e.sheets.Completion);
+  e.sheets.Completion.appendRow = () => {
+    throw new Error("Completion sheet unavailable");
+  };
+  assert.throws(
+    () => e.context.executeHubCommand("completeEvent", payload),
+    /Completion sheet unavailable/,
+  );
+  const history = e.context.getTeamData().activity;
+  assert.equal(
+    history.filter((row) => JSON.parse(row.Details).outcome === "Succeeded")
+      .length,
+    0,
+  );
+  e.sheets.Completion.appendRow = append;
+  const result = e.context.executeHubCommand("completeEvent", payload);
+  assert.equal(result.data.completions.length, 1);
+  assert.equal(result.data.completions[0].Status, "Pending");
+});
+test("member removal preserves source rows and history while denying access and excluding inactive assignments", () => {
+  const e = environment();
+  e.sheets.Subteams = new Sheet("Subteams", [
+    ["Subteam ID", "Name", "Color", "Active"],
+    ["s1", "Software", "purple", true],
+  ]);
+  e.sheets.TeamMemberships = new Sheet("TeamMemberships", [
+    ["Subteam ID", "Member ID", "Role", "Active"],
+    ["s1", "1", "Leader", true],
+    ["s1", "2", "Member", true],
+  ]);
+  e.sheets.Completion = new Sheet("Completion", [
+    ["Submission ID", "Event ID", "Event Type", "Member ID", "Name", "Status"],
+    [
+      "old-attempt",
+      "Learning:learning-row-2",
+      "Learning",
+      "2",
+      "Member",
+      "Pending",
+    ],
+  ]);
+  e.sheets.Admins.appendRow(["member@example.com", true]);
+  const before = e.context.getTeamData();
+  const result = e.context.executeHubCommand("removeMember", {
+    memberId: "2",
+    commandId: "remove-2",
+  });
+  assert.equal(result.data.team.length, 2);
+  assert.equal(result.data.team[1].Active, "FALSE");
+  assert.equal(result.data.team[1].Name, "Member");
+  assert.equal(result.data.memberships[1].Active, "FALSE");
+  assert.deepEqual(result.data.completions, before.completions);
+  assert.equal(
+    M.events(result.data).find((event) => event.key === "Task:task-1")
+      .totalEligible,
+    1,
+  );
+  assert.equal(M.pendingReviews(result.data).length, 0);
+  assert.equal(
+    M.resolveMember(result.data, "member@example.com").Name,
+    "Member",
+  );
+  assert.equal(M.actor(result.data, "member@example.com"), null);
+  assert.equal(
+    e.context.executeHubCommand("removeMember", {
+      memberId: "2",
+      commandId: "remove-2",
+    }).unchanged,
+    true,
+  );
+  e.setEmail("member@example.com");
+  assert.equal(e.context.getTeamData().activeUserSession.isAdmin, false);
+  assert.throws(
+    () =>
+      e.context.executeHubCommand("saveTask", {
+        title: "Forbidden",
+        members: ["1"],
+        email: "head@example.com",
+      }),
+    /Sign in/,
+  );
+});
+test("member removal requires an admin and protects the overall leader, sole subteam leaders and last admin", () => {
+  const e = environment("member@example.com");
+  assert.throws(
+    () =>
+      e.context.executeHubCommand("removeMember", {
+        memberId: "1",
+        email: "head@example.com",
+      }),
+    /Admins/,
+  );
+  e.setEmail("head@example.com");
+  assert.throws(
+    () => e.context.executeHubCommand("removeMember", { memberId: "1" }),
+    /new Team Leader/,
+  );
+  e.sheets.Subteams = new Sheet("Subteams", [
+    ["Subteam ID", "Name", "Color", "Active"],
+    ["s1", "Software", "purple", true],
+  ]);
+  e.sheets.TeamMemberships = new Sheet("TeamMemberships", [
+    ["Subteam ID", "Member ID", "Role", "Active"],
+    ["s1", "2", "Leader", true],
+  ]);
+  assert.throws(
+    () => e.context.executeHubCommand("removeMember", { memberId: "2" }),
+    /another leader for Software/,
+  );
+  e.sheets.Admins.rows[1][1] = false;
+  e.sheets.Admins.appendRow(["member@example.com", true]);
+  e.setEmail("member@example.com");
+  assert.throws(
+    () => e.context.executeHubCommand("removeMember", { memberId: "2" }),
+    /at least one enabled admin/,
+  );
+});
 test("production persists board moves and per-member requirements without losing ratings or other rows", () => {
   const e = environment();
   e.context.executeHubCommand("moveTask", {
@@ -336,7 +463,9 @@ test("production task evidence is attributed to the assignee and preserved indep
   const event = M.events(result.data).find((item) => item.type === "Task");
   assert.equal(event.links[0].memberId, "2");
   assert.equal(event.row.Status, "Pending");
-  assert.equal(event.links[0].note, "Test result");
+  assert.equal(event.links[0].url, "https://example.com/result");
+  assert.equal(event.links[0].note, undefined);
+  assert.equal(event.links[0].kind, undefined);
   assert.equal(result.data.activity.at(-1).Action, "addTaskLink");
 });
 

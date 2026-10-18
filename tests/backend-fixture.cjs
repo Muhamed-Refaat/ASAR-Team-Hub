@@ -83,12 +83,13 @@ function environment(email = "head@example.com") {
     triggers = [];
   let elapsed = 0,
     fetchHandler;
+  const initialTime = Date.now();
   class Clock extends Date {
     constructor(...args) {
-      super(...(args.length ? args : [Date.now() + elapsed]));
+      super(...(args.length ? args : [initialTime + elapsed]));
     }
     static now() {
-      return Date.now() + elapsed;
+      return initialTime + elapsed;
     }
   }
   const context = vm.createContext({

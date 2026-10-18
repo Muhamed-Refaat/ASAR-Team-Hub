@@ -2,7 +2,7 @@ Sheet Names Raw: ['Workbook Guide', 'Supervisor', 'Activity', 'Team', 'SKILLs', 
 Sheet 'Workbook Guide': ['ASAR TEAM HUB', 'Workbook & review workflow']
 Sheet 'Supervisor': ['Name', 'phone']
 Sheet 'Activity': ['Timestamp', 'Email', 'Action', 'Target', 'Details']
-Sheet 'Team': ['Name', 'ID', 'Mail', 'Phone number', 'Rule', 'overview', 'Hard Skill', 'Soft Skill', 'Technology', 'Personality', 'Abilities', 'Education', 'Role', 'Reports To', 'Department', 'Aliases', 'Knowledge', 'Skills']
+Sheet 'Team': ['Name', 'ID', 'Mail', 'Phone number', 'Rule', 'overview', 'Hard Skill', 'Soft Skill', 'Technology', 'Personality', 'Abilities', 'Education', 'Role', 'Reports To', 'Department', 'Aliases', 'Knowledge', 'Skills', 'Active']
 Sheet 'SKILLs': ['Hard  Technical SKILLS', 'Soft skills', 'Technologies and Tools']
 Sheet 'Learning': ['Topic name', 'Track ID', 'Track Name', 'Obligability', 'Skill', 'Platform', 'Link', 'Event ID', 'Invited/Assigned', 'Due to Date', 'Description', 'Archived']
 Sheet 'Meet': ['Meeting title', 'Meeting Type', 'Date', 'Description', 'Attachments', 'Event ID', 'Invited/Assigned', 'Due to Date', 'Archived', 'Logging Enabled']

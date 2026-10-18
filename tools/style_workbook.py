@@ -48,6 +48,8 @@ def style(wb):
         ('Legacy event columns', 'Older durations, task scores/feedback, track IDs, related skills, platform and meeting-type columns are preserved but hidden. New forms and saves use the essential fields only. Stable IDs, archive flags and review metadata remain operational fields.'),
         ('Subteams and roles', 'Subteams defines Subteam ID, Name, Description, Color and Active. TeamMemberships assigns Member ID and a Leader, Member or Support role per subteam. Each subteam needs one or more leaders; people can belong to multiple subteams. One overall Team Leader remains in Team.'),
         ('Team settings', 'Use Edit distribution in Team hierarchy to create/rename/remove subteams and assign all members. Global Leader roles, Department and Reports To are compatibility summaries; normalized membership rows store every relationship. Removed rows are disabled, never deleted.'),
+        ('Member lifecycle', 'New members use the ASAR Team Application Google Form linked from the hub. The form-bound script in forms/TeamApplications.gs updates profile fields by header and preserves roles, permissions and removal state. Admins remove members in Team Intelligence: Team Active becomes FALSE and memberships are disabled; records remain. Transfer sole leadership first. Restore via the Team Active flag and Edit distribution when needed.'),
+        ('Immediate updates', 'Task moves, completion submissions, reviews, edits, required skills and distribution changes update the UI immediately and save in the background. Pending changes show Saving changes. Failures roll back unconfirmed changes and keep Retry update available in Event saves. CV exports use confirmed data.'),
         ('Skill updates', 'Members can use Update result or Reset skill directly on their own skill card. Updates preserve prior results. Reset clears completion and removes that assessment from current ratings; original Team sheet ratings and history remain intact. Re-completion adds a fresh assessment.'),
         ('Dates', 'Meet Date is the scheduled date. Due to Date is the deadline through that date in Africa/Cairo. Members may undo even after a deadline; an admin must reopen a closed event before resubmission.'),
         ('Deployment', 'Import this workbook into Google Sheets, install generated Code.gs and Index.html, use Africa/Cairo and execute as the accessing signed-in user. Allow Drive authorization. Each user needs sheet write access. Adding a future admin may require sharing older evidence with them.'),
@@ -99,7 +101,7 @@ def style(wb):
     wb.defined_names['HubProjectCategories'] = DefinedName('HubProjectCategories', attr_text="'Lookups'!$I$2:$I$4")
 
     validations = {
-        'Team': {'Role':'HubRoles'},
+        'Team': {'Role':'HubRoles','Active':'HubBooleans'},
         'Subteams': {'Color':'HubTeamColors','Active':'HubBooleans'},
         'TeamMemberships': {'Subteam ID':'HubSubteamIDs','Member ID':'HubMemberIDs','Role':'HubMembershipRoles','Active':'HubBooleans'},
         'Admins': {'Email':'HubMemberEmails','Enabled':'HubBooleans'},

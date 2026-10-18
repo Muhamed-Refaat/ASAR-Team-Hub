@@ -4,7 +4,7 @@
   "scripts": {
     "build": "python tools/build_dashboard.py",
     "sync": "python sync_local_db.py",
-    "test": "node --test tests/model.test.cjs tests/backend.test.cjs tests/sync.test.cjs tests/telegram.test.cjs",
+    "test": "node --test tests/model.test.cjs tests/backend.test.cjs tests/sync.test.cjs tests/actions.test.cjs tests/forms.test.cjs tests/telegram.test.cjs",
     "test:browser": "node tests/browser.cjs"
   },
   "devDependencies": {

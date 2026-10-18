@@ -7,6 +7,10 @@
   padding-top: 12px;
   margin-top: 8px;
 }
+.member-management {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
 .telegram-card-action small {
   font-size: 11px;
 }
