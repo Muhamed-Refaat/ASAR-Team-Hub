@@ -1,28 +1,30 @@
-Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education
-Abdallah Refaat ,2520606.0,abdallahallam1550@gmail.com,1091157494.0,,skill,"{Embedded Systems & Firmware (C/C++) , 1}
+Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education,Role,Reports To,Department,Aliases,Knowledge,Skills
+Abdallah Refaat Allam,2520606,abdallahallam1550@gmail.com,1091157494,,"First-year IT student passionate about Robotics and Embedded Systems. Currently working on an autonomous robot using Arduino and ESP32, with hands-on experience in sensors, motor control, and communication systems. Eager to learn and gain practical experience in robotics.","{Embedded Systems & Firmware (C/C++) , 2}
 {High-Level Scripting & Middleware (Python) , 1}
-{Version Control & Collaboration (Git/GitHub) , 1}
+{Version Control & Collaboration (Git/GitHub) , 2}
 {Embedded Linux & SBC Administration , 1}
 {Circuit Design & EDA Routing , 1}
 {Power Electronics & Circuit Protection , 1}
 {Mechanical Engineering & CAD , 2}
 {Kinematics & Motion Control , 1}
-{Sensor Fusion & State Estimation , 3}
-{Computer Vision & Spatial AI , 5}
-{SLM Fine tuning & Edge AI deployment , 5}","{Systematic Root-Cause Isolatio , 1}
-{Critical Thinking & Architecture Trade-Off Analysis , 2}
-{Safety-First Engineering Mindset (Fail-Safe Design) , 3}
-{Adaptive Problem Solving & Agile Iteration , 4}
-{Cross-Domain Systems Integration , 4}","{Autodesk Fusion 360 / SolidWorks , 1}
-{KiCad EDA (v7.0+) / Proetus , 2}
-{PlatformIO / VS Code / Arduino IDE 2.x , 3}
-{Raspberry Pi OS (64-bit) / Ubuntu Server , 5}
-{ROS 2 (Humble Hawksbill) , 5}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 2}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
 {slam_toolbox & ROS 2 Nav2 , 1}
-{OpenCV & ONNX Runtime / TFLite , 2}
-{FastAPI (Python) / Express & WebSockets , 3}
-{Gazebo / RViz2 / WebSockets Injection , 4}",,,
-نور ياسر زكريا عزام,2521059.0,Nourazzam589@gmail.com,1277251600.0,,نعم,"{Embedded Systems & Firmware (C/C++) , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team Leader,,,"Abdallah Allm
+Abdallah-Allam
+Abdallah Refaat",,
+نور ياسر زكريا عزام,2521059,Nourazzam589@gmail.com,1277251600,,نعم,"{Embedded Systems & Firmware (C/C++) , 1}
 {High-Level Scripting & Middleware (Python) , 1}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
@@ -44,8 +46,8 @@ Abdallah Refaat ,2520606.0,abdallahallam1550@gmail.com,1091157494.0,,skill,"{Emb
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 1}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Mohamed hamada shabaan,2520780.0,mojo52830@gmail.com,1025844001.0,,"A passion for embedded systems and learning, and contributing as much as I can ASAR Tim, I have a modest experience in programming languages and operating robotics, and I'm always trying to move forward, and I hope to introduce Tim's active.","{Embedded Systems & Firmware (C/C++) , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520594,Electronics & Embedded,,,
+Mohamed hamada shabaan,2520780,mojo52830@gmail.com,1025844001,,"A passion for embedded systems and learning, and contributing as much as I can ASAR Tim, I have a modest experience in programming languages and operating robotics, and I'm always trying to move forward, and I hope to introduce Tim's active.","{Embedded Systems & Firmware (C/C++) , 2}
 {High-Level Scripting & Middleware (Python) , 2}
 {Version Control & Collaboration (Git/GitHub) , 3}
 {Embedded Linux & SBC Administration , 1}
@@ -67,8 +69,8 @@ Mohamed hamada shabaan,2520780.0,mojo52830@gmail.com,1025844001.0,,"A passion fo
 {slam_toolbox & ROS 2 Nav2 , 2}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 2}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Amany Bilal Abo zaid Deffalla,2520186.0,amanybilal36@gmail.com,1208185428.0,,,"{Embedded Systems & Firmware (C/C++) , 3}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Leader,2520606,Software & AI,,,
+Amany Bilal Abo zaid Deffalla,2520186,amanybilal36@gmail.com,1208185428,,,"{Embedded Systems & Firmware (C/C++) , 3}
 {High-Level Scripting & Middleware (Python) , 3}
 {Version Control & Collaboration (Git/GitHub) , 2}
 {Embedded Linux & SBC Administration , 1}
@@ -90,8 +92,8 @@ Amany Bilal Abo zaid Deffalla,2520186.0,amanybilal36@gmail.com,1208185428.0,,,"{
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 2}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Abdelrhman Mohamed Abdelfttah Soliman,2520594.0,abdelrhmanalnagar18@gmail.com,1025031789.0,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+Abdelrhman Mohamed Abdelfttah Soliman,2520594,abdelrhmanalnagar18@gmail.com,1025031789,,,"{Embedded Systems & Firmware (C/C++) , 1}
 {High-Level Scripting & Middleware (Python) , 1}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
@@ -113,8 +115,8 @@ Abdelrhman Mohamed Abdelfttah Soliman,2520594.0,abdelrhmanalnagar18@gmail.com,10
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 1}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Ezzat Abdel Rafea Ahmed,2520622.0,ztbdalraf82@gmail.com,1226286900.0,,تخصص تكنولوجيا ومعلومات وشبكات لدي شغف عمل في انظمه كاميرات ip cctv  اسعي لتطوير والوصول العمل في شركه Cisco ,"{Embedded Systems & Firmware (C/C++) , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Leader,2520606,Electronics & Embedded,,,
+Ezzat Abdel Rafea Ahmed,2520622,ztbdalraf82@gmail.com,1226286900,,تخصص تكنولوجيا ومعلومات وشبكات لدي شغف عمل في انظمه كاميرات ip cctv  اسعي لتطوير والوصول العمل في شركه Cisco,"{Embedded Systems & Firmware (C/C++) , 1}
 {High-Level Scripting & Middleware (Python) , 2}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
@@ -136,10 +138,10 @@ Ezzat Abdel Rafea Ahmed,2520622.0,ztbdalraf82@gmail.com,1226286900.0,,تخصص �
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 1}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-محمد فرحات نصر علي ,2540213.0,mohamedfarahat555566@gmail.com,1095844217.0,,"Intermediate level with hands-on experience in programming, embedded systems, and basic hardware integration.","{Embedded Systems & Firmware (C/C++) , 3}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+Mohamed farhat nasr ali,2540213,mohamedfarahat555566@gmail.com,1095844217,,"Motivated Information Technology student with a strong interest in programming and software development. Currently developing my skills in C, C++, Python, and computer networks. Eager to learn new technologies, gain practical experience, and contribute to real-world projects.","{Embedded Systems & Firmware (C/C++) , 2}
 {High-Level Scripting & Middleware (Python) , 2}
-{Version Control & Collaboration (Git/GitHub) , 3}
+{Version Control & Collaboration (Git/GitHub) , 2}
 {Embedded Linux & SBC Administration , 2}
 {Circuit Design & EDA Routing , 2}
 {Power Electronics & Circuit Protection , 2}
@@ -152,15 +154,15 @@ Ezzat Abdel Rafea Ahmed,2520622.0,ztbdalraf82@gmail.com,1226286900.0,,تخصص �
 {Safety-First Engineering Mindset (Fail-Safe Design) , 2}
 {Adaptive Problem Solving & Agile Iteration , 2}
 {Cross-Domain Systems Integration , 2}","{Autodesk Fusion 360 / SolidWorks , 2}
-{KiCad EDA (v7.0+) / Proetus , 1}
+{KiCad EDA (v7.0+) / Proetus , 2}
 {PlatformIO / VS Code / Arduino IDE 2.x , 2}
 {Raspberry Pi OS (64-bit) / Ubuntu Server , 2}
 {ROS 2 (Humble Hawksbill) , 2}
 {slam_toolbox & ROS 2 Nav2 , 2}
 {OpenCV & ONNX Runtime / TFLite , 2}
-{FastAPI (Python) / Express & WebSockets , 2}
-{Gazebo / RViz2 / WebSockets Injection , 2}",,,
-Amal Mohamed Youssef Mahmoud ,2520189.0,amlmhmdywsf7@gmail.com,1277166793.0,,,"{Embedded Systems & Firmware (C/C++) , 2}
+{FastAPI (Python) / Express & WebSockets , 3}
+{Gazebo / RViz2 / WebSockets Injection , 2}",,,,Leader,2520606,Mechanics & Integration,,,
+Amal Mohamed Youssef Mahmoud,2520189,amlmhmdywsf7@gmail.com,1277166793,,,"{Embedded Systems & Firmware (C/C++) , 2}
 {High-Level Scripting & Middleware (Python) , 2}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
@@ -182,8 +184,8 @@ Amal Mohamed Youssef Mahmoud ,2520189.0,amlmhmdywsf7@gmail.com,1277166793.0,,,"{
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 1}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Ziyadmohamed abd elrady ,2520448.0,ziyadmohamed7689@gmail.com,1026484558.0,,..,"{Embedded Systems & Firmware (C/C++) , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520594,Electronics & Embedded,,,
+Ziyadmohamed abd elrady,2520448,ziyadmohamed7689@gmail.com,1026484558,,..,"{Embedded Systems & Firmware (C/C++) , 1}
 {High-Level Scripting & Middleware (Python) , 2}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
@@ -205,8 +207,8 @@ Ziyadmohamed abd elrady ,2520448.0,ziyadmohamed7689@gmail.com,1026484558.0,,..,"
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 1}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Fatma Magdy Issa Abdel Baqi ,2560172.0,fm3192820@gmail.com,1067110418.0,,"A 2nd-year Information Technology student at Borg El-Arab Technological University with hands-on experience in AI development. In my 1st year, I served as the AI Specialist for a Smart University Assistant project, where I developed an intelligent conversational AI integrated with a Telegram bot, web platform, and dedicated hardware device. The system automated student-faculty communication, real-time schedule updates, and instant query answering. I am eager to join a dedicated team for our 2nd-year graduation project to apply my AI skills, collaborate on innovative solutions, and build impactful technology together.","{Embedded Systems & Firmware (C/C++) , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+Fatma Magdy Issa Abdel Baqi,2560172,fm3192820@gmail.com,1067110418,,"A 2nd-year Information Technology student at Borg El-Arab Technological University with hands-on experience in AI development. In my 1st year, I served as the AI Specialist for a Smart University Assistant project, where I developed an intelligent conversational AI integrated with a Telegram bot, web platform, and dedicated hardware device. The system automated student-faculty communication, real-time schedule updates, and instant query answering. I am eager to join a dedicated team for our 2nd-year graduation project to apply my AI skills, collaborate on innovative solutions, and build impactful technology together.","{Embedded Systems & Firmware (C/C++) , 2}
 {High-Level Scripting & Middleware (Python) , 2}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 2}
@@ -228,8 +230,8 @@ Fatma Magdy Issa Abdel Baqi ,2560172.0,fm3192820@gmail.com,1067110418.0,,"A 2nd-
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 2}
 {FastAPI (Python) / Express & WebSockets , 3}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
-Ahmed Mohamed Abu El-Fadl Ramadan ,2540004.0,ahmedcor90@gmail.com,1283920280.0,,"Electrical Installation graduate from technical secondary school with 95.3%, moved to IT with Excellent grade and got Very Good in my second IT semester. Built and improved a university guide chatbot using Groq API on my own, made a simple backend under time pressure, and picked the best local AI model via Ollama that fits Raspberry Pi as an offline backup. Currently learning C, Git/GitHub and Linux basics. Ready to contribute and grow through hands on work.","{Embedded Systems & Firmware (C/C++) , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+Ahmed Mohamed Abu El-Fadl Ramadan,2540004,ahmedcor90@gmail.com,1283920280,,"Electrical Installation graduate from technical secondary school with 95.3%, moved to IT with Excellent grade and got Very Good in my second IT semester. Built and improved a university guide chatbot using Groq API on my own, made a simple backend under time pressure, and picked the best local AI model via Ollama that fits Raspberry Pi as an offline backup. Currently learning C, Git/GitHub and Linux basics. Ready to contribute and grow through hands on work.","{Embedded Systems & Firmware (C/C++) , 1}
 {High-Level Scripting & Middleware (Python) , 1}
 {Version Control & Collaboration (Git/GitHub) , 1}
 {Embedded Linux & SBC Administration , 1}
@@ -251,4 +253,351 @@ Ahmed Mohamed Abu El-Fadl Ramadan ,2540004.0,ahmedcor90@gmail.com,1283920280.0,,
 {slam_toolbox & ROS 2 Nav2 , 1}
 {OpenCV & ONNX Runtime / TFLite , 1}
 {FastAPI (Python) / Express & WebSockets , 2}
-{Gazebo / RViz2 / WebSockets Injection , 1}",,,
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520594,Electronics & Embedded,,,
+Mostafa Ahmed Sayed Ali Abou baker,2540244,mostafaabuobaker999@gmail.com,1032495429,,,"{Embedded Systems & Firmware (C/C++) , 3}
+{High-Level Scripting & Middleware (Python) , 3}
+{Version Control & Collaboration (Git/GitHub) , 3}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 3}
+{Mechanical Engineering & CAD , 3}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+يوسف وجدي السيد احمد,2540300,wagdeyyoussef@gmail.com,1200795169,,انا خبرتي محدوده بس الي بيتطلب مني بعمله ايا كان حتى لو هتعلمه عادي,"{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 2}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+Shams Mohammed Abd-ELhakim Galal,2560129,shamsgalal69@gmail.com,1508195848,,"I'm a student in the Department of Information Technology, and I am interested in programming, embedded systems, and robotics. I have experience with Arduino, ESP32, and Proteus, and a basic understanding of C/C++, Python, HTML, and JavaScript. I also have a foundational knowledge of networking and cybersecurity. I am eager to learn new technologies, develop my technical skills, and work as part of a team.","{Embedded Systems & Firmware (C/C++) , 4}
+{High-Level Scripting & Middleware (Python) , 4}
+{Version Control & Collaboration (Git/GitHub) , 3}
+{Embedded Linux & SBC Administration , 3}
+{Circuit Design & EDA Routing , 3}
+{Power Electronics & Circuit Protection , 4}
+{Mechanical Engineering & CAD , 3}
+{Kinematics & Motion Control , 3}
+{Sensor Fusion & State Estimation , 3}
+{Computer Vision & Spatial AI , 4}
+{SLM Fine tuning & Edge AI deployment , 3}","{Systematic Root-Cause Isolatio , 4}
+{Critical Thinking & Architecture Trade-Off Analysis , 4}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 3}
+{Adaptive Problem Solving & Agile Iteration , 4}
+{Cross-Domain Systems Integration , 3}","{Autodesk Fusion 360 / SolidWorks , 4}
+{KiCad EDA (v7.0+) / Proetus , 3}
+{PlatformIO / VS Code / Arduino IDE 2.x , 4}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}
+{ROS 2 (Humble Hawksbill) , 3}
+{slam_toolbox & ROS 2 Nav2 , 2}
+{OpenCV & ONNX Runtime / TFLite , 3}
+{FastAPI (Python) / Express & WebSockets , 4}
+{Gazebo / RViz2 / WebSockets Injection , 2}",,,,Team member,2520594,Electronics & Embedded,,,
+Mohamed Elhot,2520756,mohamed_elhot13@gmail.com,1282073791,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+Shams Mohamed Gaber Eldeeb,2521242,shamseldeeb946@gmail.com,1021639139,,"I am a motivated IT student with a strong interest in robotics and embedded systems. I have previous experience working on ASAR's project, where I was involved in the hardware team. This experience helped me develop my teamwork, problem-solving, and practical engineering skills. I am eager to continue learning, improve my technical abilities, and contribute to ASAR's robotics projects, especially in hardware integration and control systems.","{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 2}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+Omnia Ahmed Samir,2520190,Omniasamir775@gmail.com,1144001142,,,"{Embedded Systems & Firmware (C/C++) , 3}
+{High-Level Scripting & Middleware (Python) , 3}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 3}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 3}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 3}
+{Critical Thinking & Architecture Trade-Off Analysis , 4}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 3}
+{Adaptive Problem Solving & Agile Iteration , 4}
+{Cross-Domain Systems Integration , 3}","{Autodesk Fusion 360 / SolidWorks , 2}
+{KiCad EDA (v7.0+) / Proetus , 2}
+{PlatformIO / VS Code / Arduino IDE 2.x , 3}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520594,Electronics & Embedded,,,
+A’laa Mohamed Elhafny,2520175,lolamoham2000@gmail.com,1143116077,,,"{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 2}
+{Embedded Linux & SBC Administration , 2}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+Asmaa Aahraf,2550031,asmaaashraf1292007@gmail.com,1061672541,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+assem waleed khamis saleh,2560148,assemwaleed321@gmail.com,1021881710,,"I am currently studing in information technology department
+I am a fullstack web developer
+I have been working on several large-scaled projects such as e-commerce websites","{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 3}
+{Version Control & Collaboration (Git/GitHub) , 4}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520594,Electronics & Embedded,,,
+Ibrahim farag abd elmawgoud,2520070,Iprahem30001@gmail.com,1228081024,,,"{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 2}
+{Embedded Linux & SBC Administration , 2}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 2}
+{Kinematics & Motion Control , 2}
+{Sensor Fusion & State Estimation , 2}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 2}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 3}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 2}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 2}
+{OpenCV & ONNX Runtime / TFLite , 2}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+Abdallah abass Mohamed gad,2520609,abdallahabass305@gmail.com,1015028240,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+Ruqayya Abd  El Mawjood Hamed,2520406,ruqayyaabdelmawjwd@gmail.com,1145388901,,,"{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 2}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 2}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 2}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 2}
+{Cross-Domain Systems Integration , 2}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520594,Electronics & Embedded,,,
+Ahmed Fathy ahmed laz,2520112,fathyumar3@gmail.com,1025601425,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 1}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 1}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2540213,Mechanics & Integration,,,
+Rahma Fayez,2520398,rahmefayze76@gmail.com,1040769179,,,"{Embedded Systems & Firmware (C/C++) , 1}
+{High-Level Scripting & Middleware (Python) , 2}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 1}
+{Power Electronics & Circuit Protection , 2}
+{Mechanical Engineering & CAD , 1}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 1}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 1}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 1}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 1}","{Autodesk Fusion 360 / SolidWorks , 1}
+{KiCad EDA (v7.0+) / Proetus , 1}
+{PlatformIO / VS Code / Arduino IDE 2.x , 1}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 1}
+{OpenCV & ONNX Runtime / TFLite , 1}
+{FastAPI (Python) / Express & WebSockets , 1}
+{Gazebo / RViz2 / WebSockets Injection , 1}",,,,Team member,2520780,Software & AI,,,
+Ahlam Abdelbast Ebrhim,2560005,ahlamabdelbast525@gmail.com,1212337831,,,"{Embedded Systems & Firmware (C/C++) , 2}
+{High-Level Scripting & Middleware (Python) , 3}
+{Version Control & Collaboration (Git/GitHub) , 1}
+{Embedded Linux & SBC Administration , 1}
+{Circuit Design & EDA Routing , 2}
+{Power Electronics & Circuit Protection , 3}
+{Mechanical Engineering & CAD , 2}
+{Kinematics & Motion Control , 1}
+{Sensor Fusion & State Estimation , 3}
+{Computer Vision & Spatial AI , 1}
+{SLM Fine tuning & Edge AI deployment , 1}","{Systematic Root-Cause Isolatio , 2}
+{Critical Thinking & Architecture Trade-Off Analysis , 1}
+{Safety-First Engineering Mindset (Fail-Safe Design) , 2}
+{Adaptive Problem Solving & Agile Iteration , 1}
+{Cross-Domain Systems Integration , 3}","{Autodesk Fusion 360 / SolidWorks , 3}
+{KiCad EDA (v7.0+) / Proetus , 2}
+{PlatformIO / VS Code / Arduino IDE 2.x , 3}
+{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}
+{ROS 2 (Humble Hawksbill) , 1}
+{slam_toolbox & ROS 2 Nav2 , 2}
+{OpenCV & ONNX Runtime / TFLite , 2}
+{FastAPI (Python) / Express & WebSockets , 2}
+{Gazebo / RViz2 / WebSockets Injection , 3}",,,,Team member,2520594,Electronics & Embedded,,,

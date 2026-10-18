@@ -1,0 +1,13 @@
+{
+  "name": "asar-team-hub",
+  "private": true,
+  "scripts": {
+    "build": "python tools/build_dashboard.py",
+    "sync": "python sync_local_db.py",
+    "test": "node --test tests/model.test.cjs tests/backend.test.cjs",
+    "test:browser": "node tests/browser.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

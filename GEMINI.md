@@ -1,48 +1,26 @@
-# Repository Mandates & Rules
+# Repository rules
 
-Welcome to the **Azar Project Team Dashboard** repository. To maintain structural consistency, all developers must strictly adhere to the following standards.
+## Synchronization
 
-## 🚨 Synchronization Mandate
-*   **Production & Local Interface Parity**: Any feature, styling, script, or bug-fix implemented in the production files (`Code.gs` and `Index.html`) **MUST** have a corresponding, mirrored implementation in the local test dashboard (`local_test_dashboard.html`).
-*   **Database Alignment**: If any modification is made to the production Google Sheet database structure, corresponding modifications **MUST** be applied to:
-    1.  The separate local CSV database files in the `spreedsheet-copy/` directory.
-    2.  The embedded mock fallback data strings in `local_test_dashboard.html`.
-*   **Utility Sync Script**: Always use the **`sync_local_db.py`** script to parse and regenerate the local CSV database tables from the master Excel workbook. Do not edit `.csv` files manually unless synchronized with the Excel workbook.
+- Keep production and local interfaces identical. Edit shared `web/` sources and run `python tools/build_dashboard.py` to regenerate `Index.html`, `local_test_dashboard.html`, and `Code.gs`.
+- Use `python sync_local_db.py` to import the workbook and regenerate CSVs plus the embedded local fallback. Do not hand-edit CSVs without updating the workbook.
+- Schema changes must be reflected in the workbook, CSVs, local adapter, and Apps Script controller. Preserve nonempty source cells.
 
-## 📊 Database Schema & Sheets
-The master Excel workbook (`spreedsheet-copy/ASAR-Team-Hub.xlsx`) consists of the following synchronized sheets (the obsolete `Skill` sheet has been deleted):
-1.  **`Supervisor`**: Name, phone
-2.  **`Team`**: Name, ID, Mail, Phone number, Rule, overview, Hard Skill, Soft Skill, Technology, Personality, Abilities, Education
-    *   *Note*: Member skills and competencies are integrated directly as structural, serialized rating blocks within the respective columns (e.g., `Hard Skill`, `Soft Skill`, `Technology`) rather than using a separate sheet.
-3.  **`Learning`**: Topic name, Track ID, Track Name, Obligability, Skill, Platform, Link
-    *   *Note*: Courses map to target skills using the `Skill` column, powering the educational directory filters.
-4.  **`Meet`**: Meeting title, Meeting Type, Date, Description, Attachments
-5.  **`Exam`**: Exam name, Date, Category , # Attendee
-6.  **`Task`**: Task Title, Task description, Break down (DOD), Assignees, Status, Score, Feedback, ETA, ATA, Scale
-7.  **`Log`**: Event Type, Event ID, Event Name, Invited/Assigned, Attendees/Completed, Due to Date
+## UI and data
 
-## 📋 Comprehensive Upgrade Project Plan
-The `plan-copy/` directory contains our master engineering blueprint, **Architectural Transformation for Autonomous Mobile Robotics**:
-*   `ASAR ROBOT Plan .docx`: Master Word document.
-*   `ASAR ROBOT Plan.html`: Beautiful, interactive standalone web application for the team plan.
-*   **Core Systems Blueprint**:
-    *   **3-Tier Compute Architecture**: Embedded Linux (Raspberry Pi 4/5) ➔ RTOS/Navigation Router (ESP32 Gateway) ➔ Motor Actuation/Sensing (Arduino Mega 2560).
-    *   **EKF State Fusion**: Extended Kalman Filter merging MPU-6050 accelerometer/gyroscope telemetry and wheel encoders.
-    *   **Power Isolation & Protection PCB**: 3 isolated power rails (5V Logic, 9V Gate, 12.6V Motor) to decouple logic compute from high-current actuator noise.
-    *   **Arabic Educational Path**: 7 comprehensive modules mapped directly to 10 key technical domains.
+- Use React 18, lightweight pinned CDNs, Lucide icons and ApexCharts. Shared CSS uses consistent spacing and accessible light/dark design tokens, Plus Jakarta Sans with an Arabic font fallback, visible keyboard focus, and responsive layouts.
+- Missing ratings and qualifications stay missing. Display only recorded profile, education, task, assessment and completion data in the interface and CVs.
+- Event management belongs in Tasks, Meetings, Learning, and Skills; Exams is inactive. Learning courses cannot be archived. Meeting attendance requires the admin-controlled Logging Enabled flag. Required skills follow per-member sheet definitions and SkillRequirements overrides.
+- Team Intelligence uses the searchable member directory and selected profile, with the member's progress graph before the radar matrix. Show Technology, Skills, Knowledge, Abilities and Personality lists directly below the overview using recorded data; no team event-counter section. Completion logs and Activity follow Team Intelligence in navigation.
+- Event management belongs in the dedicated event tabs. Tasks have a separate management action. Completion records belong in Completion logs; Activity displays management changes.
+- Only explicitly listed Admins can create/edit/archive/reopen events, review submissions or edit distribution. A leadership role alone is not authorization. Courses and attendance use Uncompleted/Pending/Completed; pending records never count as completed. Course submission requires PDF/PNG/JPEG evidence up to 10 MB, stored in Drive with sheet metadata. Attendance evidence is optional. Preserve all attempts and review history. Members can withdraw pending or undo approved records; stale reviews must fail. Task completion follows board Status only; no completion form or personal task completion writes. Skills retain direct completion.
+- The dashboard is a landing page with real progress visuals, scroll reveals and reduced-motion support. Keep styling, lookups and the delivery copy synchronized using tools/style_workbook.py when changing workbook data/schema.
+- The production backend must authorize from `Session.getActiveUser().getEmail()`. Never trust payload identities, substitute the effective user, or default to the first team member.
+- Keep exactly one overall Team Leader. Subteams have one or more leaders. TeamMemberships stores one Leader/Member/Support role per member per subteam, and members can belong to several subteams. Derive compatibility Team Role/Department/Reports To summaries from these relationships. Leadership grants no Admins permissions. Disable removed settings rows rather than deleting or reordering them.
+- Skills shows required project skills only, with Update result and Reset skill for the signed-in member. Retain all attempts and original ratings; only the latest completed assessment per event affects the skill matrix. Prior standalone assessments remain archived history. Completion/request controls for courses, meetings and skills stay on event cards. Tasks use drag/drop or the status dropdown.
+- Event creation uses only essential type-specific fields in HubModel.EVENT_FORM_FIELDS/EVENT_COLUMNS. Preserve legacy source cells; hide obsolete columns in the workbook and avoid overwriting them during edits. Extra course/meeting details stay in optional settings.
+- Legacy aliases are explicit, never guessed. Retain historical invited/completed totals when names cannot yet be linked to current members.
 
-## 🛠️ Tech Stack & Conventions
-*   **Aesthetics**: Follow the **SaaS Minimalist** design standard—light background primary, thin borders (`1px`), generous white space, soft shadows, and clean sans-serif typography (`Plus Jakarta Sans`).
-*   **Reactivity**: Built with client-side **React 18** and **Tailwind CSS**. Avoid injecting bloated libraries; leverage lightweight CDNs.
-*   **Charts**: Always use **ApexCharts** for interactive data representation (radar, donut, columns, area).
-*   **Icons**: Use **Lucide Icons** via the React `<Icon />` wrapper component to maintain unified iconography.
-*   **Active Session Handling**: Fetch active user session details (Email & Name) from the Google Apps Script backend on application start. The name is automatically resolved from the `Team` sheet using the session email, falling back to the email prefix.
-*   **Event Log POST Integration**: Form submissions to log new events must package parameters into a JSON object and submit to the Web App URL via HTTP POST (`doPost(e)`). Fallback to standard Google Apps Script RPC (`google.script.run.logEvent`) if POST submission fails or the URL is not retrieved.
+## Verification
 
-## 🧪 Local Testing Workflow
-*   Never merge code that has not been verified locally using the CORS Server simulation in `local_test_dashboard.html`.
-*   Run `python -m http.server 8000` or `npx serve` locally to test dynamic CSV table reads and writes.
-*   **Synchronizing local CSVs**: Run the command below to sync local CSV files from the Excel workbook:
-    ```bash
-    python sync_local_db.py
-    ```
+Run the model/backend tests, the real local browser workflow, and the data/CV audit before declaring changes complete. Browser evidence must cover responsive layouts, text contrast, permission controls, completion and matrix updates, hierarchy and CV exports. Follow the deployment steps in README when publishing; a local mock is not proof of a hosted deployment.

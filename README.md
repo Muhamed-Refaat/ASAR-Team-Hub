@@ -1,81 +1,111 @@
-# Azar Project Team Dashboard
+# ASAR Team Hub
 
-Azar Project Team is a highly interactive, collaborative team management and intelligence dashboard. It is designed to track team members, roles, skill metrics, task assignments, and calculate attendance rates for events and learning tracks.
+A Google Apps Script team dashboard backed by Google Sheets, with a matching local preview generated from the workbook in `spreedsheet-copy/ASAR-Team-Hub.xlsx`.
 
-This application is built as a **Google Apps Script (GAS) Web App**, utilizing Google Sheets as a lightweight, secure backend database.
+The interface has dedicated Tasks, Meetings, Learning, and Skills tabs. Tasks use board status; courses, meetings and required skills expose their personal actions on their cards. Completion logs hold submission records; Activity holds management history. Completed events have a green border, check mark, and explicit status label.
 
-## 🚀 Key Features
+The dashboard opens as a landing page: a purple/teal hero, circular personal progress graphic, floating skill/team details, and scroll-revealed chapters for progress, review stages, recorded strengths, next steps, upcoming meetings and team coverage. Every number comes from the current data. Both themes, keyboard focus and reduced-motion preferences are supported.
 
-*   **Simulated Login Dropdown**: Easily switch between all synchronized team members (fully dynamic as the team grows) to audit individual dashboards and permission roles (stores profile in browser `localStorage`).
-*   **Active User Session Context**: Automatically populates the submitting user's context (User Name and Email) securely from the backend session, presenting them as read-only fields inside the event logging modal.
-*   **Searchable Event Dropdown with Due Date Validation**: Replaces the standard event name input with a fully searchable dropdown. It validates and excludes expired events dynamically, unless a special "re-opened" window is active for that event.
-*   **Dynamic Skill Radar Chart**: Compiles member skills dynamically directly from the updated `Team` sheet's dedicated columns (`Hard Skill`, `Soft Skill`, `Technology`, `Personality`, `Abilities`, `Education`) alongside task ratings and completed logs.
-*   **Live Webcast Alerts**: Webcasts the latest created event from the sheet and issues warnings/notifications if a user has active or overdue tasks.
-*   **Deadline Lock Protocol**: Closed/Overdue events are locked from completion. Team Leads can re-open events by setting new due dates directly from the web interface.
-*   **Grouped Learning Tracks UI**: Courses fetched from the `Learning` sheet are grouped dynamically by learning track phase and filtered by specific mapped skills using the new `Skill` column in the database (Accessible via the backend `?action=learning` JSON API).
-*   **Team Intelligence Hub**: Compiles a performance card for all members. Clicking on a card opens a modal detailing their dynamic skill mapping, task statistics, and soft/technical competency ratings.
-*   **🤖 Autonomous Mobile Robotics Upgrade Plan**: Highlights our comprehensive mechatronic upgrade framework, mapping out a 3-tier compute hierarchy, Extended Kalman Filter (EKF) sensor fusion, safety power isolation, and a custom Arabic educational pathway.
+Team Intelligence keeps the searchable member directory and selected profile. Four personal progress bars remain before the radar matrix. Technology, Skills, Knowledge, Abilities and Personality lists are visible directly below Overview & objective, using recorded fields and current ratings; missing data is shown as empty. Team event counters have been removed from this page. The Completion logs and Activity tabs now follow Team Intelligence in navigation. Word/PDF exports and the new subteam hierarchy remain available.
 
----
+## Run locally
 
-## 🛠️ Repository File Structure
-
-*   **`Code.gs`**: The production Apps Script server-side database controller (manages spreadsheet reads and mutations).
-*   **`Index.html`**: The production Apps Script frontend template. Built on client-side React 18, Tailwind CSS, ApexCharts, and Lucide.
-*   **`local_test_dashboard.html`**: A fully functional local testing dashboard. Mocks Google Sheets by loading separate CSV database tables.
-*   **`sync_local_db.py`**: A python synchronization utility script. Parses and extracts separate `.csv` tables from the master Excel workbook.
-*   **`plan-copy/`**: Contains the master engineering upgrade blueprints, **Architectural Transformation for Autonomous Mobile Robotics**, in Microsoft Word (`ASAR ROBOT Plan .docx`) and interactive, rich web page (`ASAR ROBOT Plan.html`) formats.
-*   **`spreedsheet-copy/`**: Contains the separate CSV database files (`Team.csv`, `Learning.csv`, `Log.csv`, `Meet.csv`, `Supervisor.csv`, `Exam.csv`, `Task.csv`) parsed by the local test dashboard, alongside the master Excel backup (`ASAR-Team-Hub.xlsx`).
-*   **`GEMINI.md`**: Foundational repository rules and synchronization mandates.
-
----
-
-## 🧪 Local Testing Workflow
-
-To prevent regressions, you should test all features locally using separate CSV database files before deploying to production.
-
-### 1. Synchronize Local CSV Databases
-If you have updated the master Excel workbook (`spreedsheet-copy/ASAR-Team-Hub.xlsx`), or to re-generate the CSV sheets from scratch, execute:
-```bash
+```powershell
+python -m pip install -r requirements.txt
 python sync_local_db.py
+python -m http.server 8000 --bind 127.0.0.1
 ```
-This script dynamically parses, filters, and standardizes dates and formats from Excel sheets, exporting clean CSV arrays under `spreedsheet-copy/`.
 
-### 2. Launch Local Test Dashboard
-1.  Open your terminal in the repository root directory:
-    ```bash
-    cd ASAR-Team-Hub
-    ```
-2.  Start a local HTTP web server:
-    *   **Python**: `python -m http.server 8000`
-    *   **Node**: `npx serve`
-3.  Open your browser and navigate to:
-    ```
-    http://localhost:8000/local_test_dashboard.html
-    ```
-4.  Perform logs, complete tasks, or re-open events. Use the **Sheets API Console** at the bottom of the screen to inspect execution logs in real-time.
-5.  Click the **Export Updated Log.csv** button in the console to download updated logs from your local session.
+Open [the local dashboard](http://localhost:8000/local_test_dashboard.html). The preview account picker is available only locally. Local changes remain in the page session; use **Local database tools** to export changed tables before reloading CSVs. The generated page also supports `file://` using an identical embedded workbook snapshot. Fonts and runtime libraries load from pinned CDNs, so the initial page load needs internet access.
 
-> 🚨 **CORS Note**: Opening `local_test_dashboard.html` directly as a `file://` URL will run in "Local Preview (Embedded Fallback)" mode due to browser disk security limits. To fetch separated CSV sheets from the disk, a local server is required.
+## Admins and hierarchy
 
----
+The `Admins` sheet is manually maintained, with columns `Email`, `Name`, `Enabled`. Add an exact team email and set `Enabled` to `TRUE`. A name-only row is also supported when it uniquely matches a Team member. An email takes precedence if both fields are provided. `FALSE` disables the row. Roles do not automatically grant event management rights.
 
-## 📦 Production Deployment
+Initial configuration approved for this update:
 
-To publish your dashboard live in your Google Workspace:
+| Member | Role | Provisional department |
+| --- | --- | --- |
+| Abdallah Refaat Allam | Team Leader and initial event admin | Entire team |
+| Mohamed hamada shabaan | Leader | Software & AI |
+| Abdelrhman Mohamed Abdelfttah Soliman | Leader | Electronics & Embedded |
+| Mohamed farhat nasr ali | Leader | Mechanics & Integration |
 
-1.  Open your [Google Sheets Database](https://docs.google.com/spreadsheets/d/188lG-b__CVXFxj2ebrGXilpfw8-Y7Q-O9KrGzkOWqkU/edit?gid=103397222#gid=103397222).
-2.  Navigate to **Extensions** > **Apps Script**.
-3.  Replace the default code in `Code.gs` with the content of `Code.gs` from this repository.
-4.  Create a new HTML file named `Index` and paste the contents of `Index.html` from this repository.
-5.  Save your project.
-6.  Click **Deploy** > **New deployment** > **Web app**:
-    *   **Execute as**: `Me`
-    *   **Who has access**: `Anyone`
-7.  Deploy and navigate to your production URL.
+An admin can change the distribution from **Team Intelligence -> Team hierarchy -> Edit distribution** or open **My subteams** from the dashboard. There is one overall Team Leader. Every subteam has one or more leaders; each person can lead, contribute as a Member, or Support multiple subteams. Member and leader views show their own subteams first, shared contributors, role badges and direct profile links. Leadership does not grant admin permission.
 
----
+`Subteams` stores ID, Name, Description, Color and Active. `TeamMemberships` stores Subteam ID, Member ID, Role (Leader/Member/Support) and Active. Team Role/Department/Reports To are compatibility summaries; normalized membership rows hold all relationships. Edits upsert rows and disable removed memberships or subteams so source rows remain stable. The importer migrates the current provisional departments once. Put exact historical names in Team `Aliases`, separated by newlines, to connect imported completions without guessing names.
 
-## 🚨 Synchronization Mandate
+## Data model
 
-As defined in **`GEMINI.md`**, any edit, styling correction, feature addition, or schema update made to the production files (`Code.gs` and `Index.html`) **MUST** be mirrored in `local_test_dashboard.html` (and the local CSV directory) to keep development and local verification completely in sync.
+| Sheet | Purpose |
+| --- | --- |
+| Team | Names, IDs, contacts, overview, recorded skill ratings, education, hierarchy, aliases |
+| Admins | Manually maintained event-management permissions |
+| Subteams | Named subteams, purpose, visual color and active state |
+| TeamMemberships | Per-subteam leaders, members and supporters; multiple memberships per person |
+| Task, Meet, Learning | Source events and assignments |
+| SkillEvents | Hidden historical standalone assessments; prior records are retained and archived |
+| SkillRequirements | Per-member project skill requirements: Member ID, Skill, Category, Required, optional Target Score |
+| SKILLs / Skill | Skill catalogue; the existing two-header-row SKILLs sheet is supported |
+| Log | Event-level invited/completed aggregates, linked through Source ID |
+| Completion | Individual submission attempts, three-state review status, authenticated member, evidence attachment metadata, reviewer, feedback, review time and last status change |
+| Activity | Audit history of changes; completion audit rows are stored but shown only as records in Completion logs |
+| Lookups | Member IDs/names/emails, event keys/titles, enabled reviewers, project skills and allowed dropdown values |
+| Workbook Guide | Instructions for the workflow, permissions, evidence, lookups and deployment |
+
+The importer preserves sparse columns, dates, multiline cells and all nonempty source cells. It canonicalizes the two-row skill catalogue into `Skill.csv` without truncating soft skills or technologies. Stable Event IDs prevent renames from disconnecting completion records. Legacy log-only events remain editable in their type tab.
+
+Course, meeting and skill submissions are idempotent and per member. Tasks use shared board Status only: drag/drop or the status dropdown updates progress for all assignees, and moving away from Completed reverses that progress. No task completion form or personal completion entry is created. Historical task records remain stored. Deadlines stay open through the end of the date in Africa/Cairo. Tasks may be archived; courses cannot. Missing ratings and qualifications stay missing.
+
+Courses and meeting attendance use **Uncompleted → Pending → Completed**. A course requires an uploaded PDF, PNG or JPEG evidence file, up to 10 MB. Attendance evidence is optional. Submitting never increases progress: an explicitly listed admin must open the review queue in the event's tab and approve it. Returning a submission requires feedback and restores Uncompleted. Required skills retain direct completion. Course cards show **Request completion**, meeting cards show **Log attendance**, and required skill cards show **Complete**. These actions are independent of event settings. Closed actions stay visible with an explanation; pending and approved cards show withdrawal/undo controls where supported.
+
+Members can **Withdraw submission** while Pending or **Undo completion** after approval, including imported historical completions. Undo always returns their own status to Uncompleted and removes that completion from progress and Log aggregates. It is allowed after deadlines or assignment changes. Resubmission still requires current eligibility, an open deadline, meeting logging permission where applicable, and a fresh admin review. Previous attempts, evidence, reviewer details and status-change audit remain recorded; stale or withdrawn attempts cannot be approved.
+
+The `Completion` sheet adds `Submission ID`, `Status`, `Evidence File ID`, `Evidence URL`, `Evidence Filename`, `Evidence MIME Type`, `Evidence Size`, `Reviewer Email`, `Reviewer Name`, `Reviewed At`, `Review Note`, `Status Changed At`, and `Status Changed By`. The latest attempt for each event/member controls current status. Existing blank-status completions and imported Log totals remain accepted historical data; no reviewer is invented. Use app actions for review and undo so the aggregate Log and Activity audit stay synchronized.
+
+Production uploads are saved in the submitting user's **ASAR Team Hub - Evidence** Drive folder. Each attachment is shared with the currently enabled admins and its ID/URL are written to the sheet; file bytes are not stored in cells. Uploads are validated before Drive is touched, retries do not create duplicate files, and failures before persistence remove the unused file. [Google's Drive file API](https://developers.google.com/apps-script/reference/drive/file) defines these attachment and sharing operations. If a new admin needs to review older evidence, the file owner must share it with that admin. Local preview attachments are downloadable session-only files, not persistent Drive uploads.
+
+The styled, import-ready delivery is [`deliverables/ASAR-Team-Hub-Updated.xlsx`](deliverables/ASAR-Team-Hub-Updated.xlsx). It matches the source workbook and includes a guide, named dropdown lists, member/event lookup formulas in Completion, freeze panes, filters, rating validation, review-state colors and upcoming-meeting highlighting. The original Exam data is preserved in a hidden inactive tab. Run `python tools/style_workbook.py` to refresh styling, roster/event lookups, CSVs, generated interfaces and the delivery copy after changing source data. Excel or Google Sheets calculates lookup formulas on opening.
+
+Required skills initially follow each member's recorded Hard Skill, Soft Skill, and Technology entries. Admins can override these in Skills using the project catalogue. `SkillRequirements` rows use the member's ID and exact Category/Skill, with `Required` set to `TRUE` or `FALSE`; an optional target rating is shown on the skill card. Requirement changes preserve recorded ratings and past completions. Members can use **Update result** or **Reset skill** on their own skill cards without opening event settings. Updates append an assessment attempt; reset clears completion and excludes that event's assessment from the current matrix while preserving original Team ratings and history. Re-completing records a fresh result. Viewing another member never exposes controls to log on their behalf.
+
+Admins can drag tasks between Kanban columns or use the status selector. Members retain their own completion controls. Task movement saves the shared status through the same authenticated server checks.
+
+Meeting `Date` is the scheduled date. `Logging Enabled` must be `TRUE` for attendance logging; admins can open or close it in the meeting editor. A scheduled date alone does not close logging. An explicit `Due to Date` remains the completion deadline. Upcoming meetings have a separate section and a highlighted date card. Exams have been removed from the app, progress, and exports; the original workbook data remains preserved.
+
+`python sync_local_db.py --upgrade-schema` adds missing columns/sheets and stable IDs, preserving an initial `ASAR-Team-Hub.before-schema.xlsx` backup. The already-run `--provisional-distribution` option is a one-time initializer for the distribution above; do not rerun it after making your own distribution changes.
+
+## Essential event forms
+
+Tasks ask for title, description, assignees, status and due date. Meetings ask for title, date, participants, link/location and whether attendance logging is open. Courses ask for title, course link and assigned members. Course track/requirement/deadline and meeting attendance deadline are grouped under Optional settings. Assignment pickers include search. Duration units, task scoring/feedback, track numbers, platform, meeting type and related-skill fields have been removed from active forms. Old values remain in hidden workbook columns and are preserved during edits.
+
+The Skills page has no standalone assessment section or creation control; admins manage each member's required project skills.
+
+## Edit and verify
+
+Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
+
+```powershell
+python tools/build_dashboard.py
+npm ci
+npm test
+npm run test:browser
+python -m unittest discover -s tests -p data_audit.py -v
+git diff --check
+```
+
+Browser checks use installed Chrome (override with `PLAYWRIGHT_CHANNEL`), start their own localhost server, and exercise desktop/tablet/mobile in both themes, text contrast, event permissions and completions, hierarchy updates, production RPC, embedded fallback, and real Word/PDF downloads. Screenshots, sample CVs, and reports are written to ignored `test-results/`.
+
+Verification covers model/server transitions, evidence storage and failures, the full review/undo UI, scroll visuals and reduced motion, all eight tabs at 1440/768/390 pixels in both themes, text contrast, Word/PDF exports, source-cell preservation, lookup/schema integrity and delivery-workbook parity. Reports and artifacts are written to `test-results/`.
+
+Verified on 2026-10-16: all 32 model/server tests, 19 browser workflows and 8 data/workbook/CV audits passed. Coverage includes restored profile lists and legacy JSON/text formats, navigation order, required skills only, task status without completion forms, minimal event creation/editing, hidden legacy columns, review/undo flows, subteam roles, responsive themes, contrast and real CV exports. Browser reports show no failures or script errors.
+
+## Apps Script deployment
+
+1. Import `deliverables/ASAR-Team-Hub-Updated.xlsx` into Google Sheets, or apply its additional sheets/columns to an existing live sheet while preserving live records. Retain the Admins list, Team hierarchy and new Completion fields. Set `SPREADSHEET_ID` in `web/backend.gs` if importing into a new spreadsheet, then rebuild.
+2. Replace the Apps Script `Code.gs` and `Index` files with generated `Code.gs` and `Index.html`.
+3. Set the project's timezone to **Africa/Cairo**.
+4. Deploy a web app with **Execute as: User accessing the web app** and restrict access to signed-in Google accounts. Allow the requested Drive authorization for evidence uploads. Each user needs spreadsheet permissions for the operations they perform. The app checks the authenticated active-user email against Team and Admins on every mutation. Do not deploy anonymously or substitute a payload email for identity. [Google documents when active-user email is unavailable](https://developers.google.com/apps-script/reference/base/session).
+5. Verify a real admin and a real member account after deployment. Local tests exercise the production adapter and server contract; they do not publish or verify a hosted deployment.
+
+Writes use confirmed Apps Script RPC responses; the JSON POST endpoint applies the same authorization and validation. No opaque `no-cors` response is treated as a successful write. Apps Script writes are serialized with a script lock to prevent simultaneous completions from overwriting one another.

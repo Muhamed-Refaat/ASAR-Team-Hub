@@ -1,5 +1,4 @@
-Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale
-AAA,fsafa,"1-hi
-2-bye",Abdallah-Allam,Completed,3.0,,2026-07-30,2026-07-30,day
-bbb,fsafa,"1-hi
-2-bye",Abdallah-Allam,inProgress,3.0,,6.0,8.0,hour
+Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale,Archived,Event ID,Due to Date
+aa,aaaa,,Abdallah Refaat,Backlog,,,,,day,,task-5c73d54129a14534,
+a,aff,af,Mohamed hamada shabaan,Completed,,,2,,week,TRUE,task-ffaf31b0ac334d0e,
+hard,a,ad,"Abdallah Refaat,نور ياسر زكريا عزام",Blocked,,,1,,week,TRUE,task-fa4ac6cda0d745cb,

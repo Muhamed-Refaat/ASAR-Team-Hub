@@ -1,0 +1,5 @@
+__pycache__/
+node_modules/
+test-results/
+spreedsheet-copy/*.before-schema.xlsx
+*.log
