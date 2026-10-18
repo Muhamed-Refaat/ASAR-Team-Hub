@@ -6,7 +6,11 @@ The interface has dedicated Tasks, Meetings, Learning, and Skills tabs. Tasks us
 
 The dashboard opens as a landing page: a purple/teal hero, circular personal progress graphic, floating skill/team details, and scroll-revealed chapters for progress, review stages, recorded strengths, next steps, upcoming meetings and team coverage. Every number comes from the current data. Both themes, keyboard focus and reduced-motion preferences are supported.
 
-Team Intelligence keeps the searchable member directory and selected profile. Four personal progress bars remain before the radar matrix. Technology, Skills, Knowledge, Abilities and Personality lists are visible directly below Overview & objective, using recorded fields and current ratings; missing data is shown as empty. Team event counters have been removed from this page. The Completion logs and Activity tabs now follow Team Intelligence in navigation. Word/PDF exports and the new subteam hierarchy remain available.
+Team Intelligence keeps the searchable member directory and selected profile. Four personal progress bars remain before the radar matrix. Technology, Skills, Knowledge, Abilities and Personality appear as text-only lists directly below Overview & objective, using recorded fields without counters, ratings or progress bars; missing data is shown as empty. Team event counters have been removed from this page. The Completion logs and Activity tabs now follow Team Intelligence in navigation. Word/PDF exports and the new subteam hierarchy remain available.
+
+Word and PDF CVs share a professional A4 layout with a prominent name and contact header, structured experience and engineering skills, and a compact toolkit/working-style sidebar. They use actual team appointments, completed or active project tasks and approved completed courses. Empty fields, placeholder values, internal ratings and event counters are omitted. Arabic names and profile text retain their reading direction; Word documents remain editable.
+
+Preview the workbook-based example: [PDF](deliverables/cv-preview/Abdallah-Refaat-Allam-CV.pdf) or [editable Word document](deliverables/cv-preview/Abdallah-Refaat-Allam-CV.docx). These samples use the source workbook, without browser-test assignments.
 
 ## Run locally
 
@@ -83,7 +87,7 @@ The Skills page has no standalone assessment section or creation control; admins
 
 ## Edit and verify
 
-Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
+Edit `web/app.jsx`, `web/theme.css`, `web/model.js`, `web/cv.js`, `web/local.js`, and `web/backend.gs`. The generator embeds the same React application, CV layouts, styles and data model into both dashboards and the Apps Script server. Generated `Index.html`, `local_test_dashboard.html`, and `Code.gs` are ready to use without a build step in Apps Script.
 
 ```powershell
 python tools/build_dashboard.py
@@ -98,7 +102,7 @@ Browser checks use installed Chrome (override with `PLAYWRIGHT_CHANNEL`), start 
 
 Verification covers model/server transitions, evidence storage and failures, the full review/undo UI, scroll visuals and reduced motion, all eight tabs at 1440/768/390 pixels in both themes, text contrast, Word/PDF exports, source-cell preservation, lookup/schema integrity and delivery-workbook parity. Reports and artifacts are written to `test-results/`.
 
-Verified on 2026-10-16: all 32 model/server tests, 19 browser workflows and 8 data/workbook/CV audits passed. Coverage includes restored profile lists and legacy JSON/text formats, navigation order, required skills only, task status without completion forms, minimal event creation/editing, hidden legacy columns, review/undo flows, subteam roles, responsive themes, contrast and real CV exports. Browser reports show no failures or script errors.
+Verified on 2026-10-18: all 34 model/server tests, 19 browser workflows and 8 data/workbook/CV audits passed. Coverage includes text-only profile lists and legacy JSON/text formats, navigation order, required skills only, task status without completion forms, minimal event creation/editing, hidden legacy columns, review/undo flows, subteam roles, responsive themes, contrast and professional Word/PDF exports. CV checks cover empty fields, approved-learning eligibility, complete recorded skill labels, Arabic direction, links and multi-page A4 output. Browser reports show no failures or script errors.
 
 ## Apps Script deployment
 

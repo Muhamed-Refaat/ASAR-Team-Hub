@@ -1211,39 +1211,17 @@ th.sticky-col {
 }
 .profile-list-group ul {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  padding-inline-start: 18px;
+  list-style: disc;
 }
 .profile-list-group li {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-.profile-list-group li:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-.profile-list-group li .row {
-  align-items: start;
-  gap: 12px;
-  font-size: 11px;
-  margin-bottom: 8px;
-}
-.profile-list-group li span {
-  min-width: 0;
+  padding: 4px 0;
+  font-size: 12px;
+  line-height: 1.7;
   overflow-wrap: anywhere;
 }
-.profile-list-group li strong {
-  flex-shrink: 0;
+.profile-list-group li::marker {
   color: var(--team-accent);
-}
-.profile-list-group .progress {
-  height: 4px;
-}
-.profile-list-group small {
-  display: block;
-  margin-top: 5px;
-  font-size: 10px;
-  color: var(--muted);
 }
 @media (max-width: 700px) {
   .member-profile-lists {

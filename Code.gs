@@ -575,15 +575,94 @@ const HubModel = (() => {
   }
   function cvData(db, member) {
     const eventRows = events(db);
+    const text = (value) => {
+      const valueText = clean(value);
+      return /^(null|undefined|nan|n\/?a|none|not provided|not available|true|false|yes|no|نعم|لا|[-–—]+)$/i.test(
+        valueText,
+      )
+        ? ""
+        : valueText;
+    };
+    const entries = (value) => {
+      if (!text(value)) return [];
+      try {
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
+        if (Array.isArray(parsed))
+          return parsed.flatMap((group) =>
+            Array.isArray(group?.items)
+              ? group.items
+                  .filter((item) => typeof item === "string")
+                  .map(text)
+                  .filter(Boolean)
+              : [],
+          );
+      } catch (_) {
+        /* Older sheets store plain text or rating pairs. */
+      }
+      const ratings = parseRatings(value);
+      return ratings.length
+        ? ratings.map((item) => text(item.label)).filter(Boolean)
+        : text(value).split(/\r?\n/).map(text).filter(Boolean);
+    };
+    const unique = (items) => [
+      ...new Map(items.map((item) => [norm(item), item])).values(),
+    ];
+    const groups = skillGroups(db, member, eventRows).map((group) => ({
+      ...group,
+      items: group.items.filter((item) => text(item.label)),
+    }));
+    const structure = teamStructure(db);
+    const appointments = structure.memberships
+      .filter((membership) => membership.memberId === memberKey(member))
+      .map((membership) => ({
+        team: text(
+          structure.teams.find((team) => team.id === membership.teamId)?.name,
+        ),
+        role:
+          membership.role === "Leader"
+            ? "Subteam Leader"
+            : membership.role === "Support"
+              ? "Supporting Member"
+              : "Team Member",
+      }))
+      .filter((appointment) => appointment.team);
+    if (structure.headId === memberKey(member))
+      appointments.unshift({ team: "ASAR Team", role: "Team Leader" });
+    const labels = (category) =>
+      groups
+        .find((group) => group.name === category)
+        ?.items.map((item) => item.label) || [];
     return {
-      name: clean(member.Name),
-      role: role(member),
-      department: clean(member.Department),
-      email: clean(member.Mail),
-      phone: id(member["Phone number"]),
-      overview: clean(member.overview || member.Overview),
-      education: education(member),
-      groups: skillGroups(db, member, eventRows),
+      name: text(member.Name),
+      role: role(member) === "Team member" ? "Team Member" : role(member),
+      department: text(member.Department),
+      email: text(member.Mail),
+      phone: text(id(member["Phone number"])),
+      overview: text(member.overview || member.Overview),
+      education: education(member).map(text).filter(Boolean),
+      groups,
+      technical: unique([...labels("Hard Skill"), ...entries(member.Skills)]),
+      tools: unique(labels("Technology")),
+      interpersonal: unique([
+        ...labels("Soft Skill"),
+        ...entries(member.Personality),
+      ]),
+      knowledge: unique(entries(member.Knowledge)),
+      abilities: unique(entries(member.Abilities)),
+      appointments,
+      learning: eventRows
+        .filter(
+          (event) =>
+            event.type === "Learning" && event.completed.has(memberKey(member)),
+        )
+        .map((event) => ({
+          title: text(event.title),
+          track: text(event.row["Track Name"]),
+          url: /^https?:\/\//i.test(clean(event.row.Link))
+            ? clean(event.row.Link)
+            : "",
+        }))
+        .filter((course) => course.title),
       progress: progress(db, member, eventRows),
       tasks: eventRows
         .filter(
@@ -592,15 +671,18 @@ const HubModel = (() => {
             e.eligible.some((m) => memberKey(m) === memberKey(member)),
         )
         .map((e) => ({
-          title: e.title,
-          description: e.description,
-          dod: clean(e.row["Break down (DOD)"]),
+          title: text(e.title),
+          description: text(e.description),
+          dod: text(e.row["Break down (DOD)"]),
+          includedInCV:
+            e.completed.has(memberKey(member)) ||
+            (!e.archived && status(e.row.Status) === "InProgress"),
           status:
             (e.completed.has(memberKey(member))
               ? "Completed"
               : status(e.row.Status)) + (e.archived ? " (Archived)" : ""),
           score: number(e.row.Score),
-          feedback: clean(e.row.Feedback),
+          feedback: text(e.row.Feedback),
         })),
     };
   }

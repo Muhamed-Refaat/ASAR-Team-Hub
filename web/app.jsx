@@ -258,215 +258,18 @@ async function exportCV(db, member) {
     throw new Error(
       "Word export could not load. Reload the page and try again.",
     );
-  const c = M.cvData(db, member);
-  const {
-    Document,
-    Packer,
-    Paragraph,
-    TextRun,
-    HeadingLevel,
-    Footer,
-    PageNumber,
-    AlignmentType,
-  } = window.docx;
-  const rtl = (text) =>
-    /^[\s\p{P}\p{N}]*[\p{Script=Arabic}]/u.test(M.clean(text));
-  const run = (text, opts = {}) =>
-    new TextRun({
-      text: M.clean(text),
-      font: "Arial",
-      size: 21,
-      color: "172238",
-      rightToLeft: rtl(text),
-      ...opts,
-    });
-  const p = (text, opts = {}) =>
-    new Paragraph({
-      children: M.clean(text)
-        .split(/\r?\n/)
-        .map((line, i) => run(line, { break: i ? 1 : 0 })),
-      bidirectional: rtl(text),
-      alignment: rtl(text) ? AlignmentType.RIGHT : AlignmentType.LEFT,
-      spacing: { after: 110, line: 300 },
-      ...opts,
-    });
-  const heading = (text) =>
-    new Paragraph({
-      text,
-      heading: HeadingLevel.HEADING_1,
-      keepNext: true,
-      spacing: { before: 280, after: 130 },
-    });
-  const children = [
-    new Paragraph({
-      children: [run(c.name, { size: 42, bold: true })],
-      bidirectional: rtl(c.name),
-      alignment: rtl(c.name) ? AlignmentType.RIGHT : AlignmentType.LEFT,
-      spacing: { after: 90 },
-      keepNext: true,
-    }),
-    p([c.role, c.department].filter(Boolean).join(" · "), { keepNext: true }),
-    p([c.email, c.phone].filter(Boolean).join(" | "), {
-      spacing: { after: 240 },
-    }),
-  ];
-  if (c.overview) children.push(heading("PROFILE"), p(c.overview));
-  if (c.education.length)
-    children.push(heading("EDUCATION"), ...c.education.map((v) => p(v)));
-  const groups = c.groups.filter((g) => g.items.length);
-  if (groups.length) {
-    children.push(
-      heading("SKILLS & TOOLS"),
-      p(
-        "Recorded ratings use a 0–10 scale. Logged assessments are marked below.",
-        {
-          children: [
-            run(
-              "Recorded ratings use a 0–10 scale. Logged assessments are marked below.",
-              { color: "53627A", size: 18 },
-            ),
-          ],
-        },
-      ),
-    );
-    groups.forEach((g) => {
-      children.push(
-        new Paragraph({
-          children: [run(g.name, { bold: true, size: 23 })],
-          keepNext: true,
-          spacing: { before: 170, after: 90 },
-        }),
-      );
-      g.items.forEach((item) =>
-        children.push(
-          p(
-            `${item.label} — ${item.score}/10${item.source === "Logged assessment" ? " (logged assessment)" : ""}`,
-          ),
-        ),
-      );
-    });
-  }
-  if (c.tasks.length) {
-    children.push(heading("TEAM PROJECT EXPERIENCE"));
-    c.tasks.forEach((t) => {
-      children.push(
-        new Paragraph({
-          children: [run(t.title, { bold: true })],
-          keepNext: true,
-          spacing: { before: 160, after: 70 },
-        }),
-      );
-      children.push(
-        p(
-          `${t.status}${t.score !== null ? ` · Recorded score: ${t.score}/10` : ""}`,
-        ),
-      );
-      if (t.description) children.push(p(t.description));
-      if (t.dod) children.push(p("Definition of done: " + t.dod));
-      if (t.feedback) children.push(p("Feedback: " + t.feedback));
-    });
-  }
-  children.push(
-    heading("TEAM PARTICIPATION"),
-    p("Active eligible events; archived assignments are excluded."),
-    ...M.TYPES.map((type) => {
-      const v = c.progress.byType[type];
-      return p(
-        `${M.LABELS[type]}: ${v.completed} completed / ${v.total} eligible${v.percent !== null ? ` (${v.percent}%)` : ""}`,
-      );
-    }),
-  );
-  const doc = new Document({
-    creator: "ASAR Team Hub",
-    title: c.name + " — CV",
-    description: "Recorded team profile; no inferred qualifications.",
-    styles: {
-      default: {
-        document: {
-          run: { font: "Arial", size: 21, color: "172238" },
-          paragraph: { spacing: { after: 110, line: 300 }, widowControl: true },
-        },
-        heading1: {
-          run: { font: "Arial", size: 23, bold: true, color: "5931B6" },
-          paragraph: { keepNext: true },
-        },
-      },
-    },
-    sections: [
-      {
-        properties: {
-          page: {
-            size: { width: 11906, height: 16838 },
-            margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 },
-          },
-        },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  run("ASAR Team Hub · " + today() + " · Page ", {
-                    size: 16,
-                    color: "53627A",
-                  }),
-                  new TextRun({
-                    children: [PageNumber.CURRENT],
-                    font: "Arial",
-                    size: 16,
-                    color: "53627A",
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
-        children,
-      },
-    ],
-  });
+  const cv = M.cvData(db, member);
+  const document = HubCV.word(cv, window.docx);
   saveBlob(
-    await Packer.toBlob(doc),
-    c.name.replace(/[^\p{L}\p{N} -]/gu, "").trim() + " CV.docx",
+    await window.docx.Packer.toBlob(document),
+    cv.name.replace(/[^\p{L}\p{N} -]/gu, "").trim() + " CV.docx",
   );
 }
 function printCV(db, member) {
-  const c = M.cvData(db, member);
-  const escape = (v) =>
-    String(v ?? "").replace(
-      /[&<>"']/g,
-      (x) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[x],
-    );
   const popup = window.open("", "_blank");
   if (!popup) throw new Error("Allow popups to open the printable CV.");
-  const section = (name, body) =>
-    body ? `<section><h2>${name}</h2>${body}</section>` : "";
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escape(c.name)} — CV</title><style>@page{size:A4;margin:18mm}*{box-sizing:border-box}body{font:11pt/1.6 Arial,sans-serif;color:#172238;max-width:760px;margin:30px auto;padding:20px}h1{font-size:26pt;line-height:1.2;margin:0 0 8px}h2{font-size:12pt;color:#5931b6;border-bottom:1px solid #dce1ec;padding-bottom:6px;margin:22px 0 10px;break-after:avoid}h3{font-size:11pt;margin:14px 0 6px;break-after:avoid}p{margin:6px 0;white-space:pre-line;overflow-wrap:anywhere;orphans:3;widows:3}.contact,.note{font-size:10pt;color:#53627a}.skills p{display:flex;justify-content:space-between;gap:16px;break-inside:avoid}.skills b{white-space:nowrap}.tools{display:flex;justify-content:flex-end;gap:10px;margin-bottom:25px}button{padding:10px 16px;background:#5931b6;color:white;border:0;border-radius:8px;font-size:11pt;cursor:pointer}@media print{body{margin:0;padding:0;max-width:none}.tools{display:none}}</style></head><body><div class="tools"><button onclick="window.print()">Print / Save as PDF</button></div><h1 dir="auto">${escape(c.name)}</h1><p>${escape([c.role, c.department].filter(Boolean).join(" · "))}</p><p class="contact">${escape([c.email, c.phone].filter(Boolean).join(" | "))}</p>${section("PROFILE", c.overview ? `<p dir="auto">${escape(c.overview)}</p>` : "")}${section("EDUCATION", c.education.map((e) => `<p dir="auto">${escape(e)}</p>`).join(""))}${section(
-    "SKILLS & TOOLS",
-    c.groups
-      .filter((g) => g.items.length)
-      .map(
-        (g) =>
-          `<div class="skills"><h3>${escape(g.name)}</h3>${g.items.map((i) => `<p><span>${escape(i.label)}${i.source === "Logged assessment" ? " <small>(logged assessment)</small>" : ""}</span><b>${i.score}/10</b></p>`).join("")}</div>`,
-      )
-      .join(""),
-  )}${section("TEAM PROJECT EXPERIENCE", c.tasks.map((t) => `<h3 dir="auto">${escape(t.title)}</h3><p>${escape(t.status)}${t.score !== null ? " · Score: " + t.score + "/10" : ""}</p>${t.description ? `<p dir="auto">${escape(t.description)}</p>` : ""}${t.dod ? `<p>Definition of done: ${escape(t.dod)}</p>` : ""}${t.feedback ? `<p>Feedback: ${escape(t.feedback)}</p>` : ""}`).join(""))}${section(
-    "TEAM PARTICIPATION",
-    '<p class="note">Active eligible events; archived assignments are excluded.</p>' +
-      M.TYPES.map((type) => {
-        const v = c.progress.byType[type];
-        return `<p>${M.LABELS[type]}: ${v.completed} completed / ${v.total} eligible</p>`;
-      }).join(""),
-  )}<p class="note">ASAR Team Hub · Recorded team profile · ${today()}</p></body></html>`;
   popup.document.open();
-  popup.document.write(html);
+  popup.document.write(HubCV.html(M.cvData(db, member)));
   popup.document.close();
 }
 function EventEditor({ event, type, db, onSave, onClose, busy, error }) {
@@ -2537,22 +2340,8 @@ function MemberProfileLists({ member, groups }) {
                 {group.category && <h3>{group.category}</h3>}
                 <ul>
                   {group.items.map((item, i) => (
-                    <li key={i}>
-                      <div className="row spread">
-                        <span dir="auto">{item.label}</span>
-                        {M.number(item.score) !== null && (
-                          <strong>{item.score}/10</strong>
-                        )}
-                      </div>
-                      {M.number(item.score) !== null && (
-                        <Progress
-                          label={section.name + ": " + item.label}
-                          value={Number(item.score) * 10}
-                        />
-                      )}
-                      {item.source === "Logged assessment" && (
-                        <small>Logged assessment</small>
-                      )}
+                    <li key={i} dir="auto">
+                      {item.label}
                     </li>
                   ))}
                 </ul>

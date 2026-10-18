@@ -113,12 +113,12 @@ class DataAudit(unittest.TestCase):
     def test_generated_interfaces_share_model_theme_and_react_app(self):
         for name in ('Index.html','local_test_dashboard.html'):
             content = (ROOT/name).read_text(encoding='utf-8')
-            for source in ('model.js','theme.css','app.jsx'):
+            for source in ('model.js','cv.js','theme.css','app.jsx'):
                 self.assertIn((ROOT/'web'/source).read_text(encoding='utf-8'),content)
         self.assertIn((ROOT/'web/model.js').read_text(encoding='utf-8'),(ROOT/'Code.gs').read_text(encoding='utf-8'))
         self.assertNotIn('LOCAL_SEED',(ROOT/'Index.html').read_text(encoding='utf-8'))
 
-    def test_actual_word_exports_have_a4_pages_complete_ratings_and_arabic_direction(self):
+    def test_actual_word_exports_have_professional_layout_complete_skills_and_arabic_direction(self):
         exports = json.loads((ROOT/'test-results/cv-exports.json').read_text(encoding='utf-8'))
         ns = {'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
         for index, entry in enumerate(exports):
@@ -126,8 +126,14 @@ class DataAudit(unittest.TestCase):
                 document = ET.fromstring(archive.read('word/document.xml'))
                 text = '\n'.join(t.text or '' for t in document.findall('.//w:t',ns))
                 self.assertIn(entry['name'],text)
-                self.assertIn('SKILLS & TOOLS',text)
-                self.assertIn('TEAM PARTICIPATION',text)
+                self.assertIn('ENGINEERING SKILLS',text)
+                self.assertIn('TECHNICAL TOOLKIT',text)
+                self.assertNotIn('TEAM PARTICIPATION',text)
+                self.assertNotIn('/10',text)
+                self.assertNotIn('undefined',text)
+                self.assertNotIn('null',text)
+                for label in entry['technical'] + entry['tools']:
+                    self.assertIn(label,text)
                 self.assertIn('Gazebo / RViz2 / WebSockets Injection',text)
                 self.assertNotIn('Bachelor',text)
                 self.assertNotIn('Expert',text)
@@ -135,10 +141,14 @@ class DataAudit(unittest.TestCase):
                 self.assertEqual(page.attrib['{'+ns['w']+'}w'],'11906')
                 self.assertEqual(page.attrib['{'+ns['w']+'}h'],'16838')
                 self.assertTrue(document.findall('.//w:keepNext',ns))
+                self.assertTrue(document.findall('.//w:tbl',ns))
+                self.assertTrue(document.findall('.//w:shd',ns))
+                self.assertTrue(document.findall('.//w:hyperlink',ns))
+                footer = ET.fromstring(archive.read('word/footer1.xml'))
+                self.assertIn('NUMPAGES',' '.join(t.text or '' for t in footer.findall('.//w:instrText',ns)))
                 if index == 1:
                     self.assertTrue(document.findall('.//w:bidi',ns))
                     self.assertTrue(document.findall('.//w:rtl',ns))
-                    self.assertIn('High-Level Scripting & Middleware (Python) — 7/10 (logged assessment)',text)
 
 if __name__ == '__main__':
     unittest.main()

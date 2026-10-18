@@ -1237,39 +1237,17 @@ th.sticky-col {
 }
 .profile-list-group ul {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  padding-inline-start: 18px;
+  list-style: disc;
 }
 .profile-list-group li {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-.profile-list-group li:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-.profile-list-group li .row {
-  align-items: start;
-  gap: 12px;
-  font-size: 11px;
-  margin-bottom: 8px;
-}
-.profile-list-group li span {
-  min-width: 0;
+  padding: 4px 0;
+  font-size: 12px;
+  line-height: 1.7;
   overflow-wrap: anywhere;
 }
-.profile-list-group li strong {
-  flex-shrink: 0;
+.profile-list-group li::marker {
   color: var(--team-accent);
-}
-.profile-list-group .progress {
-  height: 4px;
-}
-.profile-list-group small {
-  display: block;
-  margin-top: 5px;
-  font-size: 10px;
-  color: var(--muted);
 }
 @media (max-width: 700px) {
   .member-profile-lists {
@@ -3559,15 +3537,94 @@ const HubModel = (() => {
   }
   function cvData(db, member) {
     const eventRows = events(db);
+    const text = (value) => {
+      const valueText = clean(value);
+      return /^(null|undefined|nan|n\/?a|none|not provided|not available|true|false|yes|no|نعم|لا|[-–—]+)$/i.test(
+        valueText,
+      )
+        ? ""
+        : valueText;
+    };
+    const entries = (value) => {
+      if (!text(value)) return [];
+      try {
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
+        if (Array.isArray(parsed))
+          return parsed.flatMap((group) =>
+            Array.isArray(group?.items)
+              ? group.items
+                  .filter((item) => typeof item === "string")
+                  .map(text)
+                  .filter(Boolean)
+              : [],
+          );
+      } catch (_) {
+        /* Older sheets store plain text or rating pairs. */
+      }
+      const ratings = parseRatings(value);
+      return ratings.length
+        ? ratings.map((item) => text(item.label)).filter(Boolean)
+        : text(value).split(/\r?\n/).map(text).filter(Boolean);
+    };
+    const unique = (items) => [
+      ...new Map(items.map((item) => [norm(item), item])).values(),
+    ];
+    const groups = skillGroups(db, member, eventRows).map((group) => ({
+      ...group,
+      items: group.items.filter((item) => text(item.label)),
+    }));
+    const structure = teamStructure(db);
+    const appointments = structure.memberships
+      .filter((membership) => membership.memberId === memberKey(member))
+      .map((membership) => ({
+        team: text(
+          structure.teams.find((team) => team.id === membership.teamId)?.name,
+        ),
+        role:
+          membership.role === "Leader"
+            ? "Subteam Leader"
+            : membership.role === "Support"
+              ? "Supporting Member"
+              : "Team Member",
+      }))
+      .filter((appointment) => appointment.team);
+    if (structure.headId === memberKey(member))
+      appointments.unshift({ team: "ASAR Team", role: "Team Leader" });
+    const labels = (category) =>
+      groups
+        .find((group) => group.name === category)
+        ?.items.map((item) => item.label) || [];
     return {
-      name: clean(member.Name),
-      role: role(member),
-      department: clean(member.Department),
-      email: clean(member.Mail),
-      phone: id(member["Phone number"]),
-      overview: clean(member.overview || member.Overview),
-      education: education(member),
-      groups: skillGroups(db, member, eventRows),
+      name: text(member.Name),
+      role: role(member) === "Team member" ? "Team Member" : role(member),
+      department: text(member.Department),
+      email: text(member.Mail),
+      phone: text(id(member["Phone number"])),
+      overview: text(member.overview || member.Overview),
+      education: education(member).map(text).filter(Boolean),
+      groups,
+      technical: unique([...labels("Hard Skill"), ...entries(member.Skills)]),
+      tools: unique(labels("Technology")),
+      interpersonal: unique([
+        ...labels("Soft Skill"),
+        ...entries(member.Personality),
+      ]),
+      knowledge: unique(entries(member.Knowledge)),
+      abilities: unique(entries(member.Abilities)),
+      appointments,
+      learning: eventRows
+        .filter(
+          (event) =>
+            event.type === "Learning" && event.completed.has(memberKey(member)),
+        )
+        .map((event) => ({
+          title: text(event.title),
+          track: text(event.row["Track Name"]),
+          url: /^https?:\/\//i.test(clean(event.row.Link))
+            ? clean(event.row.Link)
+            : "",
+        }))
+        .filter((course) => course.title),
       progress: progress(db, member, eventRows),
       tasks: eventRows
         .filter(
@@ -3576,15 +3633,18 @@ const HubModel = (() => {
             e.eligible.some((m) => memberKey(m) === memberKey(member)),
         )
         .map((e) => ({
-          title: e.title,
-          description: e.description,
-          dod: clean(e.row["Break down (DOD)"]),
+          title: text(e.title),
+          description: text(e.description),
+          dod: text(e.row["Break down (DOD)"]),
+          includedInCV:
+            e.completed.has(memberKey(member)) ||
+            (!e.archived && status(e.row.Status) === "InProgress"),
           status:
             (e.completed.has(memberKey(member))
               ? "Completed"
               : status(e.row.Status)) + (e.archived ? " (Archived)" : ""),
           score: number(e.row.Score),
-          feedback: clean(e.row.Feedback),
+          feedback: text(e.row.Feedback),
         })),
     };
   }
@@ -4230,6 +4290,423 @@ if (typeof module !== "undefined" && module.exports) module.exports = HubModel;
 
     </script>
     <script>
+      /* Professional CV layouts shared by the Word export and printable document. */
+const HubCV = (() => {
+  const palette = {
+    ink: "192238",
+    accent: "6040B5",
+    muted: "566176",
+    line: "DFE2EC",
+    tint: "F5F4FA",
+  };
+  const rtl = (text) =>
+    /^[\s\p{P}\p{N}]*[\p{Script=Arabic}]/u.test(String(text || ""));
+  const escape = (value) =>
+    String(value ?? "").replace(
+      /[&<>"']/g,
+      (char) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[char],
+    );
+  const sections = (cv) => {
+    const experience = [
+      ...cv.appointments.map((item) => ({
+        title: item.role,
+        subtitle: item.team,
+      })),
+      ...cv.tasks
+        .filter((item) => item.includedInCV && item.title)
+        .map((item) => ({
+          title: item.title,
+          subtitle: item.status.startsWith("Completed")
+            ? "Completed project task"
+            : "Project task · In progress",
+          body: item.description,
+        })),
+    ];
+    const main = [
+      { title: "Profile", text: cv.overview },
+      { title: "Team experience", entries: experience },
+      { title: "Engineering skills", items: cv.technical },
+      {
+        title: "Professional development",
+        entries: cv.learning.map((item) => ({
+          title: item.title,
+          subtitle: [item.track, "Completed"].filter(Boolean).join(" · "),
+          url: item.url,
+        })),
+      },
+      { title: "Knowledge", items: cv.knowledge },
+      { title: "Additional capabilities", items: cv.abilities },
+    ];
+    const aside = [
+      { title: "Technical toolkit", items: cv.tools },
+      { title: "Working style", items: cv.interpersonal },
+      { title: "Education", items: cv.education },
+    ];
+    const hasContent = (section) =>
+      section.text || section.entries?.length || section.items?.length;
+    return { main: main.filter(hasContent), aside: aside.filter(hasContent) };
+  };
+  function word(cv, docx) {
+    const {
+      Document,
+      Paragraph,
+      TextRun,
+      Table,
+      TableRow,
+      TableCell,
+      ExternalHyperlink,
+      Footer,
+      PageNumber,
+      AlignmentType,
+      BorderStyle,
+      WidthType,
+      TableLayoutType,
+      HeadingLevel,
+    } = docx;
+    const run = (text, options = {}) =>
+      new TextRun({
+        text: String(text || ""),
+        font: "Calibri",
+        size: 20,
+        color: palette.ink,
+        rightToLeft: rtl(text),
+        ...options,
+      });
+    const paragraph = (text, options = {}) =>
+      new Paragraph({
+        children: String(text || "")
+          .split(/\r?\n/)
+          .map((line, index) => run(line, { break: index ? 1 : 0 })),
+        bidirectional: rtl(text),
+        alignment: rtl(text) ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        spacing: { after: 100, line: 280 },
+        widowControl: true,
+        ...options,
+      });
+    const heading = (title) =>
+      paragraph(title.toUpperCase(), {
+        heading: HeadingLevel.HEADING_1,
+        keepNext: true,
+        children: [
+          run(title.toUpperCase(), {
+            size: 19,
+            bold: true,
+            color: palette.accent,
+            characterSpacing: 22,
+          }),
+        ],
+        spacing: { before: 220, after: 130 },
+        border: {
+          bottom: {
+            color: palette.line,
+            size: 5,
+            style: BorderStyle.SINGLE,
+            space: 7,
+          },
+        },
+      });
+    const link = (text, url, options = {}) =>
+      new ExternalHyperlink({
+        link: url,
+        children: [run(text, { color: palette.accent, ...options })],
+      });
+    const render = (section, compact) => {
+      const size = compact ? 18 : 20;
+      const children = [heading(section.title)];
+      if (section.text) children.push(paragraph(section.text));
+      (section.items || []).forEach((item) =>
+        children.push(
+          paragraph(item, {
+            children: [
+              run("•  ", { color: palette.accent, size }),
+              run(item, { size }),
+            ],
+            spacing: { after: 85, line: 260 },
+          }),
+        ),
+      );
+      (section.entries || []).forEach((item) => {
+        children.push(
+          paragraph(item.title, {
+            children: [
+              item.url
+                ? link(item.title, item.url, { bold: true })
+                : run(item.title, { bold: true }),
+            ],
+            keepNext: true,
+            spacing: { before: 110, after: 45, line: 270 },
+          }),
+        );
+        if (item.subtitle)
+          children.push(
+            paragraph(item.subtitle, {
+              children: [
+                run(item.subtitle, { size: 18, color: palette.muted }),
+              ],
+              keepNext: !!item.body,
+              spacing: { after: 90, line: 260 },
+            }),
+          );
+        if (item.body) children.push(paragraph(item.body));
+      });
+      return children;
+    };
+    const content = sections(cv);
+    const contacts = [];
+    if (cv.email)
+      contacts.push(link(cv.email, "mailto:" + cv.email, { size: 19 }));
+    if (cv.phone) {
+      if (contacts.length)
+        contacts.push(run("   |   ", { color: palette.muted, size: 18 }));
+      contacts.push(
+        link(cv.phone, "tel:" + cv.phone.replace(/[^+\d]/g, ""), { size: 19 }),
+      );
+    }
+    const children = [
+      paragraph("ASAR TEAM  /  CURRICULUM VITAE", {
+        children: [
+          run("ASAR TEAM  /  CURRICULUM VITAE", {
+            color: palette.accent,
+            bold: true,
+            size: 17,
+            characterSpacing: 28,
+          }),
+        ],
+        spacing: { after: 190 },
+        keepNext: true,
+      }),
+      paragraph(cv.name, {
+        children: [
+          run(cv.name, {
+            font: rtl(cv.name) ? "Arial" : "Calibri",
+            size: 58,
+            bold: true,
+          }),
+        ],
+        spacing: { after: 100, line: 280 },
+        keepNext: true,
+      }),
+    ];
+    if (cv.role)
+      children.push(
+        paragraph(cv.role, {
+          children: [
+            run(cv.role, { size: 24, color: palette.accent, bold: true }),
+          ],
+          keepNext: true,
+          spacing: { after: 65 },
+        }),
+      );
+    if (cv.department)
+      children.push(
+        paragraph(cv.department, {
+          children: [run(cv.department, { size: 19, color: palette.muted })],
+          keepNext: true,
+          spacing: { after: 90 },
+        }),
+      );
+    children.push(
+      paragraph("", {
+        children: contacts,
+        spacing: { after: 220 },
+        border: {
+          bottom: {
+            color: palette.accent,
+            size: 16,
+            style: BorderStyle.SINGLE,
+            space: 14,
+          },
+        },
+      }),
+    );
+    const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+    const main = content.main.flatMap((section) => render(section, false));
+    const aside = content.aside.flatMap((section) => render(section, true));
+    if (main.length && aside.length)
+      children.push(
+        new Table({
+          width: { size: 10106, type: WidthType.DXA },
+          columnWidths: [6506, 3600],
+          layout: TableLayoutType.FIXED,
+          borders: {
+            top: noBorder,
+            bottom: noBorder,
+            left: noBorder,
+            right: noBorder,
+            insideHorizontal: noBorder,
+            insideVertical: noBorder,
+          },
+          rows: [
+            new TableRow({
+              cantSplit: false,
+              children: [
+                new TableCell({
+                  children: main,
+                  width: { size: 6506, type: WidthType.DXA },
+                  margins: { top: 0, bottom: 0, left: 0, right: 360 },
+                }),
+                new TableCell({
+                  children: aside,
+                  width: { size: 3600, type: WidthType.DXA },
+                  margins: { top: 0, bottom: 180, left: 250, right: 250 },
+                  shading: { fill: palette.tint },
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+    else children.push(...main, ...aside);
+    return new Document({
+      creator: "ASAR Team Hub",
+      title: cv.name + " — Curriculum Vitae",
+      description:
+        "Professional profile, team contributions and recorded skills.",
+      styles: {
+        default: {
+          document: {
+            run: { font: "Calibri", size: 20, color: palette.ink },
+            paragraph: {
+              spacing: { after: 100, line: 280 },
+              widowControl: true,
+            },
+          },
+        },
+      },
+      sections: [
+        {
+          properties: {
+            page: {
+              size: { width: 11906, height: 16838 },
+              margin: {
+                top: 850,
+                right: 900,
+                bottom: 850,
+                left: 900,
+                footer: 430,
+              },
+            },
+          },
+          footers: {
+            default: new Footer({
+              children: [
+                new Paragraph({
+                  border: {
+                    top: {
+                      color: palette.line,
+                      size: 4,
+                      style: BorderStyle.SINGLE,
+                      space: 8,
+                    },
+                  },
+                  alignment: AlignmentType.RIGHT,
+                  children: [
+                    run(cv.name + "   /   ", {
+                      color: palette.muted,
+                      size: 16,
+                    }),
+                    new TextRun({
+                      children: [PageNumber.CURRENT],
+                      font: "Calibri",
+                      size: 16,
+                      color: palette.muted,
+                    }),
+                    run(" / ", { size: 16, color: palette.muted }),
+                    new TextRun({
+                      children: [PageNumber.TOTAL_PAGES],
+                      font: "Calibri",
+                      size: 16,
+                      color: palette.muted,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          },
+          children,
+        },
+      ],
+    });
+  }
+  function html(cv) {
+    const content = sections(cv);
+    const render = (section) =>
+      `<section class="cv-section"><h2>${escape(section.title)}</h2>${
+        section.text ? `<p dir="auto">${escape(section.text)}</p>` : ""
+      }${section.items ? `<ul>${section.items.map((item) => `<li dir="auto">${escape(item)}</li>`).join("")}</ul>` : ""}${(
+        section.entries || []
+      )
+        .map(
+          (item) =>
+            `<article class="cv-entry"><h3 dir="auto">${item.url ? `<a href="${escape(item.url)}">${escape(item.title)}</a>` : escape(item.title)}</h3>${
+              item.subtitle
+                ? `<p class="cv-entry-meta" dir="auto">${escape(item.subtitle)}</p>`
+                : ""
+            }${item.body ? `<p dir="auto">${escape(item.body)}</p>` : ""}</article>`,
+        )
+        .join("")}</section>`;
+    const contacts = [
+      cv.email
+        ? `<a href="mailto:${escape(cv.email)}">${escape(cv.email)}</a>`
+        : "",
+      cv.phone
+        ? `<a href="tel:${escape(cv.phone.replace(/[^+\d]/g, ""))}">${escape(cv.phone)}</a>`
+        : "",
+    ]
+      .filter(Boolean)
+      .join('<span aria-hidden="true"> / </span>');
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(cv.name)} — Curriculum Vitae</title><style>
+@page { size: A4; margin: 15mm; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 28px 20px 48px; color: #${palette.ink}; background: #eef0f5; font-family: "Segoe UI", Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.cv-toolbar { max-width: 210mm; margin: 0 auto 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; color: #${palette.muted}; }
+.cv-toolbar button { border: 0; border-radius: 8px; background: #${palette.accent}; color: white; font: 600 12px "Segoe UI", Arial, sans-serif; padding: 12px 18px; cursor: pointer; }
+.cv-toolbar button:focus-visible { outline: 3px solid #b6a6e8; outline-offset: 3px; }
+.cv-document { max-width: 210mm; margin: auto; padding: 15mm; background: white; box-shadow: 0 12px 45px #19223818; }
+.cv-header { border-bottom: 3px solid #${palette.accent}; padding-bottom: 6mm; margin-bottom: 5mm; }
+.cv-kicker { margin: 0 0 5mm; font-size: 8pt; letter-spacing: 1.6px; font-weight: 700; color: #${palette.accent}; }
+h1 { margin: 0 0 3mm; font-size: 30pt; line-height: 1.12; font-weight: 750; letter-spacing: -1.1px; overflow-wrap: anywhere; }
+.cv-role { margin: 0 0 1.5mm; color: #${palette.accent}; font-size: 12pt; font-weight: 600; }
+.cv-department { margin: 0 0 3mm; font-size: 9pt; color: #${palette.muted}; }
+.cv-contact { display: flex; flex-wrap: wrap; gap: 3mm; font-size: 9pt; line-height: 1.5; }
+a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.cv-contact a { color: #${palette.muted}; }
+.cv-body { display: grid; grid-template-columns: minmax(0, 1fr) 60mm; gap: 7mm; align-items: start; }
+.cv-body.cv-single { grid-template-columns: 1fr; }
+.cv-main, .cv-aside { min-width: 0; }
+.cv-aside { background: #${palette.tint}; padding: 0 4mm 4mm; border-top: 2px solid #${palette.accent}; }
+.cv-section { margin: 0 0 5mm; }
+.cv-section:last-child { margin-bottom: 0; }
+h2 { font-size: 8.5pt; line-height: 1.5; text-transform: uppercase; letter-spacing: 1.25px; color: #${palette.accent}; margin: 0 0 3mm; padding-top: 2mm; padding-bottom: 2mm; border-bottom: 1px solid #${palette.line}; break-after: avoid; }
+p { font-size: 9.5pt; line-height: 1.6; margin: 0 0 2.5mm; white-space: pre-line; overflow-wrap: anywhere; orphans: 3; widows: 3; }
+ul { padding-inline-start: 4mm; margin: 0; }
+li { font-size: 9.3pt; line-height: 1.55; margin-bottom: 1.8mm; padding-inline-start: 0.5mm; overflow-wrap: anywhere; break-inside: avoid; }
+li::marker { color: #${palette.accent}; font-size: 8pt; }
+.cv-aside li { font-size: 8.5pt; line-height: 1.55; }
+.cv-entry { margin-bottom: 3mm; break-inside: avoid; }
+h3 { font-size: 10pt; line-height: 1.45; margin: 0 0 1mm; break-after: avoid; }
+.cv-entry-meta { color: #${palette.muted}; font-size: 8.5pt; line-height: 1.5; }
+.cv-footer { display: flex; justify-content: space-between; gap: 5mm; border-top: 1px solid #${palette.line}; margin-top: 7mm; padding-top: 3mm; font-size: 8pt; color: #${palette.muted}; }
+@media screen and (max-width: 650px) { body { padding: 16px 10px; } .cv-document { padding: 8mm; } .cv-body { grid-template-columns: 1fr; } h1 { font-size: 25pt; } }
+@media print { body { padding: 0; background: white; } .cv-toolbar { display: none; } .cv-document { padding: 0; max-width: none; box-shadow: none; } .cv-header { break-inside: avoid; } .cv-section { break-inside: auto; } }
+</style></head><body><div class="cv-toolbar"><span>Curriculum vitae</span><button onclick="window.print()">Print / Save as PDF</button></div><main class="cv-document">
+<header class="cv-header"><p class="cv-kicker">ASAR TEAM / CURRICULUM VITAE</p><h1 dir="auto">${escape(cv.name)}</h1>${cv.role ? `<p class="cv-role">${escape(cv.role)}</p>` : ""}${cv.department ? `<p class="cv-department" dir="auto">${escape(cv.department)}</p>` : ""}${contacts ? `<div class="cv-contact">${contacts}</div>` : ""}</header>
+<div class="cv-body${content.aside.length && content.main.length ? "" : " cv-single"}">${content.main.length ? `<div class="cv-main">${content.main.map(render).join("")}</div>` : ""}${content.aside.length ? `<aside class="cv-aside">${content.aside.map(render).join("")}</aside>` : ""}</div>
+<footer class="cv-footer"><span dir="auto">${escape(cv.name)}</span><span>ASAR Team</span></footer></main></body></html>`;
+  }
+  return { word, html, sections };
+})();
+if (typeof module !== "undefined" && module.exports) module.exports = HubCV;
+
+    </script>
+    <script>
 const LOCAL_SEED = {"sheets": {"supervisor": "Supervisor", "team": "Team", "skills": "Skill", "learning": "Learning", "meet": "Meet", "tasks": "Task", "logs": "Log", "activity": "Activity", "admins": "Admins", "skillEvents": "SkillEvents", "completions": "Completion", "skillRequirements": "SkillRequirements", "subteams": "Subteams", "memberships": "TeamMemberships"}, "csv": {"supervisor": "Name,phone\nDr Bassant,17352734\nhttps://youtu.be/E2olFc-th7A?si=hVvhglltlywirFsF,\nhttps://teracourses.com/ar/course/c-plus-plus-course6?utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/c-plus-plus-course20?utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=owCqVRbZlbg&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Algorithms+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+Data+Structures+Algorithms&utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/c-plus-plus-course6?utm_source=chatgpt.com,\nhttps://elzero.org/category/courses/git-and-github/?utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Linux+Command+Line+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Clean+Code+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Software+Engineering+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Computer+Architecture+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Operating+Systems+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Computer+Networks+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=SQL+Database+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nElectronic piller,\nhttps://www.youtube.com/watch?v=9payZya_FvI&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Digital+Logic+Design+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=bCSeXFRBhLg&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=tfvtvwaKiYQ&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=yHoRxeWSgPY&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Arduino+Sensors+Actuators+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=DC+Motor+Motor+Driver+PWM+Arduino+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=UART+I2C+SPI+CAN+Embedded+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://robojax.com/tutorial_view.php?courseID=3&id=619&lang=ar&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Power+Electronics+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+%D9%83%D9%88%D8%B1%D8%B3&utm_source=chatgpt.com,\nhttps://www.youtube.com/watch?v=1T6lCwysl6s&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Electronics+Troubleshooting+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=Advanced+Embedded+Systems+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A&utm_source=chatgpt.com,\nhttps://www.youtube.com/results?search_query=FreeRTOS+%D8%A8%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A+Embedded&utm_source=chatgpt.com,\nMechanical Pillar,\nhttps://www.youtube.com/watch?v=gHg8mgppTSQ&utm_source=chatgpt.com,\nhttps://t.me/s/EngineeringTutorials?after=142&utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/solidworks-course4?utm_source=chatgpt.com,\nhttps://teracourses.com/ar/course/solidworks-course4?utm_source=chatgpt.com,\nhttps://arbcours.blogspot.com/2017/06/Course-Solidworks-training-for-beginner.html?utm_source=chatgpt.com,\nhttps://arbcours.blogspot.com/2017/06/Course-Solidworks-training-for-beginner.html?utm_source=chatgpt.com,\nMahara-Tech,\nhttps://maharatech.gov.eg/course/view.php?id=2247&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=2271&lang=ar&utm_source=chatgpt.com,\nhttps://stagging.maharatech.gov.eg/course/view.php?id=2206&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=32&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=14&lang=ar&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/view.php?id=2368&lang=en&utm_source=chatgpt.com,\nhttps://maharatech.gov.eg/course/index.php?lang=ar&utm_source=chatgpt.com,\n", "team": "Name,ID,Mail,Phone number,Rule,overview,Hard Skill,Soft Skill,Technology,Personality,Abilities,Education,Role,Reports To,Department,Aliases,Knowledge,Skills\nAbdallah Refaat Allam,2520606,abdallahallam1550@gmail.com,1091157494,,\"First-year IT student passionate about Robotics and Embedded Systems. Currently working on an autonomous robot using Arduino and ESP32, with hands-on experience in sensors, motor control, and communication systems. Eager to learn and gain practical experience in robotics.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team Leader,,,\"Abdallah Allm\nAbdallah-Allam\nAbdallah Refaat\",,\n\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645,2521059,Nourazzam589@gmail.com,1277251600,,\u0646\u0639\u0645,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nMohamed hamada shabaan,2520780,mojo52830@gmail.com,1025844001,,\"A passion for embedded systems and learning, and contributing as much as I can ASAR Tim, I have a modest experience in programming languages and operating robotics, and I'm always trying to move forward, and I hope to introduce Tim's active.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 3}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 2}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Leader,2520606,Software & AI,,,\nAmany Bilal Abo zaid Deffalla,2520186,amanybilal36@gmail.com,1208185428,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nAbdelrhman Mohamed Abdelfttah Soliman,2520594,abdelrhmanalnagar18@gmail.com,1025031789,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Leader,2520606,Electronics & Embedded,,,\nEzzat Abdel Rafea Ahmed,2520622,ztbdalraf82@gmail.com,1226286900,,\u062a\u062e\u0635\u0635 \u062a\u0643\u0646\u0648\u0644\u0648\u062c\u064a\u0627 \u0648\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0648\u0634\u0628\u0643\u0627\u062a \u0644\u062f\u064a \u0634\u063a\u0641 \u0639\u0645\u0644 \u0641\u064a \u0627\u0646\u0638\u0645\u0647 \u0643\u0627\u0645\u064a\u0631\u0627\u062a ip cctv  \u0627\u0633\u0639\u064a \u0644\u062a\u0637\u0648\u064a\u0631 \u0648\u0627\u0644\u0648\u0635\u0648\u0644 \u0627\u0644\u0639\u0645\u0644 \u0641\u064a \u0634\u0631\u0643\u0647 Cisco,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nMohamed farhat nasr ali,2540213,mohamedfarahat555566@gmail.com,1095844217,,\"Motivated Information Technology student with a strong interest in programming and software development. Currently developing my skills in C, C++, Python, and computer networks. Eager to learn new technologies, gain practical experience, and contribute to real-world projects.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 2}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 2}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 3}\n{Gazebo / RViz2 / WebSockets Injection , 2}\",,,,Leader,2520606,Mechanics & Integration,,,\nAmal Mohamed Youssef Mahmoud,2520189,amlmhmdywsf7@gmail.com,1277166793,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nZiyadmohamed abd elrady,2520448,ziyadmohamed7689@gmail.com,1026484558,,..,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nFatma Magdy Issa Abdel Baqi,2560172,fm3192820@gmail.com,1067110418,,\"A 2nd-year Information Technology student at Borg El-Arab Technological University with hands-on experience in AI development. In my 1st year, I served as the AI Specialist for a Smart University Assistant project, where I developed an intelligent conversational AI integrated with a Telegram bot, web platform, and dedicated hardware device. The system automated student-faculty communication, real-time schedule updates, and instant query answering. I am eager to join a dedicated team for our 2nd-year graduation project to apply my AI skills, collaborate on innovative solutions, and build impactful technology together.\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 3}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 3}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 2}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 3}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nAhmed Mohamed Abu El-Fadl Ramadan,2540004,ahmedcor90@gmail.com,1283920280,,\"Electrical Installation graduate from technical secondary school with 95.3%, moved to IT with Excellent grade and got Very Good in my second IT semester. Built and improved a university guide chatbot using Groq API on my own, made a simple backend under time pressure, and picked the best local AI model via Ollama that fits Raspberry Pi as an offline backup. Currently learning C, Git/GitHub and Linux basics. Ready to contribute and grow through hands on work.\",\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nMostafa Ahmed Sayed Ali Abou baker,2540244,mostafaabuobaker999@gmail.com,1032495429,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 3}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\n\u064a\u0648\u0633\u0641 \u0648\u062c\u062f\u064a \u0627\u0644\u0633\u064a\u062f \u0627\u062d\u0645\u062f,2540300,wagdeyyoussef@gmail.com,1200795169,,\u0627\u0646\u0627 \u062e\u0628\u0631\u062a\u064a \u0645\u062d\u062f\u0648\u062f\u0647 \u0628\u0633 \u0627\u0644\u064a \u0628\u064a\u062a\u0637\u0644\u0628 \u0645\u0646\u064a \u0628\u0639\u0645\u0644\u0647 \u0627\u064a\u0627 \u0643\u0627\u0646 \u062d\u062a\u0649 \u0644\u0648 \u0647\u062a\u0639\u0644\u0645\u0647 \u0639\u0627\u062f\u064a,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nShams Mohammed Abd-ELhakim Galal,2560129,shamsgalal69@gmail.com,1508195848,,\"I'm a student in the Department of Information Technology, and I am interested in programming, embedded systems, and robotics. I have experience with Arduino, ESP32, and Proteus, and a basic understanding of C/C++, Python, HTML, and JavaScript. I also have a foundational knowledge of networking and cybersecurity. I am eager to learn new technologies, develop my technical skills, and work as part of a team.\",\"{Embedded Systems & Firmware (C/C++) , 4}\n{High-Level Scripting & Middleware (Python) , 4}\n{Version Control & Collaboration (Git/GitHub) , 3}\n{Embedded Linux & SBC Administration , 3}\n{Circuit Design & EDA Routing , 3}\n{Power Electronics & Circuit Protection , 4}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 3}\n{Sensor Fusion & State Estimation , 3}\n{Computer Vision & Spatial AI , 4}\n{SLM Fine tuning & Edge AI deployment , 3}\",\"{Systematic Root-Cause Isolatio , 4}\n{Critical Thinking & Architecture Trade-Off Analysis , 4}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 4}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 4}\n{KiCad EDA (v7.0+) / Proetus , 3}\n{PlatformIO / VS Code / Arduino IDE 2.x , 4}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 3}\n{ROS 2 (Humble Hawksbill) , 3}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 3}\n{FastAPI (Python) / Express & WebSockets , 4}\n{Gazebo / RViz2 / WebSockets Injection , 2}\",,,,Team member,2520594,Electronics & Embedded,,,\nMohamed Elhot,2520756,mohamed_elhot13@gmail.com,1282073791,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nShams Mohamed Gaber Eldeeb,2521242,shamseldeeb946@gmail.com,1021639139,,\"I am a motivated IT student with a strong interest in robotics and embedded systems. I have previous experience working on ASAR's project, where I was involved in the hardware team. This experience helped me develop my teamwork, problem-solving, and practical engineering skills. I am eager to continue learning, improve my technical abilities, and contribute to ASAR's robotics projects, especially in hardware integration and control systems.\",\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nOmnia Ahmed Samir,2520190,Omniasamir775@gmail.com,1144001142,,,\"{Embedded Systems & Firmware (C/C++) , 3}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 3}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 3}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 3}\n{Critical Thinking & Architecture Trade-Off Analysis , 4}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 4}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 2}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nA\u2019laa Mohamed Elhafny,2520175,lolamoham2000@gmail.com,1143116077,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nAsmaa Aahraf,2550031,asmaaashraf1292007@gmail.com,1061672541,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nassem waleed khamis saleh,2560148,assemwaleed321@gmail.com,1021881710,,\"I am currently studing in information technology department\nI am a fullstack web developer\nI have been working on several large-scaled projects such as e-commerce websites\",\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 4}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nIbrahim farag abd elmawgoud,2520070,Iprahem30001@gmail.com,1228081024,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 2}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 2}\n{Sensor Fusion & State Estimation , 2}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 2}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 3}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nAbdallah abass Mohamed gad,2520609,abdallahabass305@gmail.com,1015028240,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nRuqayya Abd  El Mawjood Hamed,2520406,ruqayyaabdelmawjwd@gmail.com,1145388901,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 2}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 2}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 2}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 2}\n{Cross-Domain Systems Integration , 2}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520594,Electronics & Embedded,,,\nAhmed Fathy ahmed laz,2520112,fathyumar3@gmail.com,1025601425,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 1}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 1}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2540213,Mechanics & Integration,,,\nRahma Fayez,2520398,rahmefayze76@gmail.com,1040769179,,,\"{Embedded Systems & Firmware (C/C++) , 1}\n{High-Level Scripting & Middleware (Python) , 2}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 1}\n{Power Electronics & Circuit Protection , 2}\n{Mechanical Engineering & CAD , 1}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 1}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 1}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 1}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 1}\",\"{Autodesk Fusion 360 / SolidWorks , 1}\n{KiCad EDA (v7.0+) / Proetus , 1}\n{PlatformIO / VS Code / Arduino IDE 2.x , 1}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 1}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 1}\n{OpenCV & ONNX Runtime / TFLite , 1}\n{FastAPI (Python) / Express & WebSockets , 1}\n{Gazebo / RViz2 / WebSockets Injection , 1}\",,,,Team member,2520780,Software & AI,,,\nAhlam Abdelbast Ebrhim,2560005,ahlamabdelbast525@gmail.com,1212337831,,,\"{Embedded Systems & Firmware (C/C++) , 2}\n{High-Level Scripting & Middleware (Python) , 3}\n{Version Control & Collaboration (Git/GitHub) , 1}\n{Embedded Linux & SBC Administration , 1}\n{Circuit Design & EDA Routing , 2}\n{Power Electronics & Circuit Protection , 3}\n{Mechanical Engineering & CAD , 2}\n{Kinematics & Motion Control , 1}\n{Sensor Fusion & State Estimation , 3}\n{Computer Vision & Spatial AI , 1}\n{SLM Fine tuning & Edge AI deployment , 1}\",\"{Systematic Root-Cause Isolatio , 2}\n{Critical Thinking & Architecture Trade-Off Analysis , 1}\n{Safety-First Engineering Mindset (Fail-Safe Design) , 2}\n{Adaptive Problem Solving & Agile Iteration , 1}\n{Cross-Domain Systems Integration , 3}\",\"{Autodesk Fusion 360 / SolidWorks , 3}\n{KiCad EDA (v7.0+) / Proetus , 2}\n{PlatformIO / VS Code / Arduino IDE 2.x , 3}\n{Raspberry Pi OS (64-bit) / Ubuntu Server , 2}\n{ROS 2 (Humble Hawksbill) , 1}\n{slam_toolbox & ROS 2 Nav2 , 2}\n{OpenCV & ONNX Runtime / TFLite , 2}\n{FastAPI (Python) / Express & WebSockets , 2}\n{Gazebo / RViz2 / WebSockets Injection , 3}\",,,,Team member,2520594,Electronics & Embedded,,,\n", "skills": "Hard Skill,Technical Competency,Specific Technical Application,Soft Skill,Description,Engineering Layer,Technology,Function in Architecture\nEmbedded Systems & Firmware (C/C++),Low-Level Hardware Drivers & Real-Time Loops,\"Writing non-blocking C++ code, direct register manipulation, hardware timer interrupts, quadrature encoder decoding, and I2C/SPI/UART peripheral communication.\",Systematic Root-Cause Isolatio,The ability to evaluate engineering compromises objectively\u2014such as deciding whether to execute lightweight neural network inference locally on the Raspberry Pi for minimal latency versus invoking cloud APIs over WebSockets for higher model accuracy at the expense of network dependency.,Mechanical CAD,Autodesk Fusion 360 / SolidWorks,\"3D parametric chassis updates, component mounting layout, laser-cutting exports, and 3D printing STEP generation.\"\nHigh-Level Scripting & Middleware (Python),Computational Pipelines & ROS 2 Orchestration,\"Rapid prototyping of vision scripts, ROS 2 node creation, asynchronous API management, and binding computer vision algorithms.\",Critical Thinking & Architecture Trade-Off Analysis,\"Methodical troubleshooting across interconnected engineering layers. When a robot fails to navigate correctly, a engineer must systematically isolate whether the root cause is mechanical wheel slip, electromagnetic motor noise polluting sensor lines, ground loop voltage shifts, UART frame corruption, or a software deadlock in inter-thread communication.\",Electronic EDA,KiCad EDA (v7.0+),\"Schematic capture, custom component footprints, PCB layout routing, Design Rule Checking (DRC), and Gerber file export.\"\nVersion Control & Collaboration (Git/GitHub),Source Code Lifecycle Management,\"Branch management, atomic commits, pull request workflows, conflict resolution, version tagging, and automated rollback recovery.\",Safety-First Engineering Mindset (Fail-Safe Design),\"Anticipating hardware and environmental failure modes before physical deployment. This includes designing latching and non-latching emergency-stop protocols, setting up automatic software timeouts for lost control signals, and enforcing battery under-voltage cutoffs.\",Embedded Firmware,PlatformIO / VS Code / Arduino IDE 2.x,\"Multi-target C/C++ compilation, board package management for ESP32 and AVR Mega, and static code analysis.\"\nEmbedded Linux & SBC Administration,System Commissioning & POSIX Operations,\"Linux kernel configuration, GPIO access via libgpiod, multithreading, systemd service automation, and headless remote management.\",Adaptive Problem Solving & Agile Iteration,\"Embracing an iterative \"\"design-test-debug\"\" approach when dealing with physical unexpected real-world variables, such as varying floor friction, ambient light interference on camera vision, and unexpected structural chassis vibrations.\",SBC Operating System,Raspberry Pi OS (64-bit) / Ubuntu Server,\"Headless Linux operating system, system service configuration, and hardware bus management (I2C, SPI, UART, CSI).\"\nCircuit Design & EDA Routing,Schematic Capture & PCB Layout,\"KiCad EDA schematic design, multi-layer board stackup, trace sizing for high-current motor paths, and ground plane separation.\",Cross-Domain Systems Integration,\"Breaking down traditional engineering silos to integrate mechanical body design, electrical safety routing, low-level microcontrollers, and cloud/edge software into a unified functional system.\",Robotics Middleware,ROS 2 (Humble Hawksbill),\"Node pub/sub messaging, transform tree management (tf2), parameter management, and service orchestration.\"\nPower Electronics & Circuit Protection,Power Conditioning & Safety Isolation,\"Switching buck converter regulation (LM2596/MP2307), 3S Li-ion/LiPo BMS integration, optocoupler signal isolation, flyback diode protection, and TVS surge suppression.\",,,SLAM & Navigation,slam_toolbox & ROS 2 Nav2,\"Occupancy grid generation from LiDAR range vectors, global A* pathfinding, and local TEB trajectory optimization.\"\nMechanical Engineering & CAD,Parametric Modeling & Enclosures,\"2D/3D CAD in SolidWorks or Autodesk Fusion 360, enclosure design for 3D printing or laser cutting, center-of-gravity optimization, and chassis structural updates.\",,,Computer Vision & AI,OpenCV & ONNX Runtime / TFLite,\"Frame capture pipelines, camera calibration, object detection, and local execution of quantized AI models.\"\nKinematics & Motion Control,Dynamic Kinematics Modeling,\"Differential and 4-wheel Mecanum forward/inverse kinematics, PID loop tuning, and PWM duty-cycle mapping.\",,,Web & API Gateway,FastAPI (Python) / Express & WebSockets,\"Local and cloud RESTful JSON API endpoints, low-latency telemetry streaming, and web-based dashboard hosting.\"\nSensor Fusion & State Estimation,Mathematical Filtering,\"Complementary filtering, Extended Kalman Filters (EKF), Unscented Kalman Filters (UKF), and covariance matrix calculation.\",,,Simulation & Debugging,Gazebo / RViz2 / WebSockets Injection,\"3D physics simulation, spatial transform visualization, and manual WebSockets telemetry testing.\"\nComputer Vision & Spatial AI,Visual Perception & API Control,\"OpenCV video pipelines, camera calibration, local ONNX/TFLite model execution, and REST/WebSocket API integration.\",,,,,\nSLM Fine tuninig & Edge AI deployment,,Deploy and fine tune Small langauges models on microcontrollers,,,,,\n", "learning": "Topic name,Track ID,Track Name,Obligability,Skill,Platform,Link,Event ID,Invited/Assigned,Due to Date,Description,Archived\nComplete Git & GitHub Course from Zero to Professional,1,Git & DevOps Mastery,Mandatory,\"Branching, Commits, Pull Requests, Conflict Resolution, Rollback\",YouTube (Elzero Web School),https://www.youtube.com/watch?v=ACOiGZoqC8w,learning-61cd4da535264aa9,,,,\nLearn Git & GitHub Version Control System for Software,1,Git & DevOps Mastery,Mandatory,\"Local Repositories, Staging, Revert, Commit History\",YouTube (CloudKode),https://www.youtube.com/watch?v=fDkR0TDR9dI,learning-d728ae4de0374299,,,,\nTeam Workflow and Software Life Cycle: Git Flow Workflows,1,Git & DevOps Mastery,Optional,\"Remote Repos, Merge Requests, Team Code Reviews\",,https://www.youtube.com/watch?v=AkIpdnup6G4,learning-8fa70608505346e6,,,,\nBasics of C Programming for Microcontrollers,2,C & Embedded Systems,Mandatory,\"Pointers, Memory Allocation, Non-blocking millis() Loops\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2247,learning-20731eab424048a3,,,,\nDevice Driver Development and C Code Generation for Microcontrollers (Embedded C Drivers),2,C & Embedded Systems,Mandatory,\"Hardware Registers, ISR Interrupts, Quadrature Encoders, PWM Loop Tuning\",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system,learning-bd48b5fdb0ca4cd1,,,,\nSoftware Interfacing for Microcontrollers via Protocols (I2C / SPI / UART),2,C & Embedded Systems,Mandatory,\"Serial Peripheral Drivers, Timer Hardware Interfacing\",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg,learning-99710067932a4fe6,,,,\nLinux System Administration and Software Components for Raspberry Pi,3,Embedded Linux & SBC Administration,Mandatory,\"Headless SSH Setup, Systemd Service Automation, POSIX Threads\",YouTube (Eng. Ashraf AlMadhoun),https://www.youtube.com/watch?v=AC2WuElEjgg,learning-e75a58efec7645ac,,,,\nControlling SBC Inputs and Outputs using libgpiod and Python,3,Embedded Linux & SBC Administration,Mandatory,\"SBC GPIO Bus Control, Linux Hardware Kernel Drivers\",Learn In Depth,https://ad.learn-in-depth-store.com/course/embedded-system,learning-152b09f6e59241e3,,,,\nBuilding IoT Gateways & Networks Track,3,Embedded Linux & SBC Administration,Optional,\"Linux Networking, Data Telemetry Buffering, System Services\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145,learning-bd393d83c3144934,,,,\nPCB Design and Manufacturing using KiCad (In Lab),4,Electronics & PCB Design,Mandatory,\"KiCad Schematic Capture, Footprint Design, Design Rule Checks (DRC)\",YouTube (Dr. Walid Issa),https://www.youtube.com/watch?v=tKy9v-bi25U,learning-179013836b924ef7,,,,\nMulti-Layer PCB Routing,4,Electronics & PCB Design,Mandatory,\"High-Current Motor Traces, Ground Plane Separation, Gerber Export\",YouTube (Specialized Electronics),https://www.youtube.com/watch?v=tt9BgSrsqPg,learning-5df13a6035f5448f,,,,\n\"Design of Protection Circuits, Power Supply, and Signal Isolation (Electro-Safety)\",4,Electronics & PCB Design,Mandatory,\"Buck Regulators (LM2596), BMS 3S, Optocouplers, TVS Diodes\",YouTube,https://www.youtube.com/watch?v=W0y5D223NJ4,learning-fbbeffdc594f42a9,,,,\nParametric Mechanical Design using Autodesk Fusion 360,5,Mechanical CAD & Structure,Mandatory,\"3D Parametric Modeling, Mounting Brackets, (.STL) 3D Printing\",YouTube,https://www.youtube.com/watch?v=RDiI3K4rias,learning-278d6a978f1742e0,,,,\nRobot Chassis Design and Load Distribution from Scratch in SolidWorks,5,Mechanical CAD & Structure,Mandatory,\"Center of Gravity Optimization, Sheet Metal Laser Cutting (.DXF)\",YouTube,https://www.youtube.com/watch?v=XE9PlUljcyc,learning-e33d2a8284ab46af,,,,\nChassis Assembly and Mechanical Interference Calculation (CAD Assemblies),5,Mechanical CAD & Structure,Optional,\"Mechanical Assembly Interference Checks, Chassis Tolerances\",YouTube,https://www.youtube.com/watch?v=ISf3moboQB0,learning-84ad5b6fd68e4e56,,,,\nBasics of Robot Operating System ROS 2 (Humble) in Arabic,6,Robotics & ROS 2 Navigation,Mandatory,\"ROS 2 Nodes, Topic Pub/Sub, Service Orchestration\",YouTube,https://www.youtube.com/watch?v=T-k9t3QsoT4,learning-8466e498d49f4a51,,,,\nMechanical Kinematics Calculations for Robots and Navigation Application (slam_toolbox & Nav2),6,Robotics & ROS 2 Navigation,Mandatory,\"Mecanum Inverse Kinematics, PID Tuning, TEB Local Planner\",YouTube / MaharaTech,https://www.youtube.com/watch?v=hMTxb8Y2cxI,learning-db047271a1614338,,,,\nDeveloping Web-Based Robot Control Interfaces (WebSockets & FastAPI),6,Robotics & ROS 2 Navigation,Optional,\"Async WebSockets Telemetry, REST JSON API Gateways\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=16,learning-6ddef19e4a8a4e55,,,,\nKalman Filter Mechanics and Sensor Fusion Application,7,Sensor Fusion & State Estimation,Mandatory,\"Complementary Filtering, MPU-6050 IMU, Gyro Angle Estimation\",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA,learning-628379172b294d65,,,,\nExtended Kalman Filter (EKF) for Pose Estimation,7,Sensor Fusion & State Estimation,Mandatory,\"EKF Matrix Calculations, Noise Covariance Tuning (Q & R)\",YouTube,https://www.youtube.com/watch?v=SntZO7uBzxA,learning-5a3ea5566fcf4066,,,,\nComputer Vision and Image Processing using OpenCV and Python,8,Computer Vision & Spatial AI,Mandatory,\"Camera Calibration, Frame Capture Pipelines, Object Tracking\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=2145,learning-8c461a237b064865,,,,\nApplying AI Models on Edge Devices (ONNX / TFLite Edge AI),8,Computer Vision & Spatial AI,Mandatory,\"Quantized Model Execution, OpenCV Pipeline Integration\",Amideast / MaharaTech,https://www.amideast.org/tunisia/advancing-development-goals/experience-ai,learning-2c9ac95746d94280,,,,\nIBM IoT Developer Track (AI and IoT),8,Computer Vision & Spatial AI,Optional,\"Telemetry Pipelines, Dynamic API AI Model Triggers\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=1265,learning-d2599406fb064997,,,,\nBasics of TinyML and Model Deployment on Microcontrollers,9,SLM Fine-Tuning & Edge AI Deployment,Mandatory,\"Microcontroller Machine Learning Deployment, TinyML\",MaharaTech,https://maharatech.gov.eg/course/index.php?categoryid=8,learning-74f2ffa832834894,,,,\nSLM Fine-Tuning & Quantization (Small Language Models),9,SLM Fine-Tuning & Edge AI Deployment,Mandatory,\"SLM Optimization, INT8 Model Quantization, Local Edge Inference\",MaharaTech / YouTube,https://maharatech.gov.eg/course/view.php?id=1265,learning-17b059a9bd9f4deb,,,,\nLocal AI Applications based on Rapid Processing (Edge AI Control),9,SLM Fine-Tuning & Edge AI Deployment,Optional,\"Microcontroller AI Latency Tuning, Fallback Controller Logic\",MaharaTech,https://maharatech.gov.eg/course/view.php?id=7075,learning-81177979e4504874,,,,\n\"Fault Analysis, Correction, and Effective Engineering Risk Management (FMEA)\",10,Engineering Practice & Soft Skills,Mandatory,\"Failure Mode & Effects Analysis, Root-Cause Fault Isolation\",Edraak / MaharaTech,https://courses.edraak.org/courses/course-v1:edraak+RM101+T2_2020/course/,learning-e2020ffcccf741f2,,,,\nCritical Thinking and Trade-off Analysis of Advanced Engineering Solutions,10,Engineering Practice & Soft Skills,Mandatory,\"Critical Thinking, Architecture System Trade-off Evaluation\",Edraak,https://courses.edraak.org/courses/course-v1:Edraak+CT100+2018_T2/course/,learning-78594a1b98ff4c5f,,,,\nFail-Safe Engineering Design and Emergency Systems Management,10,Engineering Practice & Soft Skills,Mandatory,\"Safety-First Mindset, Emergency Stop Protocols, Hardware Redundancy\",Edraak,https://www.edraak.org/programs/specialization/project-management-1/,learning-6156197ebc96478a,,,,\n", "meet": "Meeting title,Meeting Type,Date,Description,Attachments,Event ID,Invited/Assigned,Due to Date,Archived,Logging Enabled\nProject overview,online,2026-07-30,overview about the project asfasf,,meet-cc33802661d4412a,,,,\nRoobt,offline,2026-08-30,afsasfafs,,meet-be1fd4b61bfe41d1,,,,\n", "tasks": "Task Title,Task description,Break down (DOD),Assignees,Status,Score,Feedback,ETA,ATA,Scale,Archived,Event ID,Due to Date\naa,aaaa,,Abdallah Refaat,Backlog,,,,,day,,task-5c73d54129a14534,\na,aff,af,Mohamed hamada shabaan,Completed,,,2,,week,TRUE,task-ffaf31b0ac334d0e,\nhard,a,ad,\"Abdallah Refaat,\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645\",Blocked,,,1,,week,TRUE,task-fa4ac6cda0d745cb,\n", "logs": "Event Type,Event ID,Event Name,Invited/Assigned,Attendees/Completed,Due to Date,Source ID,Archived\nSkill,1,Python,\"Abdallah-Allam\nAbdelrahman M. Abdel-Fattah\nMohamed H. Shaban\nYoussef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\nAhmed Fathy Ahmed\nNour Yasser Zakaria\nAmani Bilal Abu Zeid\nShams Mohamed Abdel-Hakim\nManar Moussa Saeed\nMalak Ahmed Mohamed\nAlaa Mohamed El-Hefny\nSamah Mahdy Salah\nYasmin Samir Abdessalam\nAsmaa Ashraf Attia\nShams Mohamed Jaber\nShaymaa Emad Mohamed\",\"Youssef Hammam Masoud\nYoussef Wagdy El-Sayed\nAssem Walid Khamis\nMohamed Farhat Nasr\nMostafa Ahmed Sayed\nEzzat A. Ahmed Mbrok\nFares Ibrahim Mohamed\nIbrahim Faraj Abdel-Mawgoud\",2026-07-30,,TRUE\nMeet,2,bbb,Abdallah-Allam,Abdallah-Allam,2026-07-30,,\n", "activity": "Timestamp,Email,Action,Target,Details\n2026-09-12 14:11:37,muhamedrefaat777@gmail.com,createTask,aa,\"{\"\"assignees\"\":[\"\"Abdallah Refaat \"\"]}\"\n2026-09-12 18:49:34,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:36,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:41,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:41,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:43,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:49:53,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:50:00,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:50:15,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-12 18:51:24,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-13 00:11:30,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:37,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:38,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:38,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:43:39,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:45:47,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:45:49,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:23,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:27,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:36,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:44,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:51:50,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:52:13,test.user@azar.com,updateTask,aa,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 11:53:24,test.user@azar.com,createTask,a,\"{\"\"assignees\"\":[\"\"Mohamed hamada shabaan\"\"]}\"\n2026-09-14 11:53:32,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-09-14 12:00:00,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 20:49:52,test.user@azar.com,updateTask,a,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:28,test.user@azar.com,createTask,hard,\"{\"\"assignees\"\":[\"\"Abdallah Refaat\"\",\"\"\u0646\u0648\u0631 \u064a\u0627\u0633\u0631 \u0632\u0643\u0631\u064a\u0627 \u0639\u0632\u0627\u0645\"\"]}\"\n2026-10-01 21:12:36,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:38,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Backlog\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:40,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:49,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"InProgress\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:56,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Completed\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:12:59,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Blocked\"\",\"\"score\"\":\"\"\"\"}\"\n2026-10-01 21:13:18,test.user@azar.com,updateTask,hard,\"{\"\"status\"\":\"\"Pending\"\",\"\"score\"\":\"\"\"\"}\"\n", "admins": "Email,Name,Enabled\nabdallahallam1550@gmail.com,Abdallah Refaat Allam,TRUE\n", "skillEvents": "Event Name,Target Skill,Description,Date,Event ID,Invited/Assigned,Due to Date,Archived,Skill Category\n", "completions": "Timestamp,Event Type,Event ID,Event Name,Member ID,Name,Email,Evidence,Score,Submission ID,Status,Evidence File ID,Evidence URL,Evidence Filename,Evidence MIME Type,Evidence Size,Reviewer Email,Reviewer Name,Reviewed At,Review Note,Status Changed At,Status Changed By\n", "skillRequirements": "Member ID,Skill,Category,Required,Target Score\n", "subteams": "Subteam ID,Name,Description,Color,Active\nlegacy-1,Electronics & Embedded,,purple,TRUE\nlegacy-2,Software & AI,,teal,TRUE\nlegacy-3,Mechanics & Integration,,blue,TRUE\n", "memberships": "Subteam ID,Member ID,Role,Active\nlegacy-1,2521059,Member,TRUE\nlegacy-2,2520780,Leader,TRUE\nlegacy-2,2520186,Member,TRUE\nlegacy-1,2520594,Leader,TRUE\nlegacy-3,2520622,Member,TRUE\nlegacy-3,2540213,Leader,TRUE\nlegacy-1,2520189,Member,TRUE\nlegacy-3,2520448,Member,TRUE\nlegacy-2,2560172,Member,TRUE\nlegacy-1,2540004,Member,TRUE\nlegacy-3,2540244,Member,TRUE\nlegacy-2,2540300,Member,TRUE\nlegacy-1,2560129,Member,TRUE\nlegacy-3,2520756,Member,TRUE\nlegacy-2,2521242,Member,TRUE\nlegacy-1,2520190,Member,TRUE\nlegacy-3,2520175,Member,TRUE\nlegacy-2,2550031,Member,TRUE\nlegacy-1,2560148,Member,TRUE\nlegacy-3,2520070,Member,TRUE\nlegacy-2,2520609,Member,TRUE\nlegacy-1,2520406,Member,TRUE\nlegacy-3,2520112,Member,TRUE\nlegacy-2,2520398,Member,TRUE\nlegacy-1,2560005,Member,TRUE\n"}};
 /* Local-only adapter. The production page does not contain preview identities or database exports. */
 const LocalHub = (() => {
@@ -4645,215 +5122,18 @@ async function exportCV(db, member) {
     throw new Error(
       "Word export could not load. Reload the page and try again.",
     );
-  const c = M.cvData(db, member);
-  const {
-    Document,
-    Packer,
-    Paragraph,
-    TextRun,
-    HeadingLevel,
-    Footer,
-    PageNumber,
-    AlignmentType,
-  } = window.docx;
-  const rtl = (text) =>
-    /^[\s\p{P}\p{N}]*[\p{Script=Arabic}]/u.test(M.clean(text));
-  const run = (text, opts = {}) =>
-    new TextRun({
-      text: M.clean(text),
-      font: "Arial",
-      size: 21,
-      color: "172238",
-      rightToLeft: rtl(text),
-      ...opts,
-    });
-  const p = (text, opts = {}) =>
-    new Paragraph({
-      children: M.clean(text)
-        .split(/\r?\n/)
-        .map((line, i) => run(line, { break: i ? 1 : 0 })),
-      bidirectional: rtl(text),
-      alignment: rtl(text) ? AlignmentType.RIGHT : AlignmentType.LEFT,
-      spacing: { after: 110, line: 300 },
-      ...opts,
-    });
-  const heading = (text) =>
-    new Paragraph({
-      text,
-      heading: HeadingLevel.HEADING_1,
-      keepNext: true,
-      spacing: { before: 280, after: 130 },
-    });
-  const children = [
-    new Paragraph({
-      children: [run(c.name, { size: 42, bold: true })],
-      bidirectional: rtl(c.name),
-      alignment: rtl(c.name) ? AlignmentType.RIGHT : AlignmentType.LEFT,
-      spacing: { after: 90 },
-      keepNext: true,
-    }),
-    p([c.role, c.department].filter(Boolean).join(" · "), { keepNext: true }),
-    p([c.email, c.phone].filter(Boolean).join(" | "), {
-      spacing: { after: 240 },
-    }),
-  ];
-  if (c.overview) children.push(heading("PROFILE"), p(c.overview));
-  if (c.education.length)
-    children.push(heading("EDUCATION"), ...c.education.map((v) => p(v)));
-  const groups = c.groups.filter((g) => g.items.length);
-  if (groups.length) {
-    children.push(
-      heading("SKILLS & TOOLS"),
-      p(
-        "Recorded ratings use a 0–10 scale. Logged assessments are marked below.",
-        {
-          children: [
-            run(
-              "Recorded ratings use a 0–10 scale. Logged assessments are marked below.",
-              { color: "53627A", size: 18 },
-            ),
-          ],
-        },
-      ),
-    );
-    groups.forEach((g) => {
-      children.push(
-        new Paragraph({
-          children: [run(g.name, { bold: true, size: 23 })],
-          keepNext: true,
-          spacing: { before: 170, after: 90 },
-        }),
-      );
-      g.items.forEach((item) =>
-        children.push(
-          p(
-            `${item.label} — ${item.score}/10${item.source === "Logged assessment" ? " (logged assessment)" : ""}`,
-          ),
-        ),
-      );
-    });
-  }
-  if (c.tasks.length) {
-    children.push(heading("TEAM PROJECT EXPERIENCE"));
-    c.tasks.forEach((t) => {
-      children.push(
-        new Paragraph({
-          children: [run(t.title, { bold: true })],
-          keepNext: true,
-          spacing: { before: 160, after: 70 },
-        }),
-      );
-      children.push(
-        p(
-          `${t.status}${t.score !== null ? ` · Recorded score: ${t.score}/10` : ""}`,
-        ),
-      );
-      if (t.description) children.push(p(t.description));
-      if (t.dod) children.push(p("Definition of done: " + t.dod));
-      if (t.feedback) children.push(p("Feedback: " + t.feedback));
-    });
-  }
-  children.push(
-    heading("TEAM PARTICIPATION"),
-    p("Active eligible events; archived assignments are excluded."),
-    ...M.TYPES.map((type) => {
-      const v = c.progress.byType[type];
-      return p(
-        `${M.LABELS[type]}: ${v.completed} completed / ${v.total} eligible${v.percent !== null ? ` (${v.percent}%)` : ""}`,
-      );
-    }),
-  );
-  const doc = new Document({
-    creator: "ASAR Team Hub",
-    title: c.name + " — CV",
-    description: "Recorded team profile; no inferred qualifications.",
-    styles: {
-      default: {
-        document: {
-          run: { font: "Arial", size: 21, color: "172238" },
-          paragraph: { spacing: { after: 110, line: 300 }, widowControl: true },
-        },
-        heading1: {
-          run: { font: "Arial", size: 23, bold: true, color: "5931B6" },
-          paragraph: { keepNext: true },
-        },
-      },
-    },
-    sections: [
-      {
-        properties: {
-          page: {
-            size: { width: 11906, height: 16838 },
-            margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 },
-          },
-        },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  run("ASAR Team Hub · " + today() + " · Page ", {
-                    size: 16,
-                    color: "53627A",
-                  }),
-                  new TextRun({
-                    children: [PageNumber.CURRENT],
-                    font: "Arial",
-                    size: 16,
-                    color: "53627A",
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
-        children,
-      },
-    ],
-  });
+  const cv = M.cvData(db, member);
+  const document = HubCV.word(cv, window.docx);
   saveBlob(
-    await Packer.toBlob(doc),
-    c.name.replace(/[^\p{L}\p{N} -]/gu, "").trim() + " CV.docx",
+    await window.docx.Packer.toBlob(document),
+    cv.name.replace(/[^\p{L}\p{N} -]/gu, "").trim() + " CV.docx",
   );
 }
 function printCV(db, member) {
-  const c = M.cvData(db, member);
-  const escape = (v) =>
-    String(v ?? "").replace(
-      /[&<>"']/g,
-      (x) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[x],
-    );
   const popup = window.open("", "_blank");
   if (!popup) throw new Error("Allow popups to open the printable CV.");
-  const section = (name, body) =>
-    body ? `<section><h2>${name}</h2>${body}</section>` : "";
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escape(c.name)} — CV</title><style>@page{size:A4;margin:18mm}*{box-sizing:border-box}body{font:11pt/1.6 Arial,sans-serif;color:#172238;max-width:760px;margin:30px auto;padding:20px}h1{font-size:26pt;line-height:1.2;margin:0 0 8px}h2{font-size:12pt;color:#5931b6;border-bottom:1px solid #dce1ec;padding-bottom:6px;margin:22px 0 10px;break-after:avoid}h3{font-size:11pt;margin:14px 0 6px;break-after:avoid}p{margin:6px 0;white-space:pre-line;overflow-wrap:anywhere;orphans:3;widows:3}.contact,.note{font-size:10pt;color:#53627a}.skills p{display:flex;justify-content:space-between;gap:16px;break-inside:avoid}.skills b{white-space:nowrap}.tools{display:flex;justify-content:flex-end;gap:10px;margin-bottom:25px}button{padding:10px 16px;background:#5931b6;color:white;border:0;border-radius:8px;font-size:11pt;cursor:pointer}@media print{body{margin:0;padding:0;max-width:none}.tools{display:none}}</style></head><body><div class="tools"><button onclick="window.print()">Print / Save as PDF</button></div><h1 dir="auto">${escape(c.name)}</h1><p>${escape([c.role, c.department].filter(Boolean).join(" · "))}</p><p class="contact">${escape([c.email, c.phone].filter(Boolean).join(" | "))}</p>${section("PROFILE", c.overview ? `<p dir="auto">${escape(c.overview)}</p>` : "")}${section("EDUCATION", c.education.map((e) => `<p dir="auto">${escape(e)}</p>`).join(""))}${section(
-    "SKILLS & TOOLS",
-    c.groups
-      .filter((g) => g.items.length)
-      .map(
-        (g) =>
-          `<div class="skills"><h3>${escape(g.name)}</h3>${g.items.map((i) => `<p><span>${escape(i.label)}${i.source === "Logged assessment" ? " <small>(logged assessment)</small>" : ""}</span><b>${i.score}/10</b></p>`).join("")}</div>`,
-      )
-      .join(""),
-  )}${section("TEAM PROJECT EXPERIENCE", c.tasks.map((t) => `<h3 dir="auto">${escape(t.title)}</h3><p>${escape(t.status)}${t.score !== null ? " · Score: " + t.score + "/10" : ""}</p>${t.description ? `<p dir="auto">${escape(t.description)}</p>` : ""}${t.dod ? `<p>Definition of done: ${escape(t.dod)}</p>` : ""}${t.feedback ? `<p>Feedback: ${escape(t.feedback)}</p>` : ""}`).join(""))}${section(
-    "TEAM PARTICIPATION",
-    '<p class="note">Active eligible events; archived assignments are excluded.</p>' +
-      M.TYPES.map((type) => {
-        const v = c.progress.byType[type];
-        return `<p>${M.LABELS[type]}: ${v.completed} completed / ${v.total} eligible</p>`;
-      }).join(""),
-  )}<p class="note">ASAR Team Hub · Recorded team profile · ${today()}</p></body></html>`;
   popup.document.open();
-  popup.document.write(html);
+  popup.document.write(HubCV.html(M.cvData(db, member)));
   popup.document.close();
 }
 function EventEditor({ event, type, db, onSave, onClose, busy, error }) {
@@ -6924,22 +7204,8 @@ function MemberProfileLists({ member, groups }) {
                 {group.category && <h3>{group.category}</h3>}
                 <ul>
                   {group.items.map((item, i) => (
-                    <li key={i}>
-                      <div className="row spread">
-                        <span dir="auto">{item.label}</span>
-                        {M.number(item.score) !== null && (
-                          <strong>{item.score}/10</strong>
-                        )}
-                      </div>
-                      {M.number(item.score) !== null && (
-                        <Progress
-                          label={section.name + ": " + item.label}
-                          value={Number(item.score) * 10}
-                        />
-                      )}
-                      {item.source === "Logged assessment" && (
-                        <small>Logged assessment</small>
-                      )}
+                    <li key={i} dir="auto">
+                      {item.label}
                     </li>
                   ))}
                 </ul>

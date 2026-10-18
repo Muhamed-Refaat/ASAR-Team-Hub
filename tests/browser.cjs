@@ -426,7 +426,8 @@ function contrastAudit() {
         exact: true,
       });
       assert.ok((await skills.innerText()).includes(scriptingSkill));
-      assert.ok((await skills.innerText()).includes("7/10"));
+      assert.equal(await skills.locator("strong, .progress, small").count(), 0);
+      assert.equal((await skills.innerText()).includes("7/10"), false);
     },
   );
   await check(
@@ -842,8 +843,10 @@ function contrastAudit() {
         await technology.getByRole("listitem").count(),
         recordedTechnology.length,
       );
-      for (const item of recordedTechnology)
-        assert.ok((await technology.innerText()).includes(item.label));
+      assert.deepEqual(
+        await technology.getByRole("listitem").allTextContents(),
+        recordedTechnology.map((item) => item.label),
+      );
       const overview = await selected
         .locator(".member-profile-summary")
         .boundingBox();
@@ -1430,13 +1433,14 @@ function contrastAudit() {
     },
   );
   await check(
-    "Word CV exports actual names, ratings and complete sheet data; printable CV renders to A4 PDF",
+    "professional Word and PDF CVs preserve recorded skills, omit empty content and paginate on A4",
     async () => {
       await nav(page, "Team Intelligence");
       const downloads = [];
       for (const index of [0, 1, 2]) {
         const db = await page.evaluate(() => LocalHub.load());
         const name = db.team[index].Name;
+        const cv = require("../web/model.js").cvData(db, db.team[index]);
         await page
           .getByRole("region", { name: "Team directory", exact: true })
           .getByRole("button", {
@@ -1450,7 +1454,12 @@ function contrastAudit() {
           .click();
         const download = await pending;
         await download.saveAs(path.join(out, `member-${index + 1}.docx`));
-        downloads.push({ file: `member-${index + 1}.docx`, name });
+        downloads.push({
+          file: `member-${index + 1}.docx`,
+          name,
+          technical: cv.technical,
+          tools: cv.tools,
+        });
         const popupPending = page.waitForEvent("popup");
         await page
           .getByRole("button", { name: "Print / PDF", exact: true })
@@ -1460,6 +1469,39 @@ function contrastAudit() {
         assert.equal(
           await popup.getByRole("heading", { name, exact: true }).count(),
           1,
+        );
+        const cvText = await popup.locator(".cv-document").innerText();
+        for (const label of [...cv.technical, ...cv.tools])
+          assert.ok(cvText.includes(label), label);
+        for (const absent of [
+          "TEAM PARTICIPATION",
+          "eligible",
+          "Logged assessment",
+          "/10",
+          "undefined",
+          "null",
+        ])
+          assert.equal(cvText.includes(absent), false, absent);
+        if (!cv.education.length)
+          assert.equal(
+            await popup
+              .getByRole("heading", { name: "Education", exact: true })
+              .count(),
+            0,
+          );
+        if (!cv.overview)
+          assert.equal(
+            await popup
+              .getByRole("heading", { name: "Profile", exact: true })
+              .count(),
+            0,
+          );
+        await popup.setViewportSize({ width: 1000, height: 1150 });
+        await popup.emulateMedia({ media: "print" });
+        assert.ok(
+          await popup
+            .locator(".cv-document")
+            .evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
         );
         await popup.pdf({
           path: path.join(out, `member-${index + 1}.pdf`),
@@ -1471,8 +1513,32 @@ function contrastAudit() {
           path: path.join(out, `cv-member-${index + 1}.png`),
           fullPage: true,
         });
+        fs.writeFileSync(
+          path.join(out, `member-${index + 1}.html`),
+          await popup.content(),
+        );
         await popup.close();
       }
+      const longHTML = await page.evaluate(async () => {
+        const db = await LocalHub.load();
+        const cv = HubModel.cvData(db, db.team[1]);
+        cv.technical = Array.from(
+          { length: 70 },
+          (_, index) =>
+            `${cv.technical[index % cv.technical.length]} — Layout check ${String(index + 1).padStart(3, "0")}`,
+        );
+        return HubCV.html(cv);
+      });
+      const longCV = await context.newPage();
+      await longCV.setContent(longHTML);
+      await longCV.emulateMedia({ media: "print" });
+      await longCV.pdf({
+        path: path.join(out, "cv-layout-long.pdf"),
+        format: "A4",
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+      await longCV.close();
       fs.writeFileSync(
         path.join(out, "cv-exports.json"),
         JSON.stringify(downloads, null, 2),

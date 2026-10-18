@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const M = require("../web/model.js");
+const CV = require("../web/cv.js");
 const base = () => ({
   team: [
     {
@@ -352,6 +353,77 @@ test("skill assessment updates the matrix and CV without generating unrecorded r
     /0 to 10/,
   );
 });
+test("CV content omits placeholders and only presents active work and approved learning", () => {
+  let db = create(create(base(), "Task"), "Learning");
+  Object.assign(db.team[0], {
+    overview: "null",
+    Education: "N/A",
+    Department: "undefined",
+    "Phone number": "NaN",
+    "Hard Skill": "{C++ & control, 0}",
+    Knowledge: JSON.stringify([
+      { category: "Control", items: ["Feedback systems", "null"] },
+    ]),
+  });
+  const task = M.events(db).find((event) => event.type === "Task");
+  const course = M.events(db).find((event) => event.type === "Learning");
+  let cv = M.cvData(db, db.team[0]);
+  assert.equal(cv.overview, "");
+  assert.equal(cv.phone, "");
+  assert.deepEqual(cv.education, []);
+  assert.deepEqual(cv.knowledge, ["Feedback systems"]);
+  assert.deepEqual(cv.technical, ["C++ & control"]);
+  assert.equal(cv.tasks[0].includedInCV, false);
+  db = apply(db, "head@example.com", "moveTask", {
+    key: task.key,
+    status: "InProgress",
+  });
+  db = apply(db, "head@example.com", "completeEvent", {
+    key: course.key,
+    upload,
+  });
+  cv = M.cvData(db, db.team[0]);
+  assert.equal(cv.tasks[0].includedInCV, true);
+  assert.deepEqual(cv.learning, []);
+  db = apply(db, "head@example.com", "reviewSubmission", {
+    submissionId: db.completions.at(-1)["Submission ID"],
+    decision: "Completed",
+  });
+  assert.equal(M.cvData(db, db.team[0]).learning.length, 1);
+  db = apply(db, "head@example.com", "revertCompletion", {
+    key: course.key,
+    submissionId: db.completions.at(-1)["Submission ID"],
+  });
+  assert.deepEqual(M.cvData(db, db.team[0]).learning, []);
+});
+
+test("CV HTML escapes recorded content and suppresses empty sections and internal scores", () => {
+  const db = base();
+  Object.assign(db.team[0], {
+    Name: '<script>alert("cv")</script>',
+    overview: "undefined",
+    "Hard Skill": "{C++ & control, 0}",
+    Technology: "{ROS 2, 3}",
+  });
+  const html = CV.html(M.cvData(db, db.team[0]));
+  assert.ok(
+    html.includes("&lt;script&gt;alert(&quot;cv&quot;)&lt;/script&gt;"),
+  );
+  assert.ok(html.includes("C++ &amp; control"));
+  assert.ok(html.includes("ROS 2"));
+  for (const absent of [
+    "<script>",
+    "undefined",
+    ">Education<",
+    ">Profile<",
+    ">Professional development<",
+    "0/10",
+    "3/10",
+    "TEAM PARTICIPATION",
+  ])
+    assert.equal(html.includes(absent), false, absent);
+});
+
 test("subteam hierarchy supports co-leaders, multiple memberships, role changes and safe retirement", () => {
   let db = base();
   const structure = {
