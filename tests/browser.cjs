@@ -730,11 +730,9 @@ function contrastAudit() {
             ]) {
               await nav(ui, tab);
               const title = type === "Skill" ? "Python" : "Compact " + type;
-              const card = ui
-                .locator(".event-card")
-                .filter({
-                  has: ui.getByRole("heading", { name: title, exact: true }),
-                });
+              const card = ui.locator(".event-card").filter({
+                has: ui.getByRole("heading", { name: title, exact: true }),
+              });
               await card.waitFor();
               await layout(ui);
               assert.deepEqual(await ui.evaluate(contrastAudit), []);
@@ -2960,6 +2958,167 @@ function contrastAudit() {
             .getAttribute("href"),
           href,
         );
+      } finally {
+        await scope.close();
+      }
+    },
+  );
+  await check(
+    "Telegram content appears before verification and remains usable during unrelated slow saves and refreshes",
+    async () => {
+      const e = backendEnvironment();
+      e.scriptProperties.set(
+        "TELEGRAM_BOT_TOKEN",
+        "123456:" + "private_latency_token_".repeat(3),
+      );
+      e.scriptProperties.set("TELEGRAM_CHAT_ID", "-4488318175");
+      e.context.setupTelegramNotifications();
+      const scope = await browser.newContext({
+        viewport: { width: 1440, height: 1000 },
+      });
+      const ui = await scope.newPage();
+      ui.on("pageerror", (error) => pageErrors.push(error.message));
+      const pending = { reads: [], writes: [], previews: [] };
+      let delayRead = false;
+      const copy = (value) => JSON.parse(JSON.stringify(value));
+      try {
+        await wireProductionRpc(ui, (name, args) => {
+          if (name === "executeHubCommand" || name === "getTelegramPreview") {
+            const kind = name === "executeHubCommand" ? "writes" : "previews";
+            return new Promise((resolve, reject) =>
+              pending[kind].push({ name, args, resolve, reject }),
+            );
+          }
+          const data = copy(e.context[name](...args));
+          if (delayRead) {
+            delayRead = false;
+            return new Promise((resolve) =>
+              pending.reads.push({ data, resolve }),
+            );
+          }
+          return data;
+        });
+        await ui.goto(url + "/Index.html");
+        await ui.getByRole("heading", { name: "Welcome, Abdallah" }).waitFor();
+        delayRead = true;
+        await ui.getByTitle("Refresh sheet data", { exact: true }).click();
+        await ui.waitForFunction(
+          () =>
+            document.querySelector('[title="Refresh sheet data"]')?.disabled,
+        );
+        await nav(ui, "Tasks");
+        const task = ui
+          .locator(".event-card")
+          .filter({
+            has: ui.getByRole("heading", {
+              name: "Build prototype",
+              exact: true,
+            }),
+          });
+        await task
+          .getByLabel("Move Build prototype", { exact: true })
+          .selectOption("Completed");
+        await ui
+          .locator('[data-task-status="Completed"]')
+          .getByRole("heading", { name: "Build prototype", exact: true })
+          .waitFor({ timeout: 1500 });
+        assert.equal(
+          pending.writes.length,
+          1,
+          "A slow read does not block dispatching a write",
+        );
+        await nav(ui, "Learning");
+        const course = ui
+          .locator(".event-card")
+          .filter({
+            has: ui.getByRole("heading", { name: "Course", exact: true }),
+          });
+        await course
+          .getByRole("button", {
+            name: "Preview Telegram for Course",
+            exact: true,
+          })
+          .click();
+        let dialog = ui.getByRole("dialog");
+        await dialog.locator("pre").waitFor({ timeout: 1500 });
+        assert.match(await dialog.locator("pre").innerText(), /Course/);
+        assert.match(
+          await dialog.locator("pre").innerText(),
+          /https:\/\/example.com\/course/,
+        );
+        assert.equal(
+          pending.previews.length,
+          1,
+          "Preview verification bypasses unrelated writes",
+        );
+        assert.equal(
+          await dialog
+            .getByRole("button", { name: "Send to Telegram", exact: true })
+            .isDisabled(),
+          true,
+        );
+        await dialog
+          .getByRole("button", { name: "Close preview", exact: true })
+          .click();
+        await nav(ui, "Tasks");
+        const write = pending.writes.shift();
+        write.resolve(copy(e.context[write.name](...write.args)));
+        await ui.waitForTimeout(100);
+        assert.equal(e.context.getTeamData().tasks[0].Status, "Completed");
+        assert.equal(pending.reads.length, 1);
+        const stale = pending.reads.shift();
+        assert.equal(stale.data.tasks[0].Status, "Pending");
+        stale.resolve(stale.data);
+        await ui.waitForFunction(
+          () =>
+            !document.querySelector('[title="Refresh sheet data"]')?.disabled,
+        );
+        await ui
+          .locator('[data-task-status="Completed"]')
+          .getByRole("heading", { name: "Build prototype", exact: true })
+          .waitFor();
+        await nav(ui, "Learning");
+        await course
+          .getByRole("button", {
+            name: "Preview Telegram for Course",
+            exact: true,
+          })
+          .click();
+        dialog = ui.getByRole("dialog");
+        await dialog.locator("pre").waitFor({ timeout: 1500 });
+        await ui.waitForTimeout(100);
+        assert.equal(pending.previews.length, 2);
+        // Finish the closed dialog's old call first; it cannot verify the new dialog.
+        let verification = pending.previews.shift();
+        verification.resolve(
+          copy(e.context[verification.name](...verification.args)),
+        );
+        await ui.waitForTimeout(100);
+        assert.equal(
+          await dialog
+            .getByRole("button", { name: "Send to Telegram", exact: true })
+            .isDisabled(),
+          true,
+        );
+        verification = pending.previews.shift();
+        verification.resolve(
+          copy(e.context[verification.name](...verification.args)),
+        );
+        await ui.waitForFunction(() =>
+          [...document.querySelectorAll("button")].some(
+            (button) =>
+              button.textContent.trim() === "Send to Telegram" &&
+              !button.disabled,
+          ),
+        );
+        assert.equal(
+          e.requests.filter((request) => request.method === "sendMessage")
+            .length,
+          0,
+        );
+        await dialog
+          .getByRole("button", { name: "Close preview", exact: true })
+          .click();
       } finally {
         await scope.close();
       }

@@ -3,6 +3,176 @@ const assert = require("node:assert/strict");
 const M = require("../web/model.js");
 const { environment, Sheet } = require("./backend-fixture.cjs");
 
+test("patch responses read only task dependencies, preserve sparse cells and remain idempotent", () => {
+  const e = environment();
+  e.sheets.Task.rows[0].push("Untouched formula");
+  e.sheets.Task.rows[1].push("=SUM(1,2)");
+  const payload = {
+    key: "Task:task-1",
+    status: "Completed",
+    commandId: "patch-move",
+  };
+  const result = e.context.executeHubCommand("moveTask", payload, {
+    response: "patch",
+  });
+  assert.equal(result.data.mode, "patch");
+  assert.equal(result.data.tables.tasks[0].Status, "Completed");
+  assert.equal(e.sheets.Learning.reads, 0);
+  assert.equal(e.sheets.SKILLs.reads, 0);
+  for (const name of ["Team", "Admins", "Task"])
+    assert.equal(e.sheets[name].reads, 1);
+  assert.equal(e.sheets.Task.rows[1][4], "=SUM(1,2)");
+  assert.equal(e.sheets.Team.writes.length, 0);
+  const writes = e.sheets.Task.writes.length;
+  assert.equal(
+    e.context.executeHubCommand("moveTask", payload, { response: "patch" })
+      .unchanged,
+    true,
+  );
+  assert.equal(e.sheets.Task.writes.length, writes);
+  e.setEmail("member@example.com");
+  assert.throws(
+    () =>
+      e.context.executeHubCommand(
+        "moveTask",
+        {
+          ...payload,
+          commandId: "forged-patch",
+          email: "head@example.com",
+        },
+        { response: "patch" },
+      ),
+    /Admins sheet/,
+  );
+  assert.equal(e.locked(), false);
+});
+
+test("narrow command snapshots match full workbook mutations across event, skill, hierarchy and reference workflows", () => {
+  const stamp = Date.parse("2026-10-19T12:00:00Z");
+  const full = environment("head@example.com", stamp);
+  const patch = environment("head@example.com", stamp);
+  const plain = (value) => JSON.parse(JSON.stringify(value));
+  let step = 0;
+  function run(action, body, email = "head@example.com") {
+    full.setEmail(email);
+    patch.setEmail(email);
+    const payload = {
+      commandId: `command-${++step}`,
+      newId: `item-${step}`,
+      ...body,
+    };
+    const expected = full.context.executeHubCommand(action, payload);
+    const actual = patch.context.executeHubCommand(action, payload, {
+      response: "patch",
+    });
+    assert.equal(actual.success, true, action);
+    assert.deepEqual(
+      plain(patch.context.getTeamData()),
+      plain(full.context.getTeamData()),
+      action,
+    );
+    for (const [key, rows] of Object.entries(actual.data.tables))
+      assert.deepEqual(
+        plain(rows),
+        plain(expected.data[key]),
+        `${action}: ${key}`,
+      );
+    return expected.data;
+  }
+  run("saveTask", {
+    title: "Narrow task",
+    newId: "narrow-task",
+    members: ["1", "2"],
+    status: "Pending",
+  });
+  const task = "Task:task-narrow-task";
+  run("moveTask", { key: task, status: "InProgress" });
+  let db = run(
+    "addTaskLink",
+    { key: task, newId: "evidence", url: "https://example.com/evidence" },
+    "member@example.com",
+  );
+  run(
+    "removeTaskLink",
+    { key: task, linkId: "task-link-evidence" },
+    "member@example.com",
+  );
+  run("saveTask", {
+    key: task,
+    title: "Edited task",
+    members: ["2"],
+    status: "Completed",
+  });
+  run("archiveEvent", { key: task, archived: true });
+  run("archiveEvent", { key: task, archived: false });
+  for (const type of ["Meet", "Learning"]) {
+    run("saveEvent", {
+      type,
+      title: type,
+      newId: type,
+      members: ["2"],
+      date: "2026-10-18",
+      loggingEnabled: true,
+    });
+    const key = `${type}:${type.toLowerCase()}-${type}`;
+    db = run("completeEvent", { key }, "member@example.com");
+    const submissionId = db.completions.at(-1)["Submission ID"];
+    // A forged type must not select the sheet used for an authoritative review.
+    run("reviewSubmission", {
+      submissionId,
+      type: "Task",
+      decision: "Completed",
+    });
+    run("revertCompletion", { key, submissionId }, "member@example.com");
+    db = run("completeEvent", { key }, "member@example.com");
+    run("reviewSubmission", {
+      submissionId: db.completions.at(-1)["Submission ID"],
+      decision: "Rejected",
+    });
+    run("deleteEvent", { key });
+  }
+  db = run("saveSkillRequirements", {
+    memberId: "2",
+    requirements: [{ label: "Python", category: "Hard Skill", required: true }],
+  });
+  const skill = M.events(db).find((event) => event.requirement).key;
+  run("completeEvent", { key: skill, score: 5 }, "member@example.com");
+  db = run(
+    "updateSkillCompletion",
+    { key: skill, score: 8 },
+    "member@example.com",
+  );
+  run(
+    "revertCompletion",
+    { key: skill, submissionId: db.completions.at(-1)["Submission ID"] },
+    "member@example.com",
+  );
+  run("saveEvent", {
+    type: "Skill",
+    title: "Explicit skill",
+    targetSkill: "Python",
+    members: ["2"],
+  });
+  run(
+    "addReference",
+    { title: "Repository", url: "https://example.com/repo", newId: "repo" },
+    "member@example.com",
+  );
+  run("deleteReference", { referenceId: "reference-repo" });
+  run("saveHierarchy", {
+    structure: {
+      headId: "1",
+      teams: [{ id: "software", name: "Software", color: "purple" }],
+      memberships: [
+        { teamId: "software", memberId: "1", role: "Leader" },
+        { teamId: "software", memberId: "2", role: "Member" },
+      ],
+    },
+  });
+  run("removeMember", { memberId: "2" });
+  run("deleteEvent", { key: task });
+});
+
 test("admins reject learning and attendance submissions to Uncompleted while preserving attempts and allowing resubmission", () => {
   for (const type of ["Meet", "Learning"]) {
     const e = environment();

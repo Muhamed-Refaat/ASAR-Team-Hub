@@ -13,9 +13,13 @@ const HubActions = (() => {
     now = () => new Date().toISOString(),
   }) {
     let jobs = [];
+    const projections = new WeakMap();
+    let lastView;
     const active = (job) => ["queued", "saving"].includes(job.state);
     const owner = () => model.norm(getData()?.activeUserSession?.email);
     function apply(data, job) {
+      const previous = projections.get(job);
+      if (previous?.base === data) return previous.data;
       if (job.action === "queueTelegramNotification") {
         if (
           !model.isAdmin(data, model.actor(data, job.owner)) ||
@@ -42,11 +46,23 @@ const HubActions = (() => {
           optimistic: true,
         });
       }
+      projections.set(job, { base: data, data: result.db });
       return result.db;
     }
     function view() {
       let data = getData();
       if (!data) return data;
+      const signature = jobs
+        .filter((job) => active(job) && job.owner === owner())
+        .map((job) => job.id)
+        .join("|");
+      if (
+        lastView?.base === data &&
+        lastView.owner === owner() &&
+        lastView.signature === signature
+      )
+        return lastView.data;
+      const base = data;
       for (const job of jobs) {
         if (!active(job) || job.owner !== owner()) continue;
         try {
@@ -55,7 +71,13 @@ const HubActions = (() => {
           /* A failed dependency is handled by dispatch, without displaying a false result. */
         }
       }
-      return { ...data, allTeam: data.team, team: model.activeTeam(data) };
+      const next = model.snapshot({
+        ...data,
+        allTeam: data.team,
+        team: model.activeTeam(data),
+      });
+      lastView = { base, owner: owner(), signature, data: next };
+      return next;
     }
     function emit() {
       onChange(jobs.map((job) => ({ ...job })));

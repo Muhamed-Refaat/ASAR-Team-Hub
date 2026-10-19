@@ -42,6 +42,61 @@ function confirm(e, key) {
 const sends = (e) => e.requests.filter((r) => r.method === "sendMessage");
 const delivery = (e, key) => T.deliveries(e.context.getTeamData()).get(key);
 
+test("local previews render exact content immediately without granting sending permission or exposing credentials", () => {
+  const e = connected();
+  const { key } = create(e);
+  const db = M.snapshot(e.context.getTeamData());
+  const local = T.clientPreview(M, db, key);
+  const verified = e.context.getTelegramPreview(key);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(local.preview)),
+    JSON.parse(JSON.stringify(verified.preview)),
+  );
+  assert.equal(local.canSend, false);
+  assert.equal(local.receipt, "");
+  assert.deepEqual(Object.keys(db.telegram).sort(), [
+    "chatId",
+    "chatTitle",
+    "ready",
+    "url",
+  ]);
+  assert.equal(JSON.stringify(db).includes(token), false);
+  assert.equal(sends(e).length, 0);
+});
+
+test("independent previews keep personal per-event receipts and reuse unchanged approvals", () => {
+  const e = connected();
+  const first = create(e, "Task", "first").key;
+  const second = create(e, "Meet", "second").key;
+  const one = e.context.getTelegramPreview(first);
+  const two = e.context.getTelegramPreview(second);
+  assert.equal(e.context.getTelegramPreview(first).receipt, one.receipt);
+  assert.equal(e.context.getTelegramPreview(second).receipt, two.receipt);
+  for (const [key, preview] of [
+    [first, one],
+    [second, two],
+  ]) {
+    const result = e.context.executeHubCommand(
+      "queueTelegramNotification",
+      { key, receipt: preview.receipt },
+      { response: "patch" },
+    );
+    assert.equal(result.success, true);
+    assert.equal(result.data.mode, "patch");
+  }
+  e.context.hubTelegramWorker_();
+  assert.equal(sends(e).length, 2);
+  assert.equal(sends(e)[0].payload.text, one.preview.text);
+  assert.equal(sends(e)[1].payload.text, two.preview.text);
+  e.advance(11 * 60 * 1000);
+  const third = create(e, "Task", "third").key;
+  e.context.getTelegramPreview(third);
+  const receipts = [...e.userProperties.keys()].filter((key) =>
+    key.includes("ASAR_TELEGRAM_PREVIEW_"),
+  );
+  assert.equal(receipts.length, 1, "Expired event approvals are pruned");
+});
+
 test("imported courses have previews without invented creators and can be announced once per destination", () => {
   const e = connected();
   const key = M.events(e.context.getTeamData()).find(

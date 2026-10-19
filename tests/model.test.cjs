@@ -59,6 +59,62 @@ const create = (db, type, members = ["1", "2"]) =>
     date: "2026-10-15",
   });
 
+test("immutable snapshot caches preserve identities and all event lookup semantics without caching transitions", () => {
+  let db = base();
+  for (const type of M.TYPES) db = create(db, type);
+  db.team[1].Aliases = "Shared";
+  db.team[2].Aliases = "Shared";
+  db.team[2].Active = "FALSE";
+  db.logs.push({
+    "Event Type": "Meet",
+    "Event Name": "Legacy meeting",
+    "Event ID": "old-meet",
+  });
+  db.tasks[0].Deleted = "TRUE";
+  const plain = structuredClone(db);
+  M.snapshot(db);
+  assert.equal(
+    M.resolveMember(db, "shared"),
+    null,
+    "Ambiguous aliases stay unresolved",
+  );
+  assert.equal(
+    M.resolveMember(db, "leader@example.com"),
+    db.team[2],
+    "Historical identities remain resolvable",
+  );
+  assert.equal(M.activeTeam(db), M.activeTeam(db));
+  assert.equal(M.events(db), M.events(db));
+  for (const includeDeleted of [false, true]) {
+    const all = M.events(plain, { includeDeleted });
+    for (const type of M.TYPES) {
+      assert.deepEqual(
+        M.events(db, { includeDeleted, types: [type] }),
+        all.filter((e) => e.type === type),
+      );
+      for (const event of all.filter((e) => e.type === type))
+        assert.deepEqual(
+          M.eventByKey(db, event.key, { includeDeleted }),
+          event,
+        );
+    }
+  }
+  const next = apply(db, "head@example.com", "saveEvent", {
+    type: "Learning",
+    key: M.events(db).find((e) => e.type === "Learning").key,
+    title: "Changed after caching",
+    members: ["2"],
+  });
+  assert.equal(
+    M.events(next).find((e) => e.type === "Learning").title,
+    "Changed after caching",
+  );
+  assert.equal(
+    M.events(db).find((e) => e.type === "Learning").title,
+    "Learning event",
+  );
+});
+
 test("all active event types: eligible denominators, own completion, deduplication and immutable source data", () => {
   let db = base();
   for (const type of M.TYPES) db = create(db, type);

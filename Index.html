@@ -3495,6 +3495,13 @@ tbody tr:not(.selected):hover td {
     <script>
       /* Shared by Apps Script, the local adapter and tests. No browser or GAS dependencies. */
 const HubModel = (() => {
+  // Opt in only for immutable UI snapshots. Transitions and sheet reads stay fresh.
+  const snapshots = new WeakMap();
+  function snapshot(db) {
+    if (db && !snapshots.has(db))
+      snapshots.set(db, { events: new Map(), required: new Map() });
+    return db;
+  }
   const TYPES = ["Task", "Meet", "Learning", "Skill"];
   const EVENT_FORM_FIELDS = {
     Task: ["title", "description", "members", "status", "due"],
@@ -3653,7 +3660,13 @@ const HubModel = (() => {
     clean(v) !== "" && Number.isFinite(Number(v)) ? Number(v) : null;
   const activeMember = (member) =>
     !!member && !["false", "no", "0", "removed"].includes(norm(member.Active));
-  const activeTeam = (db) => (db.team || []).filter(activeMember);
+  const activeTeam = (db) => {
+    const memo = snapshots.get(db);
+    if (memo?.team) return memo.team;
+    const team = (db.team || []).filter(activeMember);
+    if (memo) memo.team = team;
+    return team;
+  };
   const role = (m) => {
     const value = norm(m.Role || m.Rule);
     if (["team leader", "team lead"].includes(value)) return "Team Leader";
@@ -3664,6 +3677,29 @@ const HubModel = (() => {
   function resolveMember(db, token) {
     const wanted = norm(token);
     if (!wanted) return null;
+    const memo = snapshots.get(db);
+    if (memo) {
+      if (!memo.identities) {
+        memo.identities = new Map();
+        (db.allTeam || db.team || []).forEach((member) => {
+          new Set(
+            [
+              memberKey(member),
+              member.Name,
+              member.Mail,
+              ...list(member.Aliases),
+            ]
+              .map(norm)
+              .filter(Boolean),
+          ).forEach((key) => {
+            if (!memo.identities.has(key)) memo.identities.set(key, member);
+            else if (memo.identities.get(key) !== member)
+              memo.identities.set(key, null);
+          });
+        });
+      }
+      return memo.identities.get(wanted) || null;
+    }
     const matches = (db.allTeam || db.team || []).filter((m) =>
       [memberKey(m), m.Name, m.Mail, ...list(m.Aliases)].some(
         (v) => norm(v) === wanted,
@@ -3725,6 +3761,8 @@ const HubModel = (() => {
   const PROJECT_FIELDS = ["Hard Skill", "Soft Skill", "Technology"];
   const skillKey = (category, label) => category + ":" + norm(label);
   function projectSkills(db) {
+    const memo = snapshots.get(db);
+    if (memo?.skills) return memo.skills;
     const items = new Map();
     const add = (category, label) => {
       if (clean(label))
@@ -3739,9 +3777,13 @@ const HubModel = (() => {
       ),
     );
     (db.skillRequirements || []).forEach((r) => add(r.Category, r.Skill));
-    return [...items.values()];
+    const result = [...items.values()];
+    if (memo) memo.skills = result;
+    return result;
   }
   function requiredSkills(db, member) {
+    const memo = snapshots.get(db);
+    if (memo?.required.has(member)) return memo.required.get(member);
     const items = new Map();
     PROJECT_FIELDS.forEach((category) =>
       parseRatings(member[category]).forEach((i) =>
@@ -3764,12 +3806,20 @@ const HubModel = (() => {
           });
         else items.delete(key);
       });
-    return [...items.values()];
+    const result = [...items.values()];
+    if (memo) memo.required.set(member, result);
+    return result;
   }
-  function events(db, { includeDeleted = false } = {}) {
+  function events(db, { includeDeleted = false, types = TYPES } = {}) {
+    const wanted = TYPES.filter((type) => types.includes(type));
+    const memo = snapshots.get(db);
+    const cacheKey = wanted.join(",") + ":" + includeDeleted;
+    if (memo?.events.has(cacheKey)) return memo.events.get(cacheKey);
+    const full = memo?.events.get(TYPES.join(",") + ":" + includeDeleted);
+    if (full) return full.filter((event) => wanted.includes(event.type));
     const result = [];
     const matchedLogs = new Set();
-    TYPES.forEach((type) =>
+    wanted.forEach((type) =>
       (db[TABLES[type]] || []).forEach((row, index) => {
         const title = clean(
           row[TITLES[type]] || (type === "Learning" ? row["Course Name"] : ""),
@@ -3801,14 +3851,15 @@ const HubModel = (() => {
       }),
     );
     const requirements = new Map();
-    activeTeam(db).forEach((m) =>
-      requiredSkills(db, m).forEach((r) => {
-        const key = skillKey(r.category, r.label);
-        if (!requirements.has(key))
-          requirements.set(key, { ...r, members: [] });
-        requirements.get(key).members.push(m);
-      }),
-    );
+    if (wanted.includes("Skill"))
+      activeTeam(db).forEach((m) =>
+        requiredSkills(db, m).forEach((r) => {
+          const key = skillKey(r.category, r.label);
+          if (!requirements.has(key))
+            requirements.set(key, { ...r, members: [] });
+          requirements.get(key).members.push(m);
+        }),
+      );
     requirements.forEach((r, key) => {
       const sourceId = "required-" + encodeURIComponent(key);
       const logs = (db.logs || []).filter(
@@ -3841,7 +3892,7 @@ const HubModel = (() => {
       }
       if (
         !matchedLogs.has(log) &&
-        TYPES.includes(type) &&
+        wanted.includes(type) &&
         clean(log["Event Name"])
       )
         result.push(
@@ -3862,7 +3913,14 @@ const HubModel = (() => {
           ),
         );
     });
-    return result.filter((event) => includeDeleted || !event.deleted);
+    const visible = result.filter((event) => includeDeleted || !event.deleted);
+    if (memo) memo.events.set(cacheKey, visible);
+    return visible;
+  }
+  function eventByKey(db, key, options = {}) {
+    return events(db, { ...options, types: [clean(key).split(":")[0]] }).find(
+      (event) => event.key === key,
+    );
   }
   function taskLinks(row) {
     try {
@@ -4389,7 +4447,7 @@ const HubModel = (() => {
     db.activity = db.activity || [];
     db.logs = db.logs || [];
     const find = () => {
-      const e = events(db).find((e) => e.key === payload.key);
+      const e = eventByKey(db, payload.key);
       assert(e, "Event not found. Refresh the page.");
       return e;
     };
@@ -4517,7 +4575,7 @@ const HubModel = (() => {
         submission && clean(payload.submissionId),
         "Submission not found. Refresh the page.",
       );
-      const e = events(db).find((e) => e.key === submission["Event ID"]);
+      const e = eventByKey(db, submission["Event ID"]);
       assert(
         e && REVIEW_TYPES.includes(e.type),
         "This record does not require review.",
@@ -4817,9 +4875,7 @@ const HubModel = (() => {
       details = { referenceId: row["Reference ID"] };
     } else if (action === "deleteEvent") {
       // Keep source rows, evidence and attempts in place, including after a partial write.
-      const e = events(db, { includeDeleted: true }).find(
-        (event) => event.key === payload.key,
-      );
+      const e = eventByKey(db, payload.key, { includeDeleted: true });
       assert(e, "Event not found. Refresh the page.");
       assert(
         ["Task", "Meet", "Learning"].includes(e.type),
@@ -5089,9 +5145,7 @@ const HubModel = (() => {
   }
   function failureActivity(db, email, action, payload, error, now) {
     if (!actor(db, email)) return null;
-    const event = payload.key
-      ? events(db).find((item) => item.key === payload.key)
-      : null;
+    const event = payload.key ? eventByKey(db, payload.key) : null;
     return {
       Timestamp: now,
       Email: norm(email),
@@ -5107,6 +5161,7 @@ const HubModel = (() => {
     };
   }
   return {
+    snapshot,
     TYPES,
     EVENT_FORM_FIELDS,
     EVENT_COLUMNS,
@@ -5143,6 +5198,7 @@ const HubModel = (() => {
     parseRatings,
     ratingCategory,
     events,
+    eventByKey,
     pendingReviews,
     taskLinks,
     references,
@@ -5589,6 +5645,8 @@ const HubSync = (() => {
     onData,
     onChange,
     onNotice,
+    onReadChange,
+    onReadError,
     storage,
     makeId,
     now = () => new Date().toISOString(),
@@ -5596,6 +5654,10 @@ const HubSync = (() => {
     let tail = Promise.resolve();
     let jobs = [];
     let restored = false;
+    let pendingWrites = 0;
+    let epoch = 0;
+    let readPromise = null;
+    let deferredRead = null;
     const storageKey = "asar_event_drafts_v1";
     const owner = () => model.norm(getData()?.activeUserSession?.email);
     const eventId = (job) => job.type.toLowerCase() + "-" + job.payload.newId;
@@ -5625,9 +5687,46 @@ const HubSync = (() => {
       onChange(jobs.map((job) => ({ ...job })));
     };
     const run = (task) => {
+      pendingWrites++;
+      epoch++;
       const result = tail.then(task);
       tail = result.catch(() => {});
+      const finish = () => {
+        pendingWrites--;
+        epoch++;
+        if (!pendingWrites && deferredRead && !readPromise)
+          refresh(deferredRead).catch((error) => onReadError?.(error));
+      };
+      result.then(finish, finish);
       return result;
+    };
+    // Reads never occupy the write queue. A read overlapping a write is discarded
+    // and refreshed after the queue drains, so it cannot rewind confirmed data.
+    const refresh = (read) => {
+      if (pendingWrites || readPromise) {
+        if (pendingWrites) deferredRead = read;
+        return readPromise || Promise.resolve({ deferred: true });
+      }
+      deferredRead = null;
+      const started = epoch;
+      onReadChange?.(true);
+      readPromise = Promise.resolve()
+        .then(read)
+        .then((data) => {
+          if (pendingWrites || started !== epoch) {
+            deferredRead = read;
+            return { deferred: true };
+          }
+          accept(data);
+          return { accepted: true };
+        })
+        .finally(() => {
+          readPromise = null;
+          onReadChange?.(false);
+          if (!pendingWrites && deferredRead)
+            refresh(deferredRead).catch((error) => onReadError?.(error));
+        });
+      return readPromise;
     };
     const saved = (job) => {
       if (job.state === "saved") return;
@@ -5642,6 +5741,19 @@ const HubSync = (() => {
       timer?.unref?.();
     };
     const accept = (data) => {
+      if (data?.mode === "patch") {
+        if (!getData() || model.norm(data.activeUserSession?.email) !== owner())
+          throw new Error(
+            "The account changed. Refresh before making more updates.",
+          );
+        data = {
+          ...getData(),
+          ...data.tables,
+          activeUserSession: data.activeUserSession,
+          ...(data.telegram ? { telegram: data.telegram } : {}),
+        };
+      }
+      model.snapshot(data);
       onData(data);
       if (!restored) restore();
       jobs.forEach((job) => {
@@ -5657,9 +5769,7 @@ const HubSync = (() => {
         job.payload,
         now(),
       );
-      job.event = model
-        .events(result.db)
-        .find((event) => event.type === job.type && event.id === eventId(job));
+      job.event = model.eventByKey(result.db, `${job.type}:${eventId(job)}`);
     };
     const dispatch = (job) =>
       run(async () => {
@@ -5792,7 +5902,7 @@ const HubSync = (() => {
       );
       emit();
     };
-    return { run, accept, enqueue, retry, dismiss, restore };
+    return { run, refresh, accept, enqueue, retry, dismiss, restore };
   }
   return { create };
 })();
@@ -5815,9 +5925,13 @@ const HubActions = (() => {
     now = () => new Date().toISOString(),
   }) {
     let jobs = [];
+    const projections = new WeakMap();
+    let lastView;
     const active = (job) => ["queued", "saving"].includes(job.state);
     const owner = () => model.norm(getData()?.activeUserSession?.email);
     function apply(data, job) {
+      const previous = projections.get(job);
+      if (previous?.base === data) return previous.data;
       if (job.action === "queueTelegramNotification") {
         if (
           !model.isAdmin(data, model.actor(data, job.owner)) ||
@@ -5844,11 +5958,23 @@ const HubActions = (() => {
           optimistic: true,
         });
       }
+      projections.set(job, { base: data, data: result.db });
       return result.db;
     }
     function view() {
       let data = getData();
       if (!data) return data;
+      const signature = jobs
+        .filter((job) => active(job) && job.owner === owner())
+        .map((job) => job.id)
+        .join("|");
+      if (
+        lastView?.base === data &&
+        lastView.owner === owner() &&
+        lastView.signature === signature
+      )
+        return lastView.data;
+      const base = data;
       for (const job of jobs) {
         if (!active(job) || job.owner !== owner()) continue;
         try {
@@ -5857,7 +5983,13 @@ const HubActions = (() => {
           /* A failed dependency is handled by dispatch, without displaying a false result. */
         }
       }
-      return { ...data, allTeam: data.team, team: model.activeTeam(data) };
+      const next = model.snapshot({
+        ...data,
+        allTeam: data.team,
+        team: model.activeTeam(data),
+      });
+      lastView = { base, owner: owner(), signature, data: next };
+      return next;
     }
     function emit() {
       onChange(jobs.map((job) => ({ ...job })));
@@ -6157,7 +6289,7 @@ const HubTelegram = (() => {
   }
   function preview(model, db, key, hubUrl) {
     const creation = creations(db).get(key);
-    const event = model.events(db).find((item) => item.key === key);
+    const event = model.eventByKey(db, key);
     if (
       !event ||
       !types.includes(event.type) ||
@@ -6260,7 +6392,40 @@ const HubTelegram = (() => {
       url: /^https:\/\//i.test(url(hubUrl)) ? url(hubUrl) : "",
     };
   }
-  return { details, creations, deliveries, preview, entities, fragments };
+  function clientPreview(model, db, key) {
+    const meta = db.telegram || {};
+    let message = preview(model, db, key, meta.url || "");
+    const delivery = meta.chatId
+      ? deliveries(db, meta.chatId).get(key) || null
+      : null;
+    if (
+      delivery &&
+      ["Queued", "Sending", "Retrying", "Sent"].includes(delivery.status)
+    )
+      message = {
+        ...message,
+        text: delivery.text,
+        entities: delivery.entities || [],
+        url: delivery.url,
+      };
+    return {
+      preview: message,
+      delivery,
+      receipt: "",
+      canSend: false,
+      chatTitle: meta.chatTitle || "Checking destination…",
+      reason: "Checking current details and sending permission…",
+    };
+  }
+  return {
+    details,
+    creations,
+    deliveries,
+    preview,
+    clientPreview,
+    entities,
+    fragments,
+  };
 })();
 if (typeof module !== "undefined" && module.exports)
   module.exports = HubTelegram;
@@ -7336,26 +7501,53 @@ function CardDescription({ text, title }) {
     </div>
   );
 }
-function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+function TelegramPreview({
+  eventKey,
+  db,
+  pendingEvent,
+  onLoad,
+  onQueue,
+  onClose,
+  busy,
+  error,
+}) {
+  const local = useMemo(() => {
+    try {
+      return { data: HubTelegram.clientPreview(M, db, eventKey) };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }, [db, eventKey]);
+  const signature = JSON.stringify([
+    local,
+    db.activeUserSession?.email,
+    db.telegram?.chatId,
+  ]);
+  const [verified, setVerified] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const current = verified?.signature === signature;
+  const result = current ? verified.data : local.data;
+  const verificationError =
+    loadError?.signature === signature ? loadError.message : "";
+  const loading = !current && !verificationError;
+  const admin = M.isAdmin(db, M.actor(db, db.activeUserSession?.email));
   useEffect(() => {
     let active = true;
+    if (pendingEvent) return;
+    setLoadError(null);
     onLoad(eventKey)
       .then((data) => {
-        if (active) setResult(data);
+        if (active) setVerified({ signature, data });
       })
       .catch((e) => {
-        if (active) setLoadError(e.message || String(e));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active)
+          setLoadError({ signature, message: e.message || String(e) });
       });
     return () => {
       active = false;
     };
-  }, [eventKey]);
+  }, [eventKey, signature, pendingEvent, attempt]);
   return (
     <Modal title="Preview Telegram announcement" onClose={onClose} busy={busy}>
       <div className="stack telegram-preview">
@@ -7363,9 +7555,25 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
           Nothing is posted until an admin confirms. Event saving is separate
           from Telegram delivery.
         </p>
-        {loading && <p role="status">Preparing your preview…</p>}
-        {(loadError || error) && (
-          <Notice kind="error">{loadError || error}</Notice>
+        {loading && (
+          <p role="status">
+            {pendingEvent
+              ? "This event is saving. Sending will be available after verification."
+              : "Checking the latest details and sending permission…"}
+          </p>
+        )}
+        {(local.error || verificationError || error) && (
+          <Notice kind="error">
+            {local.error || verificationError || error}
+          </Notice>
+        )}
+        {verificationError && (
+          <Button
+            className="small"
+            onClick={() => setAttempt((value) => value + 1)}
+          >
+            Retry verification
+          </Button>
         )}
         {result && (
           <>
@@ -7418,21 +7626,32 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
               <Button onClick={onClose} disabled={busy}>
                 Close preview
               </Button>
-              {result.canSend && (
-                <Button
-                  className="primary"
-                  icon="send"
-                  disabled={busy}
-                  onClick={() =>
-                    onQueue("queueTelegramNotification", {
-                      key: eventKey,
-                      receipt: result.receipt,
-                    })
-                  }
-                >
-                  {busy ? "Queueing…" : "Send to Telegram"}
-                </Button>
-              )}
+              {admin &&
+                !IS_LOCAL &&
+                (result.canSend ||
+                  (loading &&
+                    !["Queued", "Sending", "Retrying", "Sent"].includes(
+                      result.delivery?.status,
+                    ))) && (
+                  <Button
+                    className="primary"
+                    icon="send"
+                    disabled={
+                      busy || loading || pendingEvent || !result.receipt
+                    }
+                    onClick={() =>
+                      !loading &&
+                      !pendingEvent &&
+                      result.receipt &&
+                      onQueue("queueTelegramNotification", {
+                        key: eventKey,
+                        receipt: result.receipt,
+                      })
+                    }
+                  >
+                    {busy ? "Queueing…" : "Send to Telegram"}
+                  </Button>
+                )}
             </div>
             {result.canSend && (
               <small className="muted">
@@ -10875,13 +11094,18 @@ function App() {
       send: (action, payload) =>
         IS_LOCAL
           ? LocalHub.command(action, payload)
-          : rpc("executeHubCommand", action, payload),
+          : rpc("executeHubCommand", action, payload, { response: "patch" }),
       onData: (data) => {
         dbRef.current = data;
         if (actionsRef.current) actionsRef.current.accept(data);
         else setDb(data);
       },
       onChange: setJobs,
+      onReadChange: (active) => {
+        loadingRef.current = active;
+        setLoading(active);
+      },
+      onReadError: (error) => setError(error.message || String(error)),
       onNotice: (message, kind) => {
         if (kind === "error") notify(message);
       },
@@ -10895,7 +11119,7 @@ function App() {
       send: (action, payload) =>
         IS_LOCAL
           ? LocalHub.command(action, payload)
-          : rpc("executeHubCommand", action, payload),
+          : rpc("executeHubCommand", action, payload, { response: "patch" }),
       schedule: (task) => syncRef.current.run(task),
       accept: (data) => syncRef.current.accept(data),
       onView: setDb,
@@ -10910,21 +11134,13 @@ function App() {
     localStorage.setItem("azar_theme", theme);
   }, [theme]);
   const load = async (reset = false) => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
     setError("");
     try {
-      await syncRef.current.run(async () => {
-        syncRef.current.accept(
-          IS_LOCAL ? await LocalHub.load(reset) : await rpc("getTeamData"),
-        );
-      });
+      await syncRef.current.refresh(() =>
+        IS_LOCAL ? LocalHub.load(reset) : rpc("getTeamData"),
+      );
     } catch (e) {
       setError(e.message || String(e));
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
     }
   };
   useEffect(() => {
@@ -11056,20 +11272,18 @@ function App() {
     setError("");
     setModal({ kind: "telegram", key });
   };
-  const loadTelegram = (key) =>
-    syncRef.current.run(async () =>
-      IS_LOCAL
-        ? {
-            preview: HubTelegram.preview(M, dbRef.current, key, ""),
-            receipt: "",
-            canSend: false,
-            delivery: null,
-            chatTitle: "Team Telegram group",
-            reason:
-              "Local preview only. Connect the bot in Apps Script and use the deployed hub to send announcements.",
-          }
-        : rpc("getTelegramPreview", key),
-    );
+  const loadTelegram = async (key) =>
+    IS_LOCAL
+      ? {
+          preview: HubTelegram.preview(M, dbRef.current, key, ""),
+          receipt: "",
+          canSend: false,
+          delivery: null,
+          chatTitle: "Team Telegram group",
+          reason:
+            "Local preview only. Connect the bot in Apps Script and use the deployed hub to send announcements.",
+        }
+      : rpc("getTelegramPreview", key);
   const complete = (e) => {
     setError("");
     setModal({ kind: "complete", event: e });
@@ -11412,6 +11626,13 @@ function App() {
         <TelegramPreview
           key={modal.key}
           eventKey={modal.key}
+          db={db}
+          pendingEvent={myJobs.some(
+            (job) =>
+              ["queued", "saving"].includes(job.state) &&
+              (job.key === modal.key ||
+                ["saveHierarchy", "removeMember"].includes(job.action)),
+          )}
           onLoad={loadTelegram}
           onQueue={command}
           onClose={() => {

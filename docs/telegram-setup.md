@@ -2,7 +2,7 @@
 
 The hub prepares announcements for saved courses (including courses imported from the sheet), newly created tasks and meetings. Saving an event never posts it automatically. Members can open **Preview Telegram**; only an enabled admin can confirm **Send to Telegram**. Setup does not send a test message.
 
-Current destination: **test**, the private test group, with Bot API chat ID **`-5382073850`**. The bot is already a member. Keep notifications here while reviewing the new message styling; switch back to the ASAR production supergroup only when the user explicitly asks to go live.
+Current authorized destination: **ASAR**, the production supergroup, with Bot API chat ID **`-1004488318175`**. On 2026-10-19, read-only Bot API checks verified the destination, enabled configuration and membership of **ASAR_Hub_bot**, without posting a message. The optional private test group has ID `-5382073850`.
 
 Messages use emoji headings, bold titles and labels, readable Cairo dates, concise assignments, an event-specific closing line and a **🚀 Open Team Hub** button. Telegram formatting entities preserve literal member/event text, so angle brackets and Markdown characters cannot become formatting commands. The in-app preview shows the same styles. Historical plain-text deliveries retain their original appearance.
 
@@ -28,14 +28,14 @@ In **Apps Script → Project Settings → Script properties**, add:
 | Property | Value |
 | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | The private token from BotFather |
-| `TELEGRAM_CHAT_ID` | `-5382073850` for testing; `-1004488318175` only after production is authorized |
+| `TELEGRAM_CHAT_ID` | `-1004488318175` for the authorized ASAR production group; `-5382073850` for optional isolated testing |
 | `TELEGRAM_HUB_URL` | Your deployed hub URL ending in `/exec`; optional if Apps Script already reports the correct deployment URL |
 
 Use the **gear icon in the left sidebar**, scroll to **Script Properties**, click **Add script property**, enter each property name in the left field and its value in the right field, then click **Save script properties**. These are settings, so searching for the property names in `Code.gs` does not configure them. Keep the token out of source code.
 
 In the script editor, select **`setupTelegramNotifications`** and click **Run**, signed in with an enabled admin account from the `Admins` sheet. Approve the requested Google authorization for external requests and managing the delivery trigger. Setup verifies the bot, group and posting permissions, then installs one trigger that checks the queue every minute. Use this same installer account for future setup runs; do not create a second trigger manually. [Google explains installable triggers and their account ownership](https://developers.google.com/apps-script/guides/triggers/installable).
 
-After setup finishes, **Execution log** prints `Telegram connected to test (-5382073850). Delivery trigger installed; no message sent during setup.` If you see an authorization prompt, review the permissions for your own ASAR script and complete authorization, then check for this success message. Setup itself sends no announcement.
+After setup finishes, **Execution log** prints `Telegram connected to ASAR (-1004488318175). Delivery trigger installed; no message sent during setup.` If you see an authorization prompt, review the permissions for your own ASAR script and complete authorization, then check for this success message. Setup itself sends no announcement.
 
 Create a new deployment version after updating the files. Keep **Execute as: User accessing the web app** and the existing signed-in access settings. Reauthorize the web app if Google requests the new permissions. Never change authentication to work around a missing active-user email.
 
@@ -54,7 +54,7 @@ It displays only group IDs/titles from recent bot updates, with no incoming mess
 ## 4. Preview and send the first announcement
 
 1. In the deployed hub, select an existing learning course, or create a task, meeting or course and wait for the small sync indicator beside **Refresh** to clear.
-2. Choose **Preview Telegram** from the saved event card. The preview shows the exact message and optional **Open Team Hub** button. Closing it sends nothing.
+2. Choose **Preview Telegram** from the saved event card. Content appears immediately from the current snapshot while the server verifies the latest message, destination and sending permission. The optional **Open Team Hub** button is included. Closing it sends nothing; Send stays disabled until verification succeeds.
 3. Check the destination and content, then choose **Send to Telegram** as an admin.
 4. The card first shows **Telegram: Queued**. The worker delivers it in the background, usually within a minute; larger queues take longer. Refresh the hub to see **Sent**, or open **Activity → Telegram announcements** for status and request details. Confirm the message appeared in the intended group.
 

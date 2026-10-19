@@ -38,7 +38,7 @@ class Sheet {
     this.rows.push(row.slice());
   }
 }
-function environment(email = "head@example.com") {
+function environment(email = "head@example.com", initialTime = Date.now()) {
   const sheets = {
     Team: new Sheet("Team", [
       ["Name", "ID", "Mail", "Role", "Reports To", "Department"],
@@ -87,7 +87,6 @@ function environment(email = "head@example.com") {
     triggers = [];
   let elapsed = 0,
     fetchHandler;
-  const initialTime = Date.now();
   class Clock extends Date {
     constructor(...args) {
       super(...(args.length ? args : [initialTime + elapsed]));
@@ -158,6 +157,13 @@ function environment(email = "head@example.com") {
       getUserProperties: () => ({
         getProperty: (key) => properties.get(email + key),
         setProperty: (key, value) => properties.set(email + key, value),
+        getProperties: () =>
+          Object.fromEntries(
+            [...properties]
+              .filter(([key]) => key.startsWith(email))
+              .map(([key, value]) => [key.slice(email.length), value]),
+          ),
+        deleteProperty: (key) => properties.delete(email + key),
       }),
     },
     ScriptApp: {

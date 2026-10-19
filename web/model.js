@@ -1,5 +1,12 @@
 /* Shared by Apps Script, the local adapter and tests. No browser or GAS dependencies. */
 const HubModel = (() => {
+  // Opt in only for immutable UI snapshots. Transitions and sheet reads stay fresh.
+  const snapshots = new WeakMap();
+  function snapshot(db) {
+    if (db && !snapshots.has(db))
+      snapshots.set(db, { events: new Map(), required: new Map() });
+    return db;
+  }
   const TYPES = ["Task", "Meet", "Learning", "Skill"];
   const EVENT_FORM_FIELDS = {
     Task: ["title", "description", "members", "status", "due"],
@@ -158,7 +165,13 @@ const HubModel = (() => {
     clean(v) !== "" && Number.isFinite(Number(v)) ? Number(v) : null;
   const activeMember = (member) =>
     !!member && !["false", "no", "0", "removed"].includes(norm(member.Active));
-  const activeTeam = (db) => (db.team || []).filter(activeMember);
+  const activeTeam = (db) => {
+    const memo = snapshots.get(db);
+    if (memo?.team) return memo.team;
+    const team = (db.team || []).filter(activeMember);
+    if (memo) memo.team = team;
+    return team;
+  };
   const role = (m) => {
     const value = norm(m.Role || m.Rule);
     if (["team leader", "team lead"].includes(value)) return "Team Leader";
@@ -169,6 +182,29 @@ const HubModel = (() => {
   function resolveMember(db, token) {
     const wanted = norm(token);
     if (!wanted) return null;
+    const memo = snapshots.get(db);
+    if (memo) {
+      if (!memo.identities) {
+        memo.identities = new Map();
+        (db.allTeam || db.team || []).forEach((member) => {
+          new Set(
+            [
+              memberKey(member),
+              member.Name,
+              member.Mail,
+              ...list(member.Aliases),
+            ]
+              .map(norm)
+              .filter(Boolean),
+          ).forEach((key) => {
+            if (!memo.identities.has(key)) memo.identities.set(key, member);
+            else if (memo.identities.get(key) !== member)
+              memo.identities.set(key, null);
+          });
+        });
+      }
+      return memo.identities.get(wanted) || null;
+    }
     const matches = (db.allTeam || db.team || []).filter((m) =>
       [memberKey(m), m.Name, m.Mail, ...list(m.Aliases)].some(
         (v) => norm(v) === wanted,
@@ -230,6 +266,8 @@ const HubModel = (() => {
   const PROJECT_FIELDS = ["Hard Skill", "Soft Skill", "Technology"];
   const skillKey = (category, label) => category + ":" + norm(label);
   function projectSkills(db) {
+    const memo = snapshots.get(db);
+    if (memo?.skills) return memo.skills;
     const items = new Map();
     const add = (category, label) => {
       if (clean(label))
@@ -244,9 +282,13 @@ const HubModel = (() => {
       ),
     );
     (db.skillRequirements || []).forEach((r) => add(r.Category, r.Skill));
-    return [...items.values()];
+    const result = [...items.values()];
+    if (memo) memo.skills = result;
+    return result;
   }
   function requiredSkills(db, member) {
+    const memo = snapshots.get(db);
+    if (memo?.required.has(member)) return memo.required.get(member);
     const items = new Map();
     PROJECT_FIELDS.forEach((category) =>
       parseRatings(member[category]).forEach((i) =>
@@ -269,12 +311,20 @@ const HubModel = (() => {
           });
         else items.delete(key);
       });
-    return [...items.values()];
+    const result = [...items.values()];
+    if (memo) memo.required.set(member, result);
+    return result;
   }
-  function events(db, { includeDeleted = false } = {}) {
+  function events(db, { includeDeleted = false, types = TYPES } = {}) {
+    const wanted = TYPES.filter((type) => types.includes(type));
+    const memo = snapshots.get(db);
+    const cacheKey = wanted.join(",") + ":" + includeDeleted;
+    if (memo?.events.has(cacheKey)) return memo.events.get(cacheKey);
+    const full = memo?.events.get(TYPES.join(",") + ":" + includeDeleted);
+    if (full) return full.filter((event) => wanted.includes(event.type));
     const result = [];
     const matchedLogs = new Set();
-    TYPES.forEach((type) =>
+    wanted.forEach((type) =>
       (db[TABLES[type]] || []).forEach((row, index) => {
         const title = clean(
           row[TITLES[type]] || (type === "Learning" ? row["Course Name"] : ""),
@@ -306,14 +356,15 @@ const HubModel = (() => {
       }),
     );
     const requirements = new Map();
-    activeTeam(db).forEach((m) =>
-      requiredSkills(db, m).forEach((r) => {
-        const key = skillKey(r.category, r.label);
-        if (!requirements.has(key))
-          requirements.set(key, { ...r, members: [] });
-        requirements.get(key).members.push(m);
-      }),
-    );
+    if (wanted.includes("Skill"))
+      activeTeam(db).forEach((m) =>
+        requiredSkills(db, m).forEach((r) => {
+          const key = skillKey(r.category, r.label);
+          if (!requirements.has(key))
+            requirements.set(key, { ...r, members: [] });
+          requirements.get(key).members.push(m);
+        }),
+      );
     requirements.forEach((r, key) => {
       const sourceId = "required-" + encodeURIComponent(key);
       const logs = (db.logs || []).filter(
@@ -346,7 +397,7 @@ const HubModel = (() => {
       }
       if (
         !matchedLogs.has(log) &&
-        TYPES.includes(type) &&
+        wanted.includes(type) &&
         clean(log["Event Name"])
       )
         result.push(
@@ -367,7 +418,14 @@ const HubModel = (() => {
           ),
         );
     });
-    return result.filter((event) => includeDeleted || !event.deleted);
+    const visible = result.filter((event) => includeDeleted || !event.deleted);
+    if (memo) memo.events.set(cacheKey, visible);
+    return visible;
+  }
+  function eventByKey(db, key, options = {}) {
+    return events(db, { ...options, types: [clean(key).split(":")[0]] }).find(
+      (event) => event.key === key,
+    );
   }
   function taskLinks(row) {
     try {
@@ -894,7 +952,7 @@ const HubModel = (() => {
     db.activity = db.activity || [];
     db.logs = db.logs || [];
     const find = () => {
-      const e = events(db).find((e) => e.key === payload.key);
+      const e = eventByKey(db, payload.key);
       assert(e, "Event not found. Refresh the page.");
       return e;
     };
@@ -1022,7 +1080,7 @@ const HubModel = (() => {
         submission && clean(payload.submissionId),
         "Submission not found. Refresh the page.",
       );
-      const e = events(db).find((e) => e.key === submission["Event ID"]);
+      const e = eventByKey(db, submission["Event ID"]);
       assert(
         e && REVIEW_TYPES.includes(e.type),
         "This record does not require review.",
@@ -1322,9 +1380,7 @@ const HubModel = (() => {
       details = { referenceId: row["Reference ID"] };
     } else if (action === "deleteEvent") {
       // Keep source rows, evidence and attempts in place, including after a partial write.
-      const e = events(db, { includeDeleted: true }).find(
-        (event) => event.key === payload.key,
-      );
+      const e = eventByKey(db, payload.key, { includeDeleted: true });
       assert(e, "Event not found. Refresh the page.");
       assert(
         ["Task", "Meet", "Learning"].includes(e.type),
@@ -1594,9 +1650,7 @@ const HubModel = (() => {
   }
   function failureActivity(db, email, action, payload, error, now) {
     if (!actor(db, email)) return null;
-    const event = payload.key
-      ? events(db).find((item) => item.key === payload.key)
-      : null;
+    const event = payload.key ? eventByKey(db, payload.key) : null;
     return {
       Timestamp: now,
       Email: norm(email),
@@ -1612,6 +1666,7 @@ const HubModel = (() => {
     };
   }
   return {
+    snapshot,
     TYPES,
     EVENT_FORM_FIELDS,
     EVENT_COLUMNS,
@@ -1648,6 +1703,7 @@ const HubModel = (() => {
     parseRatings,
     ratingCategory,
     events,
+    eventByKey,
     pendingReviews,
     taskLinks,
     references,

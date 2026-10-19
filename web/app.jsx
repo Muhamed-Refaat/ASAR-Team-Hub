@@ -1064,26 +1064,53 @@ function CardDescription({ text, title }) {
     </div>
   );
 }
-function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+function TelegramPreview({
+  eventKey,
+  db,
+  pendingEvent,
+  onLoad,
+  onQueue,
+  onClose,
+  busy,
+  error,
+}) {
+  const local = useMemo(() => {
+    try {
+      return { data: HubTelegram.clientPreview(M, db, eventKey) };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }, [db, eventKey]);
+  const signature = JSON.stringify([
+    local,
+    db.activeUserSession?.email,
+    db.telegram?.chatId,
+  ]);
+  const [verified, setVerified] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const current = verified?.signature === signature;
+  const result = current ? verified.data : local.data;
+  const verificationError =
+    loadError?.signature === signature ? loadError.message : "";
+  const loading = !current && !verificationError;
+  const admin = M.isAdmin(db, M.actor(db, db.activeUserSession?.email));
   useEffect(() => {
     let active = true;
+    if (pendingEvent) return;
+    setLoadError(null);
     onLoad(eventKey)
       .then((data) => {
-        if (active) setResult(data);
+        if (active) setVerified({ signature, data });
       })
       .catch((e) => {
-        if (active) setLoadError(e.message || String(e));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active)
+          setLoadError({ signature, message: e.message || String(e) });
       });
     return () => {
       active = false;
     };
-  }, [eventKey]);
+  }, [eventKey, signature, pendingEvent, attempt]);
   return (
     <Modal title="Preview Telegram announcement" onClose={onClose} busy={busy}>
       <div className="stack telegram-preview">
@@ -1091,9 +1118,25 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
           Nothing is posted until an admin confirms. Event saving is separate
           from Telegram delivery.
         </p>
-        {loading && <p role="status">Preparing your preview…</p>}
-        {(loadError || error) && (
-          <Notice kind="error">{loadError || error}</Notice>
+        {loading && (
+          <p role="status">
+            {pendingEvent
+              ? "This event is saving. Sending will be available after verification."
+              : "Checking the latest details and sending permission…"}
+          </p>
+        )}
+        {(local.error || verificationError || error) && (
+          <Notice kind="error">
+            {local.error || verificationError || error}
+          </Notice>
+        )}
+        {verificationError && (
+          <Button
+            className="small"
+            onClick={() => setAttempt((value) => value + 1)}
+          >
+            Retry verification
+          </Button>
         )}
         {result && (
           <>
@@ -1146,21 +1189,32 @@ function TelegramPreview({ eventKey, onLoad, onQueue, onClose, busy, error }) {
               <Button onClick={onClose} disabled={busy}>
                 Close preview
               </Button>
-              {result.canSend && (
-                <Button
-                  className="primary"
-                  icon="send"
-                  disabled={busy}
-                  onClick={() =>
-                    onQueue("queueTelegramNotification", {
-                      key: eventKey,
-                      receipt: result.receipt,
-                    })
-                  }
-                >
-                  {busy ? "Queueing…" : "Send to Telegram"}
-                </Button>
-              )}
+              {admin &&
+                !IS_LOCAL &&
+                (result.canSend ||
+                  (loading &&
+                    !["Queued", "Sending", "Retrying", "Sent"].includes(
+                      result.delivery?.status,
+                    ))) && (
+                  <Button
+                    className="primary"
+                    icon="send"
+                    disabled={
+                      busy || loading || pendingEvent || !result.receipt
+                    }
+                    onClick={() =>
+                      !loading &&
+                      !pendingEvent &&
+                      result.receipt &&
+                      onQueue("queueTelegramNotification", {
+                        key: eventKey,
+                        receipt: result.receipt,
+                      })
+                    }
+                  >
+                    {busy ? "Queueing…" : "Send to Telegram"}
+                  </Button>
+                )}
             </div>
             {result.canSend && (
               <small className="muted">
@@ -4603,13 +4657,18 @@ function App() {
       send: (action, payload) =>
         IS_LOCAL
           ? LocalHub.command(action, payload)
-          : rpc("executeHubCommand", action, payload),
+          : rpc("executeHubCommand", action, payload, { response: "patch" }),
       onData: (data) => {
         dbRef.current = data;
         if (actionsRef.current) actionsRef.current.accept(data);
         else setDb(data);
       },
       onChange: setJobs,
+      onReadChange: (active) => {
+        loadingRef.current = active;
+        setLoading(active);
+      },
+      onReadError: (error) => setError(error.message || String(error)),
       onNotice: (message, kind) => {
         if (kind === "error") notify(message);
       },
@@ -4623,7 +4682,7 @@ function App() {
       send: (action, payload) =>
         IS_LOCAL
           ? LocalHub.command(action, payload)
-          : rpc("executeHubCommand", action, payload),
+          : rpc("executeHubCommand", action, payload, { response: "patch" }),
       schedule: (task) => syncRef.current.run(task),
       accept: (data) => syncRef.current.accept(data),
       onView: setDb,
@@ -4638,21 +4697,13 @@ function App() {
     localStorage.setItem("azar_theme", theme);
   }, [theme]);
   const load = async (reset = false) => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
     setError("");
     try {
-      await syncRef.current.run(async () => {
-        syncRef.current.accept(
-          IS_LOCAL ? await LocalHub.load(reset) : await rpc("getTeamData"),
-        );
-      });
+      await syncRef.current.refresh(() =>
+        IS_LOCAL ? LocalHub.load(reset) : rpc("getTeamData"),
+      );
     } catch (e) {
       setError(e.message || String(e));
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
     }
   };
   useEffect(() => {
@@ -4784,20 +4835,18 @@ function App() {
     setError("");
     setModal({ kind: "telegram", key });
   };
-  const loadTelegram = (key) =>
-    syncRef.current.run(async () =>
-      IS_LOCAL
-        ? {
-            preview: HubTelegram.preview(M, dbRef.current, key, ""),
-            receipt: "",
-            canSend: false,
-            delivery: null,
-            chatTitle: "Team Telegram group",
-            reason:
-              "Local preview only. Connect the bot in Apps Script and use the deployed hub to send announcements.",
-          }
-        : rpc("getTelegramPreview", key),
-    );
+  const loadTelegram = async (key) =>
+    IS_LOCAL
+      ? {
+          preview: HubTelegram.preview(M, dbRef.current, key, ""),
+          receipt: "",
+          canSend: false,
+          delivery: null,
+          chatTitle: "Team Telegram group",
+          reason:
+            "Local preview only. Connect the bot in Apps Script and use the deployed hub to send announcements.",
+        }
+      : rpc("getTelegramPreview", key);
   const complete = (e) => {
     setError("");
     setModal({ kind: "complete", event: e });
@@ -5140,6 +5189,13 @@ function App() {
         <TelegramPreview
           key={modal.key}
           eventKey={modal.key}
+          db={db}
+          pendingEvent={myJobs.some(
+            (job) =>
+              ["queued", "saving"].includes(job.state) &&
+              (job.key === modal.key ||
+                ["saveHierarchy", "removeMember"].includes(job.action)),
+          )}
           onLoad={loadTelegram}
           onQueue={command}
           onClose={() => {

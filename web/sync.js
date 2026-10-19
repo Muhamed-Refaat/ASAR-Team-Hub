@@ -7,6 +7,8 @@ const HubSync = (() => {
     onData,
     onChange,
     onNotice,
+    onReadChange,
+    onReadError,
     storage,
     makeId,
     now = () => new Date().toISOString(),
@@ -14,6 +16,10 @@ const HubSync = (() => {
     let tail = Promise.resolve();
     let jobs = [];
     let restored = false;
+    let pendingWrites = 0;
+    let epoch = 0;
+    let readPromise = null;
+    let deferredRead = null;
     const storageKey = "asar_event_drafts_v1";
     const owner = () => model.norm(getData()?.activeUserSession?.email);
     const eventId = (job) => job.type.toLowerCase() + "-" + job.payload.newId;
@@ -43,9 +49,46 @@ const HubSync = (() => {
       onChange(jobs.map((job) => ({ ...job })));
     };
     const run = (task) => {
+      pendingWrites++;
+      epoch++;
       const result = tail.then(task);
       tail = result.catch(() => {});
+      const finish = () => {
+        pendingWrites--;
+        epoch++;
+        if (!pendingWrites && deferredRead && !readPromise)
+          refresh(deferredRead).catch((error) => onReadError?.(error));
+      };
+      result.then(finish, finish);
       return result;
+    };
+    // Reads never occupy the write queue. A read overlapping a write is discarded
+    // and refreshed after the queue drains, so it cannot rewind confirmed data.
+    const refresh = (read) => {
+      if (pendingWrites || readPromise) {
+        if (pendingWrites) deferredRead = read;
+        return readPromise || Promise.resolve({ deferred: true });
+      }
+      deferredRead = null;
+      const started = epoch;
+      onReadChange?.(true);
+      readPromise = Promise.resolve()
+        .then(read)
+        .then((data) => {
+          if (pendingWrites || started !== epoch) {
+            deferredRead = read;
+            return { deferred: true };
+          }
+          accept(data);
+          return { accepted: true };
+        })
+        .finally(() => {
+          readPromise = null;
+          onReadChange?.(false);
+          if (!pendingWrites && deferredRead)
+            refresh(deferredRead).catch((error) => onReadError?.(error));
+        });
+      return readPromise;
     };
     const saved = (job) => {
       if (job.state === "saved") return;
@@ -60,6 +103,19 @@ const HubSync = (() => {
       timer?.unref?.();
     };
     const accept = (data) => {
+      if (data?.mode === "patch") {
+        if (!getData() || model.norm(data.activeUserSession?.email) !== owner())
+          throw new Error(
+            "The account changed. Refresh before making more updates.",
+          );
+        data = {
+          ...getData(),
+          ...data.tables,
+          activeUserSession: data.activeUserSession,
+          ...(data.telegram ? { telegram: data.telegram } : {}),
+        };
+      }
+      model.snapshot(data);
       onData(data);
       if (!restored) restore();
       jobs.forEach((job) => {
@@ -75,9 +131,7 @@ const HubSync = (() => {
         job.payload,
         now(),
       );
-      job.event = model
-        .events(result.db)
-        .find((event) => event.type === job.type && event.id === eventId(job));
+      job.event = model.eventByKey(result.db, `${job.type}:${eventId(job)}`);
     };
     const dispatch = (job) =>
       run(async () => {
@@ -210,7 +264,7 @@ const HubSync = (() => {
       );
       emit();
     };
-    return { run, accept, enqueue, retry, dismiss, restore };
+    return { run, refresh, accept, enqueue, retry, dismiss, restore };
   }
   return { create };
 })();

@@ -85,12 +85,77 @@ function readHubSheet_(ss, name, snapshots) {
     });
 }
 
-function hubData_(ss, snapshots) {
+function hubData_(ss, snapshots, keys = Object.keys(HUB_SHEETS_)) {
   const db = {};
-  Object.keys(HUB_SHEETS_).forEach(
+  keys.forEach(
     (key) => (db[key] = readHubSheet_(ss, HUB_SHEETS_[key], snapshots)),
   );
-  db.team = db.team.filter((m) => String(m.Name || "").trim());
+  db.team = (db.team || []).filter((m) => String(m.Name || "").trim());
+  return db;
+}
+
+function hubCommandData_(ss, action, payload, snapshots) {
+  const keys = new Set(["team", "admins", "activity"]);
+  let type =
+    action === "saveTask"
+      ? "Task"
+      : payload.key
+        ? String(payload.key).split(":")[0]
+        : payload.type;
+  let completions;
+  if (action === "reviewSubmission") {
+    completions = readHubSheet_(ss, "Completion", snapshots);
+    const submission = completions.find(
+      (row) => row["Submission ID"] === payload.submissionId,
+    );
+    type =
+      String(submission?.["Event ID"] || "").split(":")[0] ||
+      submission?.["Event Type"];
+  }
+  const eventActions = [
+    "saveEvent",
+    "saveTask",
+    "archiveEvent",
+    "deleteEvent",
+    "moveTask",
+    "addTaskLink",
+    "removeTaskLink",
+    "completeEvent",
+    "updateSkillCompletion",
+    "revertCompletion",
+    "reviewSubmission",
+    "queueTelegramNotification",
+  ];
+  if (eventActions.includes(action)) {
+    const table = HubModel.TABLES[type];
+    if (table) keys.add(table);
+    keys.add("logs");
+    if (
+      [
+        "completeEvent",
+        "updateSkillCompletion",
+        "revertCompletion",
+        "reviewSubmission",
+      ].includes(action)
+    )
+      keys.add("completions");
+    if (type === "Skill")
+      ["skills", "skillRequirements", "skillEvents"].forEach((key) =>
+        keys.add(key),
+      );
+  }
+  if (["saveHierarchy", "removeMember"].includes(action))
+    ["subteams", "memberships"].forEach((key) => keys.add(key));
+  if (action === "saveSkillRequirements")
+    ["skills", "skillRequirements"].forEach((key) => keys.add(key));
+  if (["addReference", "deleteReference"].includes(action))
+    keys.add("references");
+  const db = hubData_(
+    ss,
+    snapshots,
+    [...keys].filter((key) => key !== "completions" || !completions),
+  );
+  if (completions) db.completions = completions;
   return db;
 }
 
@@ -111,17 +176,22 @@ function hubSession_(db) {
 function getTeamData() {
   const db = hubData_(hubSpreadsheet_());
   db.activeUserSession = hubSession_(db);
+  db.telegram = hubTelegramPublic_();
   return db;
 }
 
-function executeHubCommand(action, payload) {
+function executeHubCommand(action, payload, options) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   let auditContext = null;
   try {
     const ss = hubSpreadsheet_();
     const snapshots = {};
-    const before = hubData_(ss, snapshots);
+    const patch = options?.response === "patch";
+    const before = patch
+      ? hubCommandData_(ss, action, payload || {}, snapshots)
+      : hubData_(ss, snapshots);
+    const loadedKeys = Object.keys(before);
     const session = hubSession_(before);
     const now = Utilities.formatDate(
       new Date(),
@@ -155,7 +225,7 @@ function executeHubCommand(action, payload) {
         submission["Evidence URL"] = evidenceFile.getUrl();
       }
       try {
-        Object.keys(HUB_SHEETS_)
+        loadedKeys
           .filter(
             (key) =>
               key !== "skills" &&
@@ -206,6 +276,20 @@ function executeHubCommand(action, payload) {
     // Avoid reading the entire workbook a second time for every small update.
     const db = result.db;
     db.activeUserSession = hubSession_(db);
+    if (patch)
+      return {
+        success: true,
+        unchanged: result.unchanged,
+        data: {
+          mode: "patch",
+          tables: Object.fromEntries(
+            loadedKeys.map((key) => [key, db[key] || []]),
+          ),
+          activeUserSession: db.activeUserSession,
+          telegram: hubTelegramPublic_(),
+        },
+      };
+    db.telegram = hubTelegramPublic_();
     return { success: true, data: db, unchanged: result.unchanged };
   } catch (error) {
     if (auditContext) {
@@ -374,8 +458,17 @@ function hubTelegramReady_(config) {
   );
 }
 
+function hubTelegramPublic_(config = hubTelegramConfig_()) {
+  return {
+    chatId: config.chatId,
+    chatTitle: config.title,
+    url: config.url,
+    ready: hubTelegramReady_(config),
+  };
+}
+
 function hubTelegramAdmin_() {
-  const db = hubData_(hubSpreadsheet_());
+  const db = hubData_(hubSpreadsheet_(), null, ["team", "admins"]);
   const session = hubSession_(db);
   if (!session.isAdmin)
     throw new Error(
@@ -394,8 +487,20 @@ function hubTelegramDigest_(preview) {
   );
 }
 
+function hubTelegramReceiptKey_(key) {
+  return "ASAR_TELEGRAM_PREVIEW_" + hubTelegramDigest_(String(key));
+}
+
 function getTelegramPreview(key) {
-  const db = hubData_(hubSpreadsheet_());
+  const table = HubModel.TABLES[String(key || "").split(":")[0]];
+  const keys = [
+    "team",
+    "admins",
+    "activity",
+    "logs",
+    ...(table ? [table] : []),
+  ];
+  const db = hubData_(hubSpreadsheet_(), null, keys);
   const session = hubSession_(db);
   if (!session.memberId)
     throw new Error("Sign in with your team account to preview notifications.");
@@ -415,17 +520,41 @@ function getTelegramPreview(key) {
   const canSend = session.isAdmin && hubTelegramReady_(config) && !waiting;
   let receipt = "";
   if (canSend) {
-    receipt = Utilities.getUuid();
-    PropertiesService.getUserProperties().setProperty(
-      "ASAR_TELEGRAM_PREVIEW",
-      JSON.stringify({
-        receipt,
-        key,
-        digest: hubTelegramDigest_(preview),
-        chatId: config.chatId,
-        expiresAt: Date.now() + 10 * 60 * 1000,
-      }),
-    );
+    const properties = PropertiesService.getUserProperties();
+    const property = hubTelegramReceiptKey_(key);
+    const digest = hubTelegramDigest_(preview);
+    let existing;
+    try {
+      existing = JSON.parse(properties.getProperty(property) || "null");
+    } catch (_) {}
+    if (
+      existing?.digest === digest &&
+      existing.chatId === config.chatId &&
+      existing.expiresAt > Date.now() + 30000
+    )
+      receipt = existing.receipt;
+    else {
+      receipt = Utilities.getUuid();
+      properties.setProperty(
+        property,
+        JSON.stringify({
+          receipt,
+          key,
+          digest,
+          chatId: config.chatId,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+        }),
+      );
+    }
+    // Independent event keys prevent overlapping preview requests from invalidating
+    // each other. Remove expired records without touching other user properties.
+    Object.entries(properties.getProperties()).forEach(([name, value]) => {
+      if (!name.startsWith("ASAR_TELEGRAM_PREVIEW_")) return;
+      try {
+        if (JSON.parse(value).expiresAt < Date.now())
+          properties.deleteProperty(name);
+      } catch (_) {}
+    });
   }
   return {
     preview,
@@ -465,8 +594,12 @@ function hubQueueTelegram_(db, session, payload, now) {
   try {
     receipt = JSON.parse(
       PropertiesService.getUserProperties().getProperty(
-        "ASAR_TELEGRAM_PREVIEW",
-      ) || "null",
+        hubTelegramReceiptKey_(payload.key),
+      ) ||
+        PropertiesService.getUserProperties().getProperty(
+          "ASAR_TELEGRAM_PREVIEW",
+        ) ||
+        "null",
     );
   } catch (_) {}
   if (

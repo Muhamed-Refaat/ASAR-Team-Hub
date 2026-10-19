@@ -166,3 +166,95 @@ test("invalid drafts never send and duplicate submit events enqueue a single ope
   await tick();
   assert.equal(h.data().tasks.length, 1);
 });
+
+test("a slow refresh never blocks writes or rewinds their confirmed result", async () => {
+  const h = harness();
+  const stale = structuredClone(h.data());
+  let resolveRead,
+    reads = 0;
+  const read = () => {
+    reads++;
+    return reads === 1
+      ? new Promise((resolve) => {
+          resolveRead = resolve;
+        })
+      : Promise.resolve(h.data());
+  };
+  const reading = h.queue.refresh(read);
+  assert.equal(h.queue.refresh(read), reading, "Refreshes coalesce");
+  await tick();
+  h.queue.enqueue("saveTask", payload("Task"));
+  await tick();
+  assert.equal(
+    h.requests.length,
+    1,
+    "Write starts while refresh is unresolved",
+  );
+  h.succeed();
+  await tick();
+  assert.equal(h.data().tasks.length, 1);
+  resolveRead(stale);
+  assert.deepEqual(await reading, { deferred: true });
+  await tick();
+  assert.equal(reads, 2, "An overlapping read is retried after writes finish");
+  assert.equal(h.data().tasks.length, 1, "Stale data was never accepted");
+});
+
+test("refresh requested during saving waits for the write queue to drain", async () => {
+  const h = harness();
+  h.queue.enqueue("saveTask", payload("Task"));
+  h.queue.enqueue("saveEvent", payload("Meet"));
+  let reads = 0;
+  const read = () => {
+    reads++;
+    return Promise.resolve(h.data());
+  };
+  assert.deepEqual(await h.queue.refresh(read), { deferred: true });
+  assert.equal(reads, 0);
+  await tick();
+  h.succeed();
+  await tick();
+  assert.equal(reads, 0);
+  h.succeed();
+  await tick();
+  assert.equal(reads, 1);
+  assert.equal(M.events(h.data()).length, 2);
+});
+
+test("failed independent reads release their state and allow a clean retry", async () => {
+  const h = harness();
+  await assert.rejects(
+    h.queue.refresh(() => Promise.reject(new Error("Offline"))),
+    /Offline/,
+  );
+  assert.deepEqual(await h.queue.refresh(() => Promise.resolve(h.data())), {
+    accepted: true,
+  });
+});
+
+test("table patches preserve unrelated snapshots and reject a different account", () => {
+  const h = harness();
+  const original = h.data();
+  const tasks = [{ "Task Title": "Updated", "Event ID": "task-patch" }];
+  h.queue.accept({
+    mode: "patch",
+    tables: { tasks },
+    activeUserSession: original.activeUserSession,
+    telegram: { chatTitle: "ASAR", chatId: "-1004488318175" },
+  });
+  assert.equal(h.data().tasks, tasks);
+  assert.equal(h.data().team, original.team);
+  assert.equal(h.data().learning, original.learning);
+  assert.equal(h.data().telegram.chatTitle, "ASAR");
+  const accepted = h.data();
+  assert.throws(
+    () =>
+      h.queue.accept({
+        mode: "patch",
+        tables: { tasks: [] },
+        activeUserSession: { email: "someone@example.com" },
+      }),
+    /account changed/,
+  );
+  assert.equal(h.data(), accepted);
+});

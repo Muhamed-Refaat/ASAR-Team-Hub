@@ -102,7 +102,7 @@ const HubTelegram = (() => {
   }
   function preview(model, db, key, hubUrl) {
     const creation = creations(db).get(key);
-    const event = model.events(db).find((item) => item.key === key);
+    const event = model.eventByKey(db, key);
     if (
       !event ||
       !types.includes(event.type) ||
@@ -205,7 +205,40 @@ const HubTelegram = (() => {
       url: /^https:\/\//i.test(url(hubUrl)) ? url(hubUrl) : "",
     };
   }
-  return { details, creations, deliveries, preview, entities, fragments };
+  function clientPreview(model, db, key) {
+    const meta = db.telegram || {};
+    let message = preview(model, db, key, meta.url || "");
+    const delivery = meta.chatId
+      ? deliveries(db, meta.chatId).get(key) || null
+      : null;
+    if (
+      delivery &&
+      ["Queued", "Sending", "Retrying", "Sent"].includes(delivery.status)
+    )
+      message = {
+        ...message,
+        text: delivery.text,
+        entities: delivery.entities || [],
+        url: delivery.url,
+      };
+    return {
+      preview: message,
+      delivery,
+      receipt: "",
+      canSend: false,
+      chatTitle: meta.chatTitle || "Checking destination…",
+      reason: "Checking current details and sending permission…",
+    };
+  }
+  return {
+    details,
+    creations,
+    deliveries,
+    preview,
+    clientPreview,
+    entities,
+    fragments,
+  };
 })();
 if (typeof module !== "undefined" && module.exports)
   module.exports = HubTelegram;
