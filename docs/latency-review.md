@@ -1,0 +1,33 @@
+# Runtime latency review
+
+Release source: `8ba5f31`. Existing Apps Script deployment updated to **version 5** on 2026-10-19. Execution remains **User accessing the web app**, with access restricted to Google accounts. The live spreadsheet was preserved.
+
+## Reviewed paths
+
+| Area | Finding and resulting behavior | Evidence |
+| --- | --- | --- |
+| `web/app.jsx`, `web/actions.js` | Existing event updates, submissions, reviews, undo, task links, references and management actions render their validated optimistic state immediately. Writes run in the background; newer forms and task choices survive older replies. Repeated projections reuse the same immutable result. | Action tests and browser workflows hold server requests unresolved, then exercise success, failures, rollback and retry. |
+| `web/sync.js` | Refreshes formerly shared the serial write queue. They now run independently and coalesce. A snapshot overlapping writes is discarded and refreshed after the queue drains, preventing a stale read from undoing saved changes. | Unit tests prove dispatch during a held read, deferred reads during multiple writes, stale-response rejection, recovery and account checks. The browser verifies the same sequence. |
+| `web/model.js` | Repeated event construction and identity scans were a measurable source of main-thread work. Immutable UI snapshots cache identities, active members, required skills and event lists. Commands resolve only the required event type. Authoritative transitions use fresh uncached copies. | Cache parity tests cover ambiguity, inactive identities, deleted and legacy events, type-specific lookups and mutation after a cached view. Existing completion, skill, hierarchy and CV tests remain passing. |
+| `web/backend.gs` | Each small mutation formerly loaded the full workbook. New clients request table patches: the backend reads fresh command dependencies and returns those tables. Older clients retain full responses. Writes remain serialized, authenticated, idempotent and preserve sparse columns and unrelated cells. | Differential tests compare persisted full/patch results through tasks, evidence links, courses, meetings, submissions, reviews, undo, skills, hierarchy, removals and references. Read-count tests prove unrelated course/catalogue tables are skipped for task moves. |
+| `web/telegram.js`, preview UI | Opening a preview formerly waited behind unrelated saves. Its formatted content now appears from the local snapshot immediately, with independent server verification. Sending stays disabled until current content, destination and permission are verified. Late results from closed dialogs cannot verify newer dialogs. | Delayed-RPC browser workflow keeps a refresh, write and preview unresolved concurrently, checks visible content and disabled Send, closes/reopens and verifies old-result isolation. No message is posted by this check. |
+| Telegram server receipts and worker | Independent event previews have personal per-event receipts. Unchanged valid receipts are reused and expired receipts are pruned. Queueing still checks exact content, destination, identity and expiry; worker delivery stays separate from saves. | Telegram tests cover preview reuse, independent event receipts, exact delivery, expiry, edits, permissions, destination changes, deduplication and retries. |
+| `web/local.js` | CSV reads already use asynchronous fetches in parallel. Local commands follow the same transition and queue rules. | Local browser workflows, embedded fallback and workbook parity audit. |
+| `web/cv.js`, evidence file handling | File reading uses asynchronous FileReader callbacks; Word packing returns a promise. Exports use confirmed data. File bytes are validated before backend storage. | Real Word/PDF exports, optional-file submissions, file validation, storage and failure recovery tests. |
+| `web/theme.css`, `web/shell.html`, build/data tools | Shared responsive styling, pinned runtime libraries and source generation remain synchronized. No synchronous network request was found in interactive application handlers. | Responsive/theme/contrast browser coverage and generated-source/data audit. |
+| `forms/TeamApplications.gs` | This separate form-submit trigger does background spreadsheet work; it is not part of an interactive page action. | Form identity, preservation and permission tests. |
+| Legacy utilities | `learning_section.js`, `inject_error_boundary.py`, workbook inspection and styling scripts are not loaded by the generated application. | The shared shell and generator define the shipped runtime; generated-interface audit verifies their parity. |
+
+## Measurements and verification
+
+A Node microbenchmark using the repository's recorded 26-member, 61-event snapshot measured the repeated overview calculation at **213.23 ms before caching** and **0.06 ms with a warmed immutable snapshot cache**. Ten calls were averaged; these figures measure derived calculations, not network time, first load or end-to-end hosted rendering.
+
+Validation includes 87 unit tests, 30 browser workflows and 8 data/workbook/CV audits. Browser checks include all event tabs, admin/member permissions, optimistic completion and review, task drag/drop, retry/rollback, responsive themes, contrast, hierarchy and actual document exports. Test reports, screenshots, source upload hashes and deployment confirmation are retained in ignored `test-results/`.
+
+## Production Telegram and deployment
+
+The authorized destination is **ASAR**, Bot API chat ID `-1004488318175`. Read-only `getMe`, `getChat` and `getChatMember` checks verified **ASAR_Hub_bot** is a member of the supergroup and notifications are enabled. Credentials remain in Script Properties. No production test announcement was sent during this review.
+
+Both uploaded source files were copied back from the editor and matched the generated repository files exactly. Apps Script confirmed deployment version 5, preserving the existing URL and execution/access settings. Authenticated hosted smoke verification is pending sign-in in the dedicated private Chrome window; the normal browser session encounters Google's multiple-account routing error.
+
+UI feedback is immediate; durable confirmation still depends on Google Sheets/Drive latency, authorization and connectivity. Failed or unconfirmed saves retain recovery controls. Telegram delivery continues through its background worker and requires explicit admin confirmation.
